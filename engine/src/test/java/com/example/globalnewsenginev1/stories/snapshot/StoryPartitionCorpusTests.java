@@ -25,7 +25,7 @@ class StoryPartitionCorpusTests {
     @EnabledIfSystemProperty(named = "art037.inputs", matches = ".+")
     void evaluatesActualPartitionSeparatelyForEachFrozenCorpusSplit() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-        byte[] corpusBytes = Files.readAllBytes(Path.of("docs/analysis/ART-032-corpus.json"));
+        byte[] corpusBytes = Files.readAllBytes(Path.of("../docs/analysis/ART-032-corpus.json"));
         byte[] fixtureBytes = Files.readAllBytes(Path.of(System.getProperty("art037.inputs")));
         JsonNode corpus = mapper.readTree(corpusBytes);
         JsonNode fixture = mapper.readTree(fixtureBytes);

@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "33af713d-e32f-4a3d-939e-5bb0bb90d003",
-    "name": "Global News Engine API",
+    "name": "Sentinel-GEM Engine API",
     "description": "Manuelle Vertrags- und Statuscode-Tests fuer die Article API und die lesende Story API.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

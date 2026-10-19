@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class StoryReleaseEvaluationTests {
     @Test
     void exclusionManifestCoversTheEntireCalibrationCorpus() throws Exception {
-        var corpus = new ObjectMapper().readTree(Path.of("docs/analysis/ART-032-corpus.json").toFile());
+        var corpus = new ObjectMapper().readTree(Path.of("../docs/analysis/ART-032-corpus.json").toFile());
         var expected = new HashSet<String>();
         corpus.get("articles").forEach(article -> {
             expected.add(article.get("urlHash").asText());
@@ -28,7 +28,7 @@ class StoryReleaseEvaluationTests {
 
     @Test
     void rejectsCalibrationLeaksDuplicatesAndMissingProvenanceAndFailsSmallSamples() throws Exception {
-        var first = new ObjectMapper().readTree(Path.of("docs/analysis/ART-032-corpus.json").toFile()).get("articles").get(0);
+        var first = new ObjectMapper().readTree(Path.of("../docs/analysis/ART-032-corpus.json").toFile()).get("articles").get(0);
         String ref = first.get("urlHash").asText();
         String second = "f".repeat(64);
         var pair = new StoryReleaseEvaluation.Pair(ref, second, true, "reason");

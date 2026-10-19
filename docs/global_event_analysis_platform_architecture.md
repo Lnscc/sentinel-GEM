@@ -1,6 +1,6 @@
-# Global News Engine - Projektuebersicht
+# Sentinel-GEM Engine - Projektuebersicht
 
-Global News Engine ist ein Spring-Boot-Dienst, der GDELT-2.0-Daten importiert und daraus
+Sentinel-GEM Engine ist ein Spring-Boot-Dienst, der GDELT-2.0-Daten importiert und daraus
 abfragbare Artikel sowie versionierte, reproduzierbare Stories erzeugt.
 
 ```text
@@ -132,7 +132,7 @@ Anwendung weiter; Embedding-Artefakte bleiben `PENDING`.
 ## Konfiguration und Betrieb
 
 Die Defaults stehen in
-[`application.properties`](../src/main/resources/application.properties). Die Praefixe
+[`application.properties`](../engine/src/main/resources/application.properties). Die Praefixe
 `gdelt.ingestion.*`, `gdelt.staging.*`, `gdelt.retention.*`, `articles.*`,
 `stories.embeddings.*` und `stories.snapshots.*` steuern die jeweiligen Jobs.
 
@@ -144,6 +144,7 @@ Snapshot-Backfill ist standardmaessig deaktiviert; Payload-Retention betraegt si
 
 ```powershell
 docker compose up -d
+cd engine
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -156,13 +157,14 @@ Zugangsdaten separat konfiguriert werden.
 ## Entwicklung und Verifikation
 
 Voraussetzungen sind JDK 21 und fuer PostgreSQL-Tests Docker Compose. Maven wird ueber den
-Wrapper bereitgestellt; unter Linux/macOS ersetzt `./mvnw` den Windows-Aufruf.
+Wrapper im Verzeichnis `engine` bereitgestellt; unter Linux/macOS ersetzt `./mvnw` den Windows-Aufruf.
 
-`.\mvnw.cmd test` fuehrt die Unit- und H2-Tests aus. Die vollstaendige Maven-Verifikation
+`cd engine` und `.\mvnw.cmd test` fuehren die Unit- und H2-Tests aus. Die vollstaendige Maven-Verifikation
 schliesst ueber Failsafe die PostgreSQL-Tests mit Namen `*IT.java` ein:
 
 ```powershell
 docker compose up -d
+cd engine
 .\mvnw.cmd verify
 ```
 
@@ -177,14 +179,14 @@ Failsafe-Verifikation. Eine produktive Deployment- oder Infrastrukturdefinition 
 
 Wichtige Einstiegspunkte:
 
-- [`pom.xml`](../pom.xml) - Abhaengigkeiten, Packaging und Testphasen
-- [`gdelt`](../src/main/java/com/example/globalnewsenginev1/gdelt) - Import-Pipeline
-- [`articles`](../src/main/java/com/example/globalnewsenginev1/articles) - Extraktion und API
-- [`stories`](../src/main/java/com/example/globalnewsenginev1/stories) - Embeddings, Partition,
+- [`pom.xml`](../engine/pom.xml) - Abhaengigkeiten, Packaging und Testphasen
+- [`gdelt`](../engine/src/main/java/com/example/globalnewsenginev1/gdelt) - Import-Pipeline
+- [`articles`](../engine/src/main/java/com/example/globalnewsenginev1/articles) - Extraktion und API
+- [`stories`](../engine/src/main/java/com/example/globalnewsenginev1/stories) - Embeddings, Partition,
   Publish, Promotion und Story API
-- [`SQL-Migrationen`](../src/main/resources/db/migration) und
-  [`Java-Migrationen`](../src/main/java/db/migration) - persistiertes Modell und Invarianten
-- [`Tests`](../src/test/java) - Parser, API, Migrationen und Story-Verarbeitung
+- [`SQL-Migrationen`](../engine/src/main/resources/db/migration) und
+  [`Java-Migrationen`](../engine/src/main/java/db/migration) - persistiertes Modell und Invarianten
+- [`Tests`](../engine/src/test/java) - Parser, API, Migrationen und Story-Verarbeitung
 
 ## Leitplanken
 

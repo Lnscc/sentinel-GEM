@@ -4,6 +4,7 @@
 
 ```powershell
 docker compose up -d
+cd engine
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -51,6 +52,7 @@ Frist muessen deshalb Backup- und Reimport-Anforderungen betrieblich geprueft we
 
 ```powershell
 docker compose up -d
+cd engine
 .\mvnw.cmd verify
 ```
 
@@ -270,15 +272,15 @@ Runs werden wiederverwendet. `OPENAI_API_KEY` muss gesetzt sein, falls noch Embe
 Review ohne Statuswechsel:
 
 ```powershell
-.\mvnw.cmd spring-boot:run '-Dspring-boot.run.arguments=--spring.main.web-application-type=none --gdelt.ingestion.enabled=false --gdelt.staging.enabled=false --gdelt.retention.enabled=false --articles.enabled=false --stories.embeddings.incremental.enabled=false --stories.embeddings.repair.enabled=false --stories.snapshots.incremental.enabled=false --stories.snapshots.backfill.enabled=false --stories.release.candidate-version=story-mvp-title-embedding-24h-v1.1.0 --stories.release.holdout=docs/analysis/ART-048-holdout-v1.json --stories.release.reviewed-by=Linus --stories.release.review-document=docs/analysis/ART-048-holdout-review.md --stories.release.review-reason=Unveraenderter-Kandidat-fachlich-geprueft'
+.\mvnw.cmd spring-boot:run '-Dspring-boot.run.arguments=--spring.main.web-application-type=none --gdelt.ingestion.enabled=false --gdelt.staging.enabled=false --gdelt.retention.enabled=false --articles.enabled=false --stories.embeddings.incremental.enabled=false --stories.embeddings.repair.enabled=false --stories.snapshots.incremental.enabled=false --stories.snapshots.backfill.enabled=false --stories.release.candidate-version=story-mvp-title-embedding-24h-v1.1.0 --stories.release.holdout=../docs/analysis/ART-048-holdout-v1.json --stories.release.reviewed-by=Linus --stories.release.review-document=../docs/analysis/ART-048-holdout-review.md --stories.release.review-reason=Unveraenderter-Kandidat-fachlich-geprueft'
 ```
 
 Die deaktivierten Hintergrundjobs halten den Datenstand waehrend des Release-Laufs stabil.
 Metadatenwerte in `spring-boot.run.arguments` werden ohne Leerzeichen uebergeben.
 
-Standardmaessig wird `docs/analysis/ART-045-regression-cases-v1.json` getrennt vom unabhaengigen
+Standardmaessig wird `../docs/analysis/ART-045-regression-cases-v1.json` getrennt vom unabhaengigen
 Holdout ausgewertet. Das reproduzierbare Ergebnis landet in
-`docs/analysis/<candidate>-release-evidence.json`; beide Pfade koennen mit
+`../docs/analysis/<candidate>-release-evidence.json`; beide Pfade koennen mit
 `--stories.release.regression` und `--stories.release.evidence` ueberschrieben werden. Jede
 Fortschrittsmeldung ist eine JSON-Logzeile mit `storyReleaseStep` und `elapsedMillis`. Ein Abbruch
 nennt den Blocker; derselbe Befehl kann nach dessen Behebung erneut gestartet werden.
@@ -329,7 +331,7 @@ Die feste Gate-Version `story-release-gates-v1` verlangt mindestens 20 positive 
 Paare, Pairwise Precision >= 0,95 und Recall >= 0,90. Das sind konservative initiale
 Freigabegrenzen, keine anhand eines neuen Holdouts optimierten Werte. Aenderungen erfordern
 eine neue Gate-Version und einen weiteren unabhaengigen Holdout. URL- und Titel-Hashes aus
-ART-032 werden durch `src/main/resources/stories/art032-excluded-hashes.txt` ausgeschlossen;
+ART-032 werden durch `engine/src/main/resources/stories/art032-excluded-hashes.txt` ausgeschlossen;
 ein Test gleicht dieses Manifest mit dem gesamten Korpus ab. Die Metriken werden aus den
 veroeffentlichten Mitgliedschaften berechnet, nicht als fertige Erfolgswerte entgegengenommen.
 

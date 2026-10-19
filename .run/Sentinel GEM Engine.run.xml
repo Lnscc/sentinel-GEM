@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Global News Engine" type="Application" factoryName="Application">
+  <configuration default="false" name="Sentinel GEM Engine" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="com.example.globalnewsenginev1.GlobalNewsEngineV1Application" />
-    <module name="global-news-engine-v1" />
+    <module name="sentinel-gem-engine" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

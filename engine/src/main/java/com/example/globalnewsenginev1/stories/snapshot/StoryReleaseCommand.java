@@ -31,9 +31,9 @@ class StoryReleaseCommand implements ApplicationRunner {
             String candidate = required("stories.release.candidate-version");
             Path holdoutFile = Path.of(required("stories.release.holdout"));
             Path regressionFile = Path.of(environment.getProperty("stories.release.regression",
-                    "docs/analysis/ART-045-regression-cases-v1.json"));
+                    "../docs/analysis/ART-045-regression-cases-v1.json"));
             Path evidenceFile = Path.of(environment.getProperty("stories.release.evidence",
-                    "docs/analysis/" + candidate + "-release-evidence.json"));
+                    "../docs/analysis/" + candidate + "-release-evidence.json"));
             boolean promote = environment.getProperty("stories.release.promote", Boolean.class, false);
             StoryPromotionService.Approval approval = approval();
             workflow.run(new StoryReleaseWorkflow.Request(candidate,

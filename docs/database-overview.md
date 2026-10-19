@@ -227,8 +227,8 @@ nicht weiterverarbeitet. Nur die `ACTIVE`-Version ist ueber `GET /stories` und
 `GET /stories/{id}` sichtbar. Erfolgreich verarbeitete Payloads duerfen nach Ablauf der Retention
 verschwinden; Fachzeilen und Fehlerhistorie bleiben erhalten.
 
-Quellen: [SQL-Migrationen](../src/main/resources/db/migration),
-[Java-Migrationen](../src/main/java/db/migration),
-[Story-Verarbeitung](../src/main/java/com/example/globalnewsenginev1/stories),
+Quellen: [SQL-Migrationen](../engine/src/main/resources/db/migration),
+[Java-Migrationen](../engine/src/main/java/db/migration),
+[Story-Verarbeitung](../engine/src/main/java/com/example/globalnewsenginev1/stories),
 [Story-Vertrag](story-processing-contract.md) und
 [`Postman-Collection`](postman/Article-API.postman_collection.json).

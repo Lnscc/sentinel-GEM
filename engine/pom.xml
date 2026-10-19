@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.example</groupId>
-    <artifactId>global-news-engine-v1</artifactId>
+    <artifactId>sentinel-gem-engine</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>global-news-engine-v1</name>
-    <description>global-news-engine-v1</description>
+    <name>Sentinel GEM Engine</name>
+    <description>Backend engine for Sentinel-GEM</description>
     <url/>
     <licenses>
         <license/>

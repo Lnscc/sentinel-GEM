@@ -16,7 +16,7 @@ class StoryInputEligibilityRuleTests {
     @Test
     void matchesTheArt045InputQualityCases() throws Exception {
         JsonNode corpus = new ObjectMapper().readTree(Path.of(
-                "docs/analysis/ART-045-regression-cases-v1.json").toFile());
+                "../docs/analysis/ART-045-regression-cases-v1.json").toFile());
         Map<String, JsonNode> articles = new HashMap<>();
         corpus.path("articles").forEach(article ->
                 articles.put(article.path("ref").asText(), article));

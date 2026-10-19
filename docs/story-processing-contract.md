@@ -473,9 +473,11 @@ Vom Repository-Verzeichnis aus:
 
 ```powershell
 python scripts/prepare_art037_evaluation.py
-.\mvnw.cmd test "-Dtest=StoryPartitionCorpusTests" "-Dart037.inputs=target/art037-inputs.json"
-python scripts/art032_evaluation.py docs/analysis/ART-032-corpus.json --predictions target/art037-calibration-predictions.json --split calibration
-python scripts/art032_evaluation.py docs/analysis/ART-032-corpus.json --predictions target/art037-evaluation-predictions.json --split evaluation
+Push-Location engine
+.\mvnw.cmd test "-Dtest=StoryPartitionCorpusTests" "-Dart037.inputs=../target/art037-inputs.json"
+Pop-Location
+python scripts/art032_evaluation.py docs/analysis/ART-032-corpus.json --predictions engine/target/art037-calibration-predictions.json --split calibration
+python scripts/art032_evaluation.py docs/analysis/ART-032-corpus.json --predictions engine/target/art037-evaluation-predictions.json --split evaluation
 ```
 
 Der Export prueft Korpus, Modell, Titel-Hashes und Vektoren. Artikel und Referenz-Stories
