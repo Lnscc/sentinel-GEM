@@ -1,4 +1,6 @@
 target/
+monitor/node_modules/
+monitor/dist/
 engine/.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

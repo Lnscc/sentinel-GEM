@@ -9,7 +9,7 @@ monitor -> engine -> PostgreSQL
 ## Components
 
 - [`engine`](engine) — Java and Spring Boot backend
-- [`monitor`](monitor) — React frontend (not initialized yet)
+- [`monitor`](monitor) — React frontend for the story overview
 - [`docs`](docs) — architecture, operations, and technical analysis
 - [`compose.yaml`](compose.yaml) — shared local infrastructure
 
@@ -40,3 +40,15 @@ cd engine
 ```
 
 See the [engine README](engine/README.md) for backend details.
+
+## Run the monitor locally
+
+With the engine running:
+
+```powershell
+cd monitor
+npm install
+npm run dev
+```
+
+See the [monitor README](monitor/README.md) for build and configuration details.
