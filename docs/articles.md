@@ -224,13 +224,12 @@ Das fruehere Crawler-Zielmodell mit der Tabelle `article_enrichments` wurde nach
 GKG-Rohdaten verworfen. Migration V5 dokumentiert die historische Einfuehrung; Migration V6
 entfernt die Tabelle wieder. Es gibt derzeit weder Enrichment-Queue noch Crawl-Statusmodell.
 
-ART-011 erschliesst stattdessen zuerst die bereits importierten GKG-Seitenmetadaten und ordnet sie
-direkt dem Artikelmodell zu. Ein externer Crawler wird erst bei einem konkret nachgewiesenen Bedarf
+Die bereits importierten GKG-Seitenmetadaten werden stattdessen direkt dem Artikelmodell
+zugeordnet. Ein externer Crawler wird erst bei einem konkret nachgewiesenen Bedarf
 fuer Volltext, Hauptbild, Sprache oder Qualitaetsvalidierung neu entworfen. Dabei wird kein altes
 Schema vorsorglich beibehalten.
 
-Weitere geplante Arbeiten liegen unter `docs/tickets`, zum Beispiel
-`ART-001-signal-details-typisieren.md`.
+Weitere geplante Arbeiten werden im Linear-Team `Sentinel GEM` gepflegt.
 
 ## Naechster Implementierungsschritt
 

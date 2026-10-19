@@ -10,8 +10,10 @@ monitor -> engine -> PostgreSQL
 
 - [`engine`](engine) — Java and Spring Boot backend
 - [`monitor`](monitor) — React frontend (not initialized yet)
-- [`docs`](docs) — architecture, operations, analysis, and local tickets
+- [`docs`](docs) — architecture, operations, and technical analysis
 - [`compose.yaml`](compose.yaml) — shared local infrastructure
+
+Work is tracked in the [Sentinel GEM team on Linear](https://linear.app/sentinel-gem/team/GEM).
 
 ## Run the engine locally
 

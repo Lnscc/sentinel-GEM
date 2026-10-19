@@ -119,7 +119,6 @@ src/main/java/.../gdelt       GDELT discovery, payload import, parsing, and pers
 src/main/java/.../articles    URL normalization, extraction, queries, and REST API
 src/main/resources/db         Flyway database migrations
 ../docs/postman               Postman collection and local environment
-../docs/tickets               Local implementation tickets
 ../docs/analysis              Supporting technical analysis
 ```
 
@@ -129,4 +128,5 @@ src/main/resources/db         Flyway database migrations
 - [`../docs/gdelt_events_mentions_gkg_data_model_overview.md`](../docs/gdelt_events_mentions_gkg_data_model_overview.md) — GDELT data model overview
 - [`../docs/articles.md`](../docs/articles.md) — article model, normalization, and extraction behavior
 - [`../docs/operations.md`](../docs/operations.md) — operational queries for import status and failures
-- [`../docs/tickets/README.md`](../docs/tickets/README.md) — local ticket workflow
+
+Engineering work is tracked in the [Sentinel GEM team on Linear](https://linear.app/sentinel-gem/team/GEM).

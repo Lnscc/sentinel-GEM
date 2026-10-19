@@ -12,16 +12,15 @@ Whenever a REST API endpoint or its request/response contract is added, changed,
 - Add or update Postman tests for the affected status codes and response contract.
 - Validate that the resulting Postman collection is valid JSON.
 
-## Local tickets
+## Work tracking
 
-When implementing a ticket under `docs/tickets`:
-
-- Add an implementation comment to the ticket in the same change.
-- Summarize the implemented behavior.
-- Do not change the ticket status or move the ticket unless explicitly requested. But ask for a status change.
+- Track engineering work in the Linear team `Sentinel GEM` (`GEM`).
+- Do not add repository-local ticket files.
+- When implementing a Linear issue, summarize the implemented behavior in the issue.
+- Do not change an issue's status unless explicitly requested. Ask before changing it.
 
 ## Backlog prioritization
 
-- Treat every ticket under `docs/tickets/backlog` as deliberately deferred, regardless of its `Status:` value.
-- Do not present backlog tickets as actionable next work or recommend them unless the user explicitly asks to inspect or choose from the backlog, or explicitly names a backlog ticket.
+- Treat every Linear issue in `Backlog` as deliberately deferred.
+- Do not present backlog issues as actionable next work or recommend them unless the user explicitly asks to inspect or choose from the backlog, or explicitly names a backlog issue.
 - If no open non-backlog ticket remains, report that there is no immediately actionable ticket and suggest creating a regular ticket for the next planned work.
