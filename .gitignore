@@ -1,6 +1,7 @@
 target/
 monitor/node_modules/
 monitor/dist/
+monitor/.vite/
 engine/.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
