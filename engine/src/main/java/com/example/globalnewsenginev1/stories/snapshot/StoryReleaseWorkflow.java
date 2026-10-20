@@ -207,7 +207,7 @@ public class StoryReleaseWorkflow {
         if (!active.equals(List.of(candidateId))) {
             throw new IllegalStateException("Promotion did not leave exactly the candidate ACTIVE");
         }
-        var page = stories.stories(0, 1);
+        var page = stories.stories(0, 1, "time", "desc");
         if (page.stories().isEmpty() || stories.story(page.stories().getFirst().id()).isEmpty()) {
             throw new IllegalStateException("Story list or detail verification failed after promotion");
         }

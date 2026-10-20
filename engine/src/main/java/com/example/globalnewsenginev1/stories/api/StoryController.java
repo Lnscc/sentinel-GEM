@@ -18,7 +18,7 @@ import java.util.UUID;
 @RequestMapping("/stories")
 public class StoryController {
 
-    private static final Set<String> LIST_PARAMETERS = Set.of("offset", "limit");
+    private static final Set<String> LIST_PARAMETERS = Set.of("offset", "limit", "sort", "direction");
 
     private final StoryQueryService queryService;
 
@@ -30,6 +30,8 @@ public class StoryController {
     public StoryPage stories(
             @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "time") String sort,
+            @RequestParam(defaultValue = "desc") String direction,
             @RequestParam Map<String, String> parameters
     ) {
         parameters.keySet().stream()
@@ -38,7 +40,7 @@ public class StoryController {
                 .ifPresent(parameter -> {
                     throw new IllegalArgumentException("unknown parameter: " + parameter);
                 });
-        return queryService.stories(offset, limit);
+        return queryService.stories(offset, limit, sort, direction);
     }
 
     @GetMapping("/{id}")

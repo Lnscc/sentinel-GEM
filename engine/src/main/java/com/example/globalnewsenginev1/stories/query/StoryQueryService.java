@@ -74,12 +74,22 @@ public class StoryQueryService {
         this.visibleVersion = visibleVersion;
     }
 
-    public StoryPage stories(int offset, int limit) {
+    public StoryPage stories(int offset, int limit, String sort, String direction) {
         validatePagination(offset, limit);
-        List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + """
-                ORDER BY story.effective_to DESC, story.public_id ASC
-                LIMIT ? OFFSET ?
-                """, (resultSet, rowNum) -> summary(resultSet), visibleVersion, limit, offset);
+        String sortColumn = switch (sort) {
+            case "time" -> "story.effective_to";
+            case "articleCount" -> "member_count";
+            default -> throw new IllegalArgumentException("sort must be time or articleCount");
+        };
+        String sortDirection = switch (direction) {
+            case "asc" -> "ASC";
+            case "desc" -> "DESC";
+            default -> throw new IllegalArgumentException("direction must be asc or desc");
+        };
+        String order = "\nORDER BY " + sortColumn + " " + sortDirection
+                + ", story.public_id ASC\nLIMIT ? OFFSET ?";
+        List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + order,
+                (resultSet, rowNum) -> summary(resultSet), visibleVersion, limit, offset);
         long total = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) " + VISIBLE_STORY, Long.class, visibleVersion);
         return new StoryPage(stories, offset, limit, total);

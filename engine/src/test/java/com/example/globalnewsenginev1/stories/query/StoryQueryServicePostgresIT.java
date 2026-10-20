@@ -89,7 +89,8 @@ class StoryQueryServicePostgresIT {
 
         StoryQueryService service = new StoryQueryService(jdbc, "visible-version");
 
-        assertThat(service.stories(0, 20).stories()).extracting(StorySummary::id).containsExactly(reused);
+        assertThat(service.stories(0, 20, "time", "desc").stories())
+                .extracting(StorySummary::id).containsExactly(reused);
         StoryDetail detail = service.story(reused).orElseThrow();
         assertThat(detail.representativeArticle().canonicalUrl()).endsWith("/current");
         assertThat(detail.members()).extracting(member -> member.article().id()).containsExactly(2L);

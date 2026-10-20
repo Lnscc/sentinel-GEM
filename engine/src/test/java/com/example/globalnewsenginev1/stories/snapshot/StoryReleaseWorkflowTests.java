@@ -210,7 +210,8 @@ class StoryReleaseWorkflowTests {
         StorySummary summary = mock(StorySummary.class);
         when(summary.id()).thenReturn(id);
         when(jdbc.queryForList(anyString(), eq(Long.class))).thenReturn(List.of(1L));
-        when(stories.stories(0, 1)).thenReturn(new StoryPage(List.of(summary), 0, 1, 1));
+        when(stories.stories(0, 1, "time", "desc"))
+                .thenReturn(new StoryPage(List.of(summary), 0, 1, 1));
         when(stories.story(id)).thenReturn(Optional.of(mock(StoryDetail.class)));
     }
 

@@ -59,13 +59,36 @@ class StoryQueryServiceTests {
         seedStory(4, 2, "c", "ACTIVE", "2026-09-04T10:00:00Z");
         seedMember(2, 1, 2, 1, "NEW_COMPONENT");
 
-        StoryPage first = service.stories(0, 1);
-        StoryPage second = service.stories(1, 1);
+        StoryPage first = service.stories(0, 1, "time", "desc");
+        StoryPage second = service.stories(1, 1, "time", "desc");
 
         assertThat(first.total()).isEqualTo(2);
         assertThat(first.stories()).extracting(StorySummary::id).containsExactly(newer);
         assertThat(first.stories().getFirst().memberCount()).isOne();
         assertThat(second.stories()).extracting(StorySummary::id).containsExactly(older);
+    }
+
+    @Test
+    void sortsTheCompleteResultByTimeOrArticleCount() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "a", "2026-09-01T10:00:00Z");
+        seedArticle(2, "b", "2026-09-02T10:00:00Z");
+        seedArticle(3, "c", "2026-09-03T10:00:00Z");
+        UUID first = seedStory(1, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z");
+        UUID last = seedStory(2, 1, "b", "ACTIVE", "2026-09-03T10:00:00Z");
+        UUID middle = seedStory(3, 1, "c", "ACTIVE", "2026-09-02T10:00:00Z");
+        seedMember(1, 1, 1, 1, "MATCHED_COMPONENT");
+        seedMember(1, 1, 2, 1, "MATCHED_COMPONENT");
+        seedMember(3, 1, 3, 1, "MATCHED_COMPONENT");
+
+        assertThat(service.stories(0, 20, "time", "asc").stories())
+                .extracting(StorySummary::id).containsExactly(first, middle, last);
+        assertThat(service.stories(0, 20, "time", "desc").stories())
+                .extracting(StorySummary::id).containsExactly(last, middle, first);
+        assertThat(service.stories(0, 20, "articleCount", "asc").stories())
+                .extracting(StorySummary::id).containsExactly(last, middle, first);
+        assertThat(service.stories(0, 20, "articleCount", "desc").stories())
+                .extracting(StorySummary::id).containsExactly(first, middle, last);
     }
 
     @Test
@@ -88,10 +111,12 @@ class StoryQueryServiceTests {
     }
 
     @Test
-    void rejectsInvalidPagination() {
-        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(-1, 20));
-        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 0));
-        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 101));
+    void rejectsInvalidListParameters() {
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(-1, 20, "time", "desc"));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 0, "time", "desc"));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 101, "time", "desc"));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "unknown", "desc"));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "unknown"));
     }
 
     private void seedVersion(long id, String versionKey, String status) {
