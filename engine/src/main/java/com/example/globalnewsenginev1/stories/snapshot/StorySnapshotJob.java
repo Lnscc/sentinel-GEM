@@ -19,7 +19,7 @@ class StorySnapshotJob {
 
     StorySnapshotJob(
             StorySnapshotService service,
-            @Value("${stories.snapshots.max-versions-per-run:3}") int maxVersionsPerRun
+            @Value("${stories.snapshots.max-versions-per-run:4}") int maxVersionsPerRun
     ) {
         this.service = service;
         this.maxVersionsPerRun = maxVersionsPerRun;

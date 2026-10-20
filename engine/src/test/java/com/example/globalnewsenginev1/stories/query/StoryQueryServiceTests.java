@@ -24,7 +24,7 @@ class StoryQueryServiceTests {
         dataSource.setURL("jdbc:h2:mem:story-queries-" + System.nanoTime()
                 + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1");
         jdbc = new JdbcTemplate(dataSource);
-        jdbc.execute("CREATE TABLE story_clustering_versions (id BIGINT PRIMARY KEY, status VARCHAR(16))");
+        jdbc.execute("CREATE TABLE story_clustering_versions (id BIGINT PRIMARY KEY, version_key VARCHAR(128), status VARCHAR(16))");
         jdbc.execute("""
                 CREATE TABLE articles (id BIGINT PRIMARY KEY, canonical_url TEXT, url_hash VARCHAR(64),
                     domain TEXT, first_seen_at TIMESTAMP WITH TIME ZONE)
@@ -43,13 +43,13 @@ class StoryQueryServiceTests {
                 CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT,
                     article_id BIGINT, current_marker SMALLINT, assignment_reason TEXT)
                 """);
-        service = new StoryQueryService(jdbc);
+        service = new StoryQueryService(jdbc, "visible-version");
     }
 
     @Test
     void returnsOnlyCurrentVisibleStoriesWithStablePagination() {
-        seedVersion(1, "ACTIVE");
-        seedVersion(2, "SHADOW");
+        seedVersion(1, "visible-version", "SHADOW");
+        seedVersion(2, "other-version", "ACTIVE");
         seedArticle(1, "a", "2026-09-01T10:00:00Z");
         seedArticle(2, "b", "2026-09-02T10:00:00Z");
         seedArticle(3, "c", "2026-09-03T10:00:00Z");
@@ -70,7 +70,7 @@ class StoryQueryServiceTests {
 
     @Test
     void returnsCurrentMembersAndHidesSupersededIds() {
-        seedVersion(1, "ACTIVE");
+        seedVersion(1, "visible-version", "SHADOW");
         seedArticle(1, "a", "2026-09-01T10:00:00Z");
         seedArticle(2, "b", "2026-09-01T11:00:00Z");
         UUID visible = seedStory(1, 1, "a", "ACTIVE", "2026-09-01T11:00:00Z");
@@ -94,8 +94,8 @@ class StoryQueryServiceTests {
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 101));
     }
 
-    private void seedVersion(long id, String status) {
-        jdbc.update("INSERT INTO story_clustering_versions VALUES (?, ?)", id, status);
+    private void seedVersion(long id, String versionKey, String status) {
+        jdbc.update("INSERT INTO story_clustering_versions VALUES (?, ?, ?)", id, versionKey, status);
     }
 
     private void seedArticle(long id, String ref, String seenAt) {

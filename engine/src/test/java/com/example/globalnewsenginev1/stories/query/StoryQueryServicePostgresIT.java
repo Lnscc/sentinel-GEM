@@ -28,7 +28,7 @@ class StoryQueryServicePostgresIT {
         schema = "story_api_" + UUID.randomUUID().toString().replace("-", "");
         new JdbcTemplate(adminDataSource).execute("CREATE SCHEMA " + schema);
         jdbc = new JdbcTemplate(dataSource(schema));
-        jdbc.execute("CREATE TABLE story_clustering_versions (id BIGINT PRIMARY KEY, status VARCHAR(16))");
+        jdbc.execute("CREATE TABLE story_clustering_versions (id BIGINT PRIMARY KEY, version_key VARCHAR(128), status VARCHAR(16))");
         jdbc.execute("""
                 CREATE TABLE articles (id BIGINT PRIMARY KEY, canonical_url TEXT, url_hash VARCHAR(64),
                     domain TEXT, first_seen_at TIMESTAMP WITH TIME ZONE)
@@ -57,10 +57,15 @@ class StoryQueryServicePostgresIT {
     }
 
     @Test
-    void readsTheUpdatedActiveVersionAndRejectsReplacedIds() {
+    void readsTheConfiguredVersionAndRejectsReplacedIds() {
         UUID reused = UUID.fromString("10000000-0000-0000-0000-000000000001");
         UUID replaced = UUID.fromString("10000000-0000-0000-0000-000000000002");
-        jdbc.update("INSERT INTO story_clustering_versions VALUES (1, 'RETIRED'), (2, 'ACTIVE'), (3, 'SHADOW')");
+        jdbc.update("""
+                INSERT INTO story_clustering_versions VALUES
+                  (1, 'old-version', 'RETIRED'),
+                  (2, 'visible-version', 'SHADOW'),
+                  (3, 'other-version', 'ACTIVE')
+                """);
         jdbc.update("""
                 INSERT INTO articles VALUES
                   (1, 'https://example.org/old', 'old', 'example.org', ?),
@@ -82,7 +87,7 @@ class StoryQueryServicePostgresIT {
         jdbc.update("INSERT INTO story_memberships VALUES (?, 2, 1, NULL, 'OLD')", internal);
         jdbc.update("INSERT INTO story_memberships VALUES (?, 2, 2, 1, 'MATCHED_COMPONENT')", internal);
 
-        StoryQueryService service = new StoryQueryService(jdbc);
+        StoryQueryService service = new StoryQueryService(jdbc, "visible-version");
 
         assertThat(service.stories(0, 20).stories()).extracting(StorySummary::id).containsExactly(reused);
         StoryDetail detail = service.story(reused).orElseThrow();

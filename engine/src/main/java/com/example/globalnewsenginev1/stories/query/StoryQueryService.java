@@ -1,5 +1,6 @@
 package com.example.globalnewsenginev1.stories.query;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -34,7 +35,7 @@ public class StoryQueryService {
     private static final String VISIBLE_STORY = """
             FROM stories story
             JOIN story_clustering_versions version
-              ON version.id = story.clustering_version_id AND version.status = 'ACTIVE'
+              ON version.id = story.clustering_version_id AND version.version_key = ?
             JOIN articles article ON article.url_hash = story.representative_article_ref
             WHERE story.state <> 'SUPERSEDED'
             """;
@@ -57,7 +58,7 @@ public class StoryQueryService {
               ON story.id = member.story_id
              AND story.clustering_version_id = member.clustering_version_id
             JOIN story_clustering_versions version
-              ON version.id = story.clustering_version_id AND version.status = 'ACTIVE'
+              ON version.id = story.clustering_version_id AND version.version_key = ?
             JOIN articles article ON article.id = member.article_id
             WHERE story.public_id = ? AND story.state <> 'SUPERSEDED'
               AND member.current_marker = 1
@@ -65,9 +66,12 @@ public class StoryQueryService {
             """;
 
     private final JdbcTemplate jdbcTemplate;
+    private final String visibleVersion;
 
-    public StoryQueryService(JdbcTemplate jdbcTemplate) {
+    public StoryQueryService(JdbcTemplate jdbcTemplate,
+                             @Value("${stories.visible-version}") String visibleVersion) {
         this.jdbcTemplate = jdbcTemplate;
+        this.visibleVersion = visibleVersion;
     }
 
     public StoryPage stories(int offset, int limit) {
@@ -75,22 +79,22 @@ public class StoryQueryService {
         List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + """
                 ORDER BY story.effective_to DESC, story.public_id ASC
                 LIMIT ? OFFSET ?
-                """, (resultSet, rowNum) -> summary(resultSet), limit, offset);
+                """, (resultSet, rowNum) -> summary(resultSet), visibleVersion, limit, offset);
         long total = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) " + VISIBLE_STORY, Long.class);
+                "SELECT COUNT(*) " + VISIBLE_STORY, Long.class, visibleVersion);
         return new StoryPage(stories, offset, limit, total);
     }
 
     public Optional<StoryDetail> story(UUID id) {
         List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + """
                   AND story.public_id = ?
-                """, (resultSet, rowNum) -> summary(resultSet), id);
+                """, (resultSet, rowNum) -> summary(resultSet), visibleVersion, id);
         if (stories.isEmpty()) {
             return Optional.empty();
         }
         StorySummary story = stories.getFirst();
         List<StoryMember> members = jdbcTemplate.query(MEMBER_SELECT, (resultSet, rowNum) -> new StoryMember(
-                        article(resultSet), resultSet.getString("assignment_reason")), id);
+                        article(resultSet), resultSet.getString("assignment_reason")), visibleVersion, id);
         return Optional.of(new StoryDetail(
                 story.id(), story.state(), story.effectiveFrom(), story.effectiveTo(),
                 story.representativeArticle(), members));
