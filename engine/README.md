@@ -73,7 +73,7 @@ Add `-v` only when you intentionally want to remove the local database volume as
 | `GET` | `/articles/domains/top?limit=10` | List the most frequent article domains |
 | `GET` | `/articles/themes/top?limit=10` | List the most frequent GDELT themes |
 | `GET` | `/articles/extraction/health` | Show article extraction health and errors |
-| `GET` | `/stories?offset=0&limit=20` | List stories from the active clustering version |
+| `GET` | `/stories?offset=0&limit=20` | List stories from the configured clustering version |
 | `GET` | `/stories/{id}` | Get a current story and its members |
 
 Example:
@@ -105,6 +105,7 @@ Runtime defaults are defined in [`src/main/resources/application.properties`](sr
 | `gdelt.ingestion.*` | GDELT discovery, download, and polling |
 | `gdelt.staging.*` | Parsing payload rows into durable GDELT domain tables |
 | `articles.*` | Article extraction, normalization, and batching |
+| `stories.visible-version` | Clustering version exposed by the Story API |
 
 Each job can be disabled with its corresponding `*.enabled=false` property. Spring Boot properties can be overridden with command-line arguments, environment variables, or an external configuration file. For example:
 

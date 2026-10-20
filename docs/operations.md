@@ -114,7 +114,7 @@ validiert er die kanonischen Float32-Vektoren und berechnet innerhalb des versio
 24-, 48- oder 72-Stunden-Fensters alle Cosine-Similarities ohne Top-k-Begrenzung.
 
 ```properties
-stories.snapshots.max-versions-per-run=3
+stories.snapshots.max-versions-per-run=4
 stories.snapshots.claim-timeout=PT30M
 stories.snapshots.incremental.enabled=true
 stories.snapshots.incremental.initial-delay=PT1M

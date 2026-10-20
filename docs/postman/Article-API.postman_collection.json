@@ -204,7 +204,7 @@
                 { "key": "limit", "value": "{{pageLimit}}" }
               ]
             },
-            "description": "Liefert nicht abgeloeste Stories der aktuellen ACTIVE-Clustering-Version."
+            "description": "Liefert nicht abgeloeste Stories der serverseitig konfigurierten Clustering-Version."
           },
           "event": [
             {
@@ -216,6 +216,9 @@
                   "  const body = pm.response.json();",
                   "  pm.expect(body).to.have.all.keys('stories', 'offset', 'limit', 'total');",
                   "  pm.expect(body.stories).to.be.an('array');",
+                  "  pm.expect(body.offset).to.eql(Number(pm.variables.replaceIn('{{offset}}')));",
+                  "  pm.expect(body.limit).to.eql(Number(pm.variables.replaceIn('{{pageLimit}}')));",
+                  "  pm.expect(body.total).to.be.a('number').and.at.least(body.stories.length);",
                   "  body.stories.forEach(story => {",
                   "    pm.expect(story).to.have.all.keys('id', 'state', 'effectiveFrom', 'effectiveTo', 'representativeArticle', 'memberCount');",
                   "    pm.expect(story.state).to.be.oneOf(['ACTIVE', 'CLOSED']);",

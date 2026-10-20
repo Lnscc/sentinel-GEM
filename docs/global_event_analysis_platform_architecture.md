@@ -23,7 +23,7 @@ Implementiert sind:
   Story-Partitionen;
 - atomare Veroeffentlichung von Stories, aktuellen Mitgliedschaften und Begruendungen;
 - kontrollierte Promotion einer Clustering-Version mit stabilen Public IDs;
-- eine lesende Story REST API fuer die aktuelle `ACTIVE`-Version.
+- eine lesende Story REST API fuer eine konfigurierte Clustering-Version.
 
 Noch nicht implementiert sind Topics, Themes und Visualisierung.
 
@@ -48,7 +48,7 @@ GDELT Masterfile
     -> exakte Kandidatenpaare
     -> deterministische Story-Partition
     -> atomarer Publish
-    -> Promotion zur ACTIVE-Version
+    -> konfigurierte sichtbare Version
     -> Story REST API
 ```
 
@@ -61,7 +61,7 @@ GDELT Masterfile
 | `articles` | URLs normalisieren, Artikel ableiten und REST-Abfragen bedienen |
 | `stories.embedding` | Titel-Inputs, Embeddings, Retries und Health verwalten |
 | `stories.snapshot` | Inputs einfrieren, Paare und Partition berechnen, Stories atomar publizieren und Versionen promovieren |
-| `stories.query` | aktuelle Stories der `ACTIVE`-Version ueber Public IDs lesen |
+| `stories.query` | aktuelle Stories der konfigurierten Version ueber Public IDs lesen |
 | `stories.api` | Story-Liste und -Detail ueber HTTP bereitstellen |
 
 ## Datenfluesse
@@ -92,10 +92,11 @@ Der Publisher gleicht die Partition mit dem zuletzt veroeffentlichten Stand ders
 und schreibt Stories, aktuelle Mitgliedschaften, Zuordnungsentscheidungen und Publish-Commit in
 einer Transaktion. Erst eine bestandene, dokumentiert freigegebene Promotion macht eine
 `SHADOW`-Version zur einzigen `ACTIVE`-Version; eine zuvor aktive Version wird `RETIRED`.
-Versionsstatus (`SHADOW`, `ACTIVE`, `RETIRED`) steuern Verarbeitung und Produktsichtbarkeit. Davon
+Versionsstatus (`SHADOW`, `ACTIVE`, `RETIRED`) steuern Verarbeitung und Freigabehistorie. Davon
 getrennt beschreibt der Story-Zustand (`ACTIVE`, `CLOSED`, `SUPERSEDED`) den Lebenszyklus einer
 Story innerhalb ihrer Clustering-Version. Die REST API liest nur nicht abgeloeste Stories und
-aktuelle Mitgliedschaften der `ACTIVE`-Version und verwendet dafuer die stabile `public_id`.
+aktuelle Mitgliedschaften der mit `stories.visible-version` konfigurierten Version und verwendet
+dafuer die stabile `public_id`.
 
 Die initialen Clustering-Versionen verwenden `text-embedding-3-small` mit 1536 Dimensionen
 und getrennten Zeitfenstern von 24, 48 und 72 Stunden. `effectiveAt` ist der projizierte

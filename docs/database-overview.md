@@ -72,8 +72,9 @@ Produkthistorie. Details und alle Tabellen stehen im [Story-Datenmodell](story-d
 
 `stories.id` ist die interne, versionsgebundene Identitaet fuer Fremdschluessel.
 `stories.public_id` ist die oeffentliche Identitaet; die Promotion uebernimmt sie nach den
-Merge-/Split-Regeln in die neue Version. Die Story API loest Public IDs nur in der einzigen
-`ACTIVE`-Version auf und liest nur Mitgliedschaften mit `current_marker = 1`.
+Merge-/Split-Regeln in die neue Version. Die Story API loest Public IDs nur in der mit
+`stories.visible-version` konfigurierten Version auf und liest nur Mitgliedschaften mit
+`current_marker = 1`.
 
 ### Versionsstatus und Story-Zustand
 
@@ -81,7 +82,7 @@ Die beiden Zustandsarten sind unabhaengig:
 
 | Ebene | Werte | Bedeutung |
 |---|---|---|
-| Clustering-Version | `SHADOW`, `ACTIVE`, `RETIRED` | `SHADOW` wird berechnet, ist aber nicht produktsichtbar; hoechstens eine `ACTIVE`-Version darf die API bedienen; `RETIRED` wird nicht weiterverarbeitet. |
+| Clustering-Version | `SHADOW`, `ACTIVE`, `RETIRED` | `SHADOW` und `ACTIVE` werden verarbeitet; `RETIRED` wird nicht weiterverarbeitet. Die API-Sichtbarkeit wird separat konfiguriert. |
 | Story | `ACTIVE`, `CLOSED`, `SUPERSEDED` | `ACTIVE` und `CLOSED` sind aktuelle fachliche Stories; `SUPERSEDED` ist innerhalb der Version abgeloest und fuer die API unsichtbar. |
 
 Eine fachlich freigegebene Promotion wechselt die neue Version atomar von `SHADOW` nach `ACTIVE`
@@ -161,14 +162,15 @@ LIMIT 50;
 
 ### Produktsichtbare Stories und aktuelle Mitgliedschaften
 
-Die Abfragen verwenden wie die REST API nur die aktuelle `ACTIVE`-Version und oeffentliche IDs.
+Die Abfragen verwenden wie die REST API nur die konfigurierte Version und oeffentliche IDs.
 
 ```sql
 SELECT s.public_id, s.state, s.effective_from, s.effective_to,
        s.representative_article_ref, COUNT(m.id) AS member_count
 FROM stories s
 JOIN story_clustering_versions v
-  ON v.id = s.clustering_version_id AND v.status = 'ACTIVE'
+  ON v.id = s.clustering_version_id
+ AND v.version_key = 'story-mvp-title-embedding-24h-v1.1.0'
 LEFT JOIN story_memberships m
   ON m.story_id = s.id
  AND m.clustering_version_id = s.clustering_version_id
@@ -212,20 +214,19 @@ flowchart TD
     R --> D[SAME_STORY oder UNCERTAIN]
     D --> C[Deterministische Story-Partition]
     C --> W[Atomarer Publish: Stories, Zuordnungen, Mitgliedschaften]
-    W --> V{Versionsstatus}
-    V -->|SHADOW| H[Intern pruefbar, nicht produktsichtbar]
-    H -->|Freigabe und Promotion| X[Einzige ACTIVE-Version]
-    V -->|ACTIVE| X
-    X --> Q[Story API ueber public_id und aktuelle Mitgliedschaften]
+    W --> V[Versionierte Stories]
+    V --> CFG{Konfigurierter version_key?}
+    CFG -->|Ja| Q[Story API ueber public_id und aktuelle Mitgliedschaften]
+    CFG -->|Nein| H[Intern verfuegbar]
 ```
 
 Ohne verwendbaren Titel oder erfolgreiches Embedding erreicht ein Input die Paarbewertung
 nicht; der Publish erfasst ihn stattdessen mit einer begruendeten `UNASSIGNED`-Entscheidung.
 Ohne API-Schluessel bleiben verwendbare Embedding-Artefakte `PENDING`. Snapshot und Publish
 verarbeiten `SHADOW`- und `ACTIVE`-Versionen, bevorzugen aber die aktive Version; `RETIRED` wird
-nicht weiterverarbeitet. Nur die `ACTIVE`-Version ist ueber `GET /stories` und
-`GET /stories/{id}` sichtbar. Erfolgreich verarbeitete Payloads duerfen nach Ablauf der Retention
-verschwinden; Fachzeilen und Fehlerhistorie bleiben erhalten.
+nicht weiterverarbeitet. Nur die mit `stories.visible-version` konfigurierte Version ist ueber
+`GET /stories` und `GET /stories/{id}` sichtbar. Erfolgreich verarbeitete Payloads duerfen nach
+Ablauf der Retention verschwinden; Fachzeilen und Fehlerhistorie bleiben erhalten.
 
 Quellen: [SQL-Migrationen](../engine/src/main/resources/db/migration),
 [Java-Migrationen](../engine/src/main/java/db/migration),
