@@ -11,6 +11,28 @@ type Story = {
   memberCount: number;
 };
 
+type Article = {
+  id: number;
+  canonicalUrl: string;
+  domain: string;
+  firstSeenAt: string;
+  title: string;
+  publishedAt: string | null;
+  mainImageUrl: string | null;
+};
+
+type StoryDetail = {
+  id: string;
+  state: string;
+  effectiveFrom: string;
+  effectiveTo: string;
+  representativeArticle: Article;
+  members: {
+    article: Article;
+    assignmentReason: string;
+  }[];
+};
+
 type StoryPage = {
   stories: Story[];
   total: number;
@@ -28,7 +50,7 @@ const dateTime = new Intl.DateTimeFormat("de-DE", {
 
 function StoryCard({ story }: { story: Story }) {
   return (
-    <article className="story-card">
+    <a className="story-card" href={`#${story.id}`}>
       <p className="domain">{story.representativeArticle.domain}</p>
       <h2>{story.representativeArticle.title}</h2>
       <dl>
@@ -45,16 +67,108 @@ function StoryCard({ story }: { story: Story }) {
           <dd>{story.memberCount}</dd>
         </div>
       </dl>
-    </article>
+      <span className="open-story">Story öffnen <span aria-hidden="true">→</span></span>
+    </a>
+  );
+}
+
+function StoryDetails({ id }: { id: string }) {
+  const [story, setStory] = useState<StoryDetail>();
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setStory(undefined);
+    setError(undefined);
+
+    fetch(`/api/stories/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then((response) => {
+        if (response.status === 404) throw new Error("Diese Story wurde nicht gefunden.");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json() as Promise<StoryDetail>;
+      })
+      .then(setStory)
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(reason instanceof Error ? reason.message : "Unbekannter Fehler");
+        }
+      });
+
+    return () => controller.abort();
+  }, [id]);
+
+  return (
+    <>
+      <a className="back-link" href="#">← Zurück zur Übersicht</a>
+      {!story && !error && <p className="state" role="status">Story wird geladen …</p>}
+      {error && (
+        <p className="state error" role="alert">
+          Die Story konnte nicht geladen werden. <span>{error}</span>
+        </p>
+      )}
+      {story && (
+        <article className="story-detail">
+          <header className="detail-header">
+            <p className="eyebrow">Story · {story.state}</p>
+            <h1>{story.representativeArticle.title}</h1>
+            <p className="intro">Repräsentativer Artikel von {story.representativeArticle.domain}</p>
+          </header>
+
+          <dl className="detail-meta">
+            <div>
+              <dt>Zeitraum</dt>
+              <dd>
+                <time dateTime={story.effectiveFrom}>{dateTime.format(new Date(story.effectiveFrom))}</time>
+                <span aria-hidden="true"> – </span>
+                <time dateTime={story.effectiveTo}>{dateTime.format(new Date(story.effectiveTo))}</time>
+              </dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>{story.state}</dd>
+            </div>
+            <div>
+              <dt>Artikel</dt>
+              <dd>{story.members.length}</dd>
+            </div>
+          </dl>
+
+          <section aria-labelledby="articles-heading">
+            <h2 id="articles-heading">Zugehörige Artikel</h2>
+            <div className="article-list">
+              {story.members.map(({ article }) => (
+                <article className="article-card" key={article.id}>
+                  <p className="domain">{article.domain}</p>
+                  <h3>{article.title}</h3>
+                  <p>
+                    <time dateTime={article.publishedAt ?? article.firstSeenAt}>
+                      {dateTime.format(new Date(article.publishedAt ?? article.firstSeenAt))}
+                    </time>
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+        </article>
+      )}
+    </>
   );
 }
 
 export default function App() {
+  const [selectedStoryId, setSelectedStoryId] = useState(() => window.location.hash.slice(1));
   const [page, setPage] = useState<StoryPage>();
   const [error, setError] = useState<string>();
   const [offset, setOffset] = useState(0);
   const [sort, setSort] = useState<Sort>("time");
   const [direction, setDirection] = useState<Direction>("desc");
+
+  useEffect(() => {
+    const selectStory = () => setSelectedStoryId(window.location.hash.slice(1));
+    window.addEventListener("hashchange", selectStory);
+    return () => window.removeEventListener("hashchange", selectStory);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -92,6 +206,10 @@ export default function App() {
     setDirection(next);
     setOffset(0);
   };
+
+  if (selectedStoryId) {
+    return <main><StoryDetails id={selectedStoryId} /></main>;
+  }
 
   return (
     <main>

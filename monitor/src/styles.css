@@ -110,6 +110,20 @@ button:disabled {
   border: 1px solid #dddcd4;
   border-radius: 0.75rem;
   box-shadow: 0 0.5rem 2rem rgb(43 55 48 / 6%);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.story-card:hover,
+.story-card:focus-visible {
+  border-color: #39735a;
+  transform: translateY(-0.15rem);
+}
+
+.story-card:focus-visible {
+  outline: 3px solid rgb(57 115 90 / 25%);
+  outline-offset: 2px;
 }
 
 .domain {
@@ -123,6 +137,12 @@ h2 {
   font-size: 1.55rem;
   font-weight: 500;
   line-height: 1.25;
+}
+
+.open-story {
+  margin-top: 1.25rem;
+  color: #39735a;
+  font-weight: 700;
 }
 
 dl {
@@ -174,6 +194,58 @@ dd {
   margin: 0;
 }
 
+.back-link {
+  display: inline-block;
+  margin-bottom: 2rem;
+  color: #39735a;
+  font-weight: 700;
+}
+
+.detail-header {
+  margin-bottom: 2rem;
+}
+
+.detail-meta {
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+  margin-bottom: 3rem;
+  padding: 1.5rem;
+  background: #fffefa;
+  border: 1px solid #dddcd4;
+  border-radius: 0.75rem;
+}
+
+.story-detail > section > h2 {
+  margin-bottom: 1rem;
+}
+
+.article-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.article-card {
+  min-width: 0;
+  padding: 1.25rem;
+  overflow-wrap: anywhere;
+  background: #fffefa;
+  border: 1px solid #dddcd4;
+  border-radius: 0.75rem;
+}
+
+.article-card h3 {
+  margin: 0.5rem 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.article-card p:last-child {
+  margin: 0;
+  color: #647269;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 36rem) {
   main {
     width: min(100% - 1.25rem, 70rem);
@@ -194,6 +266,10 @@ dd {
   }
 
   dl {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-meta {
     grid-template-columns: 1fr;
   }
 }
