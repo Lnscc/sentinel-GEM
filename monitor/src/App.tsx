@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Container } from "@mui/material";
-import StoryDetails from "./StoryDetails";
-import StoryOverview from "./StoryOverview";
+import StoryDetails from "./stories/StoryDetails";
+import StoryOverview from "./stories/StoryOverview";
 
 export default function App() {
   const [selectedStoryId, setSelectedStoryId] = useState(() => window.location.hash.slice(1));
