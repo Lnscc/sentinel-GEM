@@ -16,6 +16,21 @@ Sentinel-GEM macht globale Nachrichtenereignisse geografisch sichtbar:
 Artikel und Quellen sollen dabei jederzeit nachvollziehbar bleiben. Analysen,
 Trends und KI-generierte Inhalte müssen als solche gekennzeichnet werden.
 
+### Festgelegte Richtung
+
+Sentinel-GEM wird zunächst als geografische Ereignisübersicht entwickelt. Eine
+breitere News-Intelligence-Plattform ist eine mögliche spätere Ausbaustufe und
+bestimmt nicht den aktuellen Produktumfang.
+
+Die Umsetzung folgt dieser Reihenfolge:
+
+1. verlässliche Artikel- und Story-Daten
+2. geografische Zuordnung von Ereignissen
+3. Live Map mit Filtern
+4. Story-Details mit Artikeln, Quellen und Timeline
+5. Suche und Explorer
+6. erst danach zusätzliche Intelligence-Funktionen
+
 ## 2. Vorhandene Grundlage
 
 Das Projekt besitzt bereits die technische Grundlage für:
@@ -137,8 +152,6 @@ mögliche Gestaltung, aber keine Produktanforderung.
 
 ## 7. Offene Entscheidungen
 
-- Bleibt Sentinel-GEM primär eine geografische Ereignisübersicht oder wird es
-  eine breitere News-Intelligence-Plattform?
 - Was ist die kleinste nützliche Version der Live Map?
 - Welche Rolle spielen Topics und Themes oberhalb der bestehenden Stories?
 - Welche Funktionen benötigen echte Live-Aktualisierung?
