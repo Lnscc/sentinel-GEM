@@ -20,7 +20,7 @@ Versioned title embeddings, immutable snapshots, and exact candidate-pair decisi
 - PostgreSQL
 - Flyway
 - Maven Wrapper
-- Docker Compose for the local database
+- Docker Compose for local development and the containerized system
 
 ## Prerequisites
 
@@ -35,7 +35,7 @@ Start PostgreSQL from the repository root:
 
 ```powershell
 cd ..
-docker compose up -d
+docker compose up -d postgres
 cd engine
 ```
 

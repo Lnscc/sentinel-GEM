@@ -2,10 +2,44 @@ name: sentinel-gem
 
 services:
   postgres:
-    image: 'postgres:latest'
+    image: 'postgres:17-alpine'
     environment:
-      - 'POSTGRES_DB=gne'
-      - 'POSTGRES_PASSWORD=gne'
-      - 'POSTGRES_USER=gne'
+      POSTGRES_DB: ${POSTGRES_DB:-gne}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-gne}
     ports:
       - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  engine:
+    build: ./engine
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-gne}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-gne}
+      SPRING_DOCKER_COMPOSE_ENABLED: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '8080:8080'
+
+  monitor:
+    build: ./monitor
+    environment:
+      ENGINE_URL: http://engine:8080
+      NGINX_ENVSUBST_FILTER: ENGINE_URL
+    depends_on:
+      - engine
+    ports:
+      - '5173:80'
+
+volumes:
+  postgres-data:
