@@ -17,7 +17,13 @@ Whenever a REST API endpoint or its request/response contract is added, changed,
 - Track engineering work in the Linear team `Sentinel GEM` (`GEM`).
 - Do not add repository-local ticket files.
 - When implementing a Linear issue, summarize the implemented behavior in the issue.
-- Do not change an issue's status unless explicitly requested. Ask before changing it.
+- When implementation work starts on a Linear issue, move it to `In Progress`
+  without asking.
+- When the implemented change is verified on `main`, move the issue to `Done`
+  without asking.
+- A status transition never authorizes committing, pushing, merging, or otherwise
+  putting a change on `main`; those actions still require their own authorization.
+- Ask before changing status only when the correct transition is ambiguous.
 
 ## Backlog prioritization
 
