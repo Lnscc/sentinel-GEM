@@ -1,18 +1,23 @@
 # Sentinel-GEM
 
-**From global news signals to explorable stories.**
+**See where the world's news is happening.**
 
-Sentinel-GEM continuously ingests [GDELT 2.0](https://www.gdeltproject.org/)
-data, turns it into normalized articles and groups related reporting into
-stories. A lightweight web monitor makes those stories easy to browse.
+Sentinel-GEM is being built to turn global news signals into a geographic view
+of real-world events: what is happening, where it is happening and which
+reports belong to the same event.
 
-## What it does
+The current milestone builds the data foundation. It continuously ingests
+[GDELT 2.0](https://www.gdeltproject.org/) data, normalizes articles and groups
+related reporting into reproducible stories. The geographic visualization is
+the product goal and is not implemented yet.
+
+## Current capabilities
 
 - imports current GDELT event, mention and GKG data
 - normalizes article URLs and combines their GDELT signals
 - creates versioned story snapshots from title embeddings
 - exposes articles, stories and pipeline health through a REST API
-- presents story overviews and article details in a React monitor
+- presents the current story data in a React monitor
 
 ## Architecture
 
@@ -23,12 +28,13 @@ flowchart LR
     Database --> Engine
     Engine --> API[REST API]
     API --> Monitor[React monitor]
+    Monitor -. product goal .-> Map[Geographic event view]
 ```
 
 | Component | Technology | Purpose |
 |---|---|---|
 | [`engine`](engine) | Java 21, Spring Boot 4 | ingestion, processing and REST API |
-| [`monitor`](monitor) | React 19, TypeScript, Vite | story overview and details |
+| [`monitor`](monitor) | React 19, TypeScript, Vite | current story view and future geographic interface |
 | PostgreSQL | PostgreSQL 17 | durable article, signal and story data |
 
 ## Quick start
