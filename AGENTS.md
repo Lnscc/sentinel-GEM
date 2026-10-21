@@ -4,6 +4,14 @@
 
 - Always use the `keep-it-simple` skill for every task in this repository.
 
+## Component design
+
+- Keep UI components small and limited to one cohesive responsibility.
+- Split components containing multiple independently meaningful UI sections,
+  behaviors, or state responsibilities.
+- Keep state and side effects in the smallest component that naturally owns them.
+- Do not create trivial wrappers or components that only forward props.
+
 ## API and Postman
 
 Whenever a REST API endpoint or its request/response contract is added, changed, or removed:
