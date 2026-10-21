@@ -27,8 +27,8 @@ Whenever a REST API endpoint or its request/response contract is added, changed,
 - When implementing a Linear issue, summarize the implemented behavior in the issue.
 - When implementation work starts on a Linear issue, move it to `In Progress`
   without asking.
-- When the implemented change is verified on `main`, move the issue to `Done`
-  without asking.
+- Keep the issue `In Progress` until its verified commit is contained in `main`;
+  uncommitted changes on a `main` checkout do not count.
 - A status transition never authorizes committing, pushing, merging, or otherwise
   putting a change on `main`; those actions still require their own authorization.
 - Ask before changing status only when the correct transition is ambiguous.
