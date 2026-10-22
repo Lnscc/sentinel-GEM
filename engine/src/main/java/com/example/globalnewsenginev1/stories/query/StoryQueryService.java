@@ -104,23 +104,42 @@ public class StoryQueryService {
             case "desc" -> "DESC";
             default -> throw new IllegalArgumentException("direction must be asc or desc");
         };
-        String order = "\nORDER BY " + sortColumn + " " + sortDirection
-                + ", story.public_id ASC\nLIMIT ? OFFSET ?";
+        String order = "\nORDER BY " + sortColumn + " " + sortDirection + ", story.public_id ASC";
         List<Object> filterParameters = new ArrayList<>();
         filterParameters.add(visibleVersion);
         String filters = filterClause(criteria, filterParameters);
+        if (criteria.country() != null || criteria.region() != null) {
+            // ponytail: Reuse the canonical Java location selection; persist primary locations if this scan becomes costly.
+            List<StorySummary> filtered = withLocations(jdbcTemplate.query(STORY_SELECT + filters + order,
+                            (resultSet, rowNum) -> summary(resultSet), filterParameters.toArray())).stream()
+                    .filter(story -> matchesLocation(story.location(), criteria))
+                    .toList();
+            int fromIndex = Math.min(offset, filtered.size());
+            int toIndex = Math.min(fromIndex + limit, filtered.size());
+            return new StoryPage(filtered.subList(fromIndex, toIndex), offset, limit, filtered.size());
+        }
         List<Object> pageParameters = new ArrayList<>(filterParameters);
         pageParameters.add(limit);
         pageParameters.add(offset);
-        List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + filters + order,
+        List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + filters + order + "\nLIMIT ? OFFSET ?",
                 (resultSet, rowNum) -> summary(resultSet), pageParameters.toArray());
-        Map<UUID, StoryLocation> locations = locations(stories.stream().map(StorySummary::id).toList());
-        stories = stories.stream().map(story -> new StorySummary(
-                story.id(), story.state(), story.effectiveFrom(), story.effectiveTo(),
-                locations.get(story.id()), story.representativeArticle(), story.memberCount())).toList();
+        stories = withLocations(stories);
         long total = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) " + VISIBLE_STORY + filters, Long.class, filterParameters.toArray());
         return new StoryPage(stories, offset, limit, total);
+    }
+
+    private List<StorySummary> withLocations(List<StorySummary> stories) {
+        Map<UUID, StoryLocation> locations = locations(stories.stream().map(StorySummary::id).toList());
+        return stories.stream().map(story -> new StorySummary(
+                story.id(), story.state(), story.effectiveFrom(), story.effectiveTo(),
+                locations.get(story.id()), story.representativeArticle(), story.memberCount())).toList();
+    }
+
+    private boolean matchesLocation(StoryLocation location, StorySearchCriteria criteria) {
+        return location != null
+                && (criteria.country() == null || criteria.country().equals(location.countryCode()))
+                && (criteria.region() == null || criteria.region().equals(location.regionCode()));
     }
 
     private String filterClause(StorySearchCriteria criteria, List<Object> parameters) {
@@ -153,6 +172,14 @@ public class StoryQueryService {
         if (criteria == null) throw new IllegalArgumentException("search criteria must not be null");
         if (criteria.from() != null && criteria.to() != null && !criteria.from().isBefore(criteria.to())) {
             throw new IllegalArgumentException("from must be before to");
+        }
+        validateLocationCode("country", criteria.country());
+        validateLocationCode("region", criteria.region());
+    }
+
+    private void validateLocationCode(String parameter, String value) {
+        if (value != null && !value.matches("[A-Za-z0-9]{1,32}")) {
+            throw new IllegalArgumentException(parameter + " must contain 1 to 32 letters or digits");
         }
     }
 

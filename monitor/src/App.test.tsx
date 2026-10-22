@@ -98,6 +98,8 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Weiter" }));
     fireEvent.change(screen.getByLabelText("Von"), { target: { value: "2026-10-20T10:00" } });
     await user.type(screen.getByLabelText("Artikeldomain"), "example.org");
+    await user.type(screen.getByLabelText("Landkennung"), "GM");
+    await user.type(screen.getByLabelText("Regionskennung"), "GM16");
     await user.click(screen.getByRole("button", { name: "Filter anwenden" }));
 
     await waitFor(() => {
@@ -105,6 +107,8 @@ describe("App", () => {
       expect(request.searchParams.get("offset")).toBe("0");
       expect(request.searchParams.get("domain")).toBe("example.org");
       expect(request.searchParams.get("from")).toBe(new Date("2026-10-20T10:00").toISOString());
+      expect(request.searchParams.get("country")).toBe("GM");
+      expect(request.searchParams.get("region")).toBe("GM16");
     });
 
     await user.click(screen.getByRole("button", { name: "Zurücksetzen" }));
@@ -112,7 +116,11 @@ describe("App", () => {
       const request = new URL(fetchMock.mock.calls.at(-1)?.[0] as string, "http://localhost");
       expect(request.searchParams.has("from")).toBe(false);
       expect(request.searchParams.has("domain")).toBe(false);
+      expect(request.searchParams.has("country")).toBe(false);
+      expect(request.searchParams.has("region")).toBe(false);
     });
+    expect(screen.getByLabelText("Landkennung")).toHaveValue("");
+    expect(screen.getByLabelText("Regionskennung")).toHaveValue("");
   });
 
   it("shows located stories on an accessible map and groups nearby points", async () => {

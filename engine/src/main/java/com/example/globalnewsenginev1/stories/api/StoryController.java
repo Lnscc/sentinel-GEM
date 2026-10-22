@@ -21,7 +21,7 @@ import java.util.UUID;
 public class StoryController {
 
     private static final Set<String> LIST_PARAMETERS = Set.of(
-            "offset", "limit", "sort", "direction", "from", "to", "domain");
+            "offset", "limit", "sort", "direction", "from", "to", "domain", "country", "region");
 
     private final StoryQueryService queryService;
 
@@ -38,6 +38,8 @@ public class StoryController {
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
             @RequestParam(required = false) String domain,
+            @RequestParam(required = false) String country,
+            @RequestParam(required = false) String region,
             @RequestParam Map<String, String> parameters
     ) {
         parameters.keySet().stream()
@@ -47,7 +49,17 @@ public class StoryController {
                     throw new IllegalArgumentException("unknown parameter: " + parameter);
                 });
         return queryService.stories(offset, limit, sort, direction,
-                new StorySearchCriteria(parseInstant("from", from), parseInstant("to", to), domain));
+                new StorySearchCriteria(parseInstant("from", from), parseInstant("to", to), domain,
+                        parseLocationCode("country", country), parseLocationCode("region", region)));
+    }
+
+    private String parseLocationCode(String parameter, String value) {
+        if (value == null) return null;
+        String code = value.trim();
+        if (!code.matches("[A-Za-z0-9]{1,32}")) {
+            throw new IllegalArgumentException(parameter + " must contain 1 to 32 letters or digits");
+        }
+        return code;
     }
 
     private Instant parseInstant(String parameter, String value) {

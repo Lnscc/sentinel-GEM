@@ -114,10 +114,34 @@ class StoryQueryServiceTests {
 
         StoryPage page = service.stories(0, 1, "articleCount", "desc", new StorySearchCriteria(
                 Instant.parse("2026-09-02T00:00:00Z"),
-                Instant.parse("2026-09-03T00:00:00Z"), "source.org"));
+                Instant.parse("2026-09-03T00:00:00Z"), "source.org", null, null));
 
         assertThat(page.total()).isOne();
         assertThat(page.stories()).extracting(StorySummary::id).containsExactly(matching);
+    }
+
+    @Test
+    void filtersByPrimaryLocationBeforePagination() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "a", "2026-09-01T10:00:00Z");
+        seedArticle(2, "b", "2026-09-02T10:00:00Z");
+        seedArticle(3, "c", "2026-09-03T10:00:00Z");
+        seedStory(1, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z");
+        UUID secondGermanStory = seedStory(2, 1, "b", "ACTIVE", "2026-09-02T10:00:00Z");
+        seedStory(3, 1, "c", "ACTIVE", "2026-09-03T10:00:00Z");
+        seedMember(1, 1, 1, 1, "NEW_COMPONENT");
+        seedMember(2, 1, 2, 1, "NEW_COMPONENT");
+        seedMember(3, 1, 3, 1, "NEW_COMPONENT");
+        seedEvent(1, 1, 4, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "-1746443");
+        seedEvent(2, 2, 4, "Potsdam, Germany", "GM", "GM16", 52.39, 13.06, "-1743137");
+        seedEvent(3, 3, 4, "London, United Kingdom", "UK", "UKI", 51.5, -0.12, "2643743");
+
+        StoryPage page = service.stories(1, 1, "time", "asc",
+                new StorySearchCriteria(null, null, null, "GM", "GM16"));
+
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(page.stories()).extracting(StorySummary::id).containsExactly(secondGermanStory);
+        assertThat(page.stories().getFirst().location().regionCode()).isEqualTo("GM16");
     }
 
     @Test
@@ -182,7 +206,9 @@ class StoryQueryServiceTests {
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "unknown"));
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "desc",
                 new StorySearchCriteria(Instant.parse("2026-09-02T00:00:00Z"),
-                        Instant.parse("2026-09-01T00:00:00Z"), null)));
+                        Instant.parse("2026-09-01T00:00:00Z"), null, null, null)));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "desc",
+                new StorySearchCriteria(null, null, null, "GM!", null)));
     }
 
     private void seedVersion(long id, String versionKey, String status) {

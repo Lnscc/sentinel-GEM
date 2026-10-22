@@ -72,7 +72,9 @@ class StoryControllerTests {
                         .param("direction", "asc")
                         .param("from", "2026-09-01T00:00:00Z")
                         .param("to", "2026-09-02T00:00:00Z")
-                        .param("domain", "example.org"))
+                        .param("domain", "example.org")
+                        .param("country", "GM")
+                        .param("region", "GM16"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stories[0].id").value(id.toString()))
                 .andExpect(jsonPath("$.stories[0].state").value("ACTIVE"))
@@ -82,7 +84,7 @@ class StoryControllerTests {
                 .andExpect(jsonPath("$.stories[0].memberCount").value(1));
         assertThat(queryService.criteria).isEqualTo(new StorySearchCriteria(
                 Instant.parse("2026-09-01T00:00:00Z"),
-                Instant.parse("2026-09-02T00:00:00Z"), "example.org"));
+                Instant.parse("2026-09-02T00:00:00Z"), "example.org", "GM", "GM16"));
         mockMvc.perform(get("/stories/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
@@ -111,6 +113,9 @@ class StoryControllerTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_request"));
         mockMvc.perform(get("/stories").param("from", "not-an-instant"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_request"));
+        mockMvc.perform(get("/stories").param("region", "GM-16"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_request"));
         mockMvc.perform(get("/stories")

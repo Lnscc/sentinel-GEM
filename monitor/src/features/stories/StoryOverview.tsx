@@ -25,6 +25,8 @@ export default function StoryOverview() {
     if (filters.from) query.set("from", filters.from);
     if (filters.to) query.set("to", filters.to);
     if (filters.domain) query.set("domain", filters.domain);
+    if (filters.country) query.set("country", filters.country);
+    if (filters.region) query.set("region", filters.region);
     setPage(undefined);
     setError(undefined);
 
