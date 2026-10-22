@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Link, Paper, Stack, Typography } from "@mui/material";
 import StateMessage from "../../shared/StateMessage";
 import StoryMetadata, { DateRange, FormattedDate } from "./StoryMetadata";
 import type { StoryDetail } from "./storyTypes";
+
+function externalUrl(value: unknown) {
+  if (typeof value !== "string") return undefined;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export default function StoryDetails({ id }: { id: string }) {
   const [story, setStory] = useState<StoryDetail>();
@@ -53,15 +64,30 @@ export default function StoryDetails({ id }: { id: string }) {
           <Box component="section" aria-labelledby="articles-heading">
             <Typography id="articles-heading" variant="h2" sx={{ mb: 2 }}>Zugehörige Artikel</Typography>
             <Stack spacing={1.5}>
-              {story.members.map(({ article }) => (
-                <Paper component="article" variant="outlined" key={article.id} sx={{ minWidth: 0, p: 2.5 }}>
-                  <Typography variant="overline" color="primary.main">{article.domain}</Typography>
-                  <Typography variant="h3" sx={{ my: 1, overflowWrap: "anywhere" }}>{article.title}</Typography>
-                  <Typography color="text.secondary" sx={{ fontSize: "0.9rem" }}>
-                    <FormattedDate value={article.publishedAt ?? article.firstSeenAt} />
-                  </Typography>
-                </Paper>
-              ))}
+              {story.members.map(({ article }) => {
+                const sourceUrl = externalUrl(article.canonicalUrl);
+
+                return (
+                  <Paper component="article" variant="outlined" key={article.id} sx={{ minWidth: 0, p: 2.5 }}>
+                    <Typography variant="overline" color="primary.main">{article.domain}</Typography>
+                    <Typography variant="h3" sx={{ my: 1, overflowWrap: "anywhere" }}>{article.title}</Typography>
+                    <Typography color="text.secondary" sx={{ fontSize: "0.9rem" }}>
+                      <FormattedDate value={article.publishedAt ?? article.firstSeenAt} />
+                    </Typography>
+                    {sourceUrl && (
+                      <Link
+                        href={sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${article.title}: externe Quelle öffnen (neuer Tab)`}
+                        sx={{ display: "inline-block", mt: 1 }}
+                      >
+                        Quelle öffnen ↗
+                      </Link>
+                    )}
+                  </Paper>
+                );
+              })}
             </Stack>
           </Box>
         </Box>

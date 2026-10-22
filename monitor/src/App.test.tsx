@@ -171,6 +171,17 @@ describe("App", () => {
           publishedAt: null,
           mainImageUrl: null,
         },
+      }, {
+        assignmentReason: "member",
+        article: {
+          id: 2,
+          canonicalUrl: "javascript:alert('unsafe')",
+          domain: "example.org",
+          firstSeenAt: story.effectiveFrom,
+          title: "Artikel ohne nutzbare URL",
+          publishedAt: null,
+          mainImageUrl: null,
+        },
       }],
     }));
     renderApp();
@@ -178,6 +189,12 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
     expect(screen.getByText("Artikel eins")).toBeInTheDocument();
+    const sourceLink = screen.getByRole("link", { name: "Artikel eins: externe Quelle öffnen (neuer Tab)" });
+    expect(sourceLink).toHaveAttribute("href", "https://example.com/1");
+    expect(sourceLink).toHaveAttribute("target", "_blank");
+    expect(sourceLink).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.getByText("Artikel ohne nutzbare URL")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Artikel ohne nutzbare URL/ })).not.toBeInTheDocument();
   });
 
   it("shows loading and empty states", async () => {
