@@ -15,6 +15,14 @@ public record GdeltStageEvent(
         Integer quadClass,
         Double goldsteinScale,
         Double avgTone,
+        Integer actionGeoType,
+        String actionGeoName,
+        String actionGeoCountryCode,
+        String actionGeoAdm1Code,
+        String actionGeoAdm2Code,
+        Double actionGeoLatitude,
+        Double actionGeoLongitude,
+        String actionGeoFeatureId,
         String sourceUrl
 ) {
 }

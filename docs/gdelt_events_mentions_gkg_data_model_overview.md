@@ -57,6 +57,9 @@ werden dort nicht gespeichert. Fehlerhafte Payloads bleiben ohne Fachzeile erhal
 erneut verarbeitet werden. Historische Parsing-Fehler liegen dauerhaft in
 `gdelt_processing_errors`.
 
+Fuer die Story-Ortsauswahl persistiert `gdelt_events` den vollstaendigen ActionGeo-Satz aus Typ,
+Name, Land, ADM1, ADM2, Latitude, Longitude und Feature-ID.
+
 # Event-Felder
 
 | Feld                 | Bedeutung                    |

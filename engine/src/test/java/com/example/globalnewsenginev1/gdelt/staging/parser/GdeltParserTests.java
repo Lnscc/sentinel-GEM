@@ -27,6 +27,14 @@ public class GdeltParserTests {
         assertThat(event.quadClass()).isEqualTo(1);
         assertThat(event.goldsteinScale()).isEqualTo(-2.5);
         assertThat(event.avgTone()).isEqualTo(-1.25);
+        assertThat(event.actionGeoType()).isEqualTo(4);
+        assertThat(event.actionGeoName()).isEqualTo("Berlin, Germany");
+        assertThat(event.actionGeoCountryCode()).isEqualTo("GM");
+        assertThat(event.actionGeoAdm1Code()).isEqualTo("GM16");
+        assertThat(event.actionGeoAdm2Code()).isEqualTo("11000");
+        assertThat(event.actionGeoLatitude()).isEqualTo(52.52);
+        assertThat(event.actionGeoLongitude()).isEqualTo(13.405);
+        assertThat(event.actionGeoFeatureId()).isEqualTo("-1746443");
         assertThat(event.sourceUrl()).isEqualTo("https://example.org/a");
     }
 
@@ -131,6 +139,19 @@ public class GdeltParserTests {
                 .hasMessageContaining("quad_class");
     }
 
+    @Test
+    void discardsInvalidEventCoordinatesWithoutRejectingTheEvent() {
+        String[] columns = eventColumns();
+        columns[56] = "NaN";
+        columns[57] = "181";
+
+        GdeltStageEvent event = new GdeltEventParser().parse(String.join("\t", columns));
+
+        assertThat(event.actionGeoLatitude()).isNull();
+        assertThat(event.actionGeoLongitude()).isNull();
+        assertThat(event.actionGeoName()).isEqualTo("Berlin, Germany");
+    }
+
     public static String eventRow() {
         return String.join("\t", eventColumns());
     }
@@ -186,6 +207,14 @@ public class GdeltParserTests {
         columns[29] = "1";
         columns[30] = "-2.5";
         columns[34] = "-1.25";
+        columns[51] = "4";
+        columns[52] = "Berlin, Germany";
+        columns[53] = "GM";
+        columns[54] = "GM16";
+        columns[55] = "11000";
+        columns[56] = "52.52";
+        columns[57] = "13.405";
+        columns[58] = "-1746443";
         columns[60] = "https://example.org/a";
         return columns;
     }

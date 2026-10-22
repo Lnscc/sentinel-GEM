@@ -280,3 +280,10 @@ Story-ID aufsteigend; `offset` muss mindestens 0 und `limit` zwischen 1 und 100 
 Mitgliedschaften mit Zuordnungsgrund. Unbekannte oder abgeloeste IDs liefern `404`. Bei einer
 weiterverwendeten oeffentlichen ID wird der Stand der konfigurierten Version geliefert.
 Andere Versionen sind nicht produktsichtbar.
+
+Beide Endpunkte liefern zusaetzlich den nullable Wert `location` mit `name`, `countryCode`,
+`regionCode`, `latitude`, `longitude` und `source`. Beruecksichtigt werden nur endliche Koordinaten
+innerhalb der gueltigen geografischen Grenzen. Die Auswahl verwendet zuerst ActionGeo-Orte aus
+EVENTS und nur ersatzweise erwaehnte GKG-Orte. Innerhalb dieser Quelle gewinnt die am haeufigsten
+belegte Koordinate; Gleichstaende werden stabil nach geografischer Spezifitaet und Ortsfeldern
+aufgeloest. `source` ist entsprechend `GDELT_EVENT_ACTION` oder `GDELT_GKG_MENTION`.

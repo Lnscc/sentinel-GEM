@@ -94,8 +94,11 @@ public class GdeltRawToStagingTransformer {
                             (id, import_file_id, source_file, source_timestamp, row_number, ingested_at, parsed_at,
                              global_event_id, event_date, actor1_code, actor1_name, actor1_country_code,
                              actor2_code, actor2_name, actor2_country_code, event_code, quad_class,
-                             goldstein_scale, avg_tone, source_url)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             goldstein_scale, avg_tone, action_geo_type, action_geo_name,
+                             action_geo_country_code, action_geo_adm1_code, action_geo_adm2_code,
+                             action_geo_latitude, action_geo_longitude, action_geo_feature_id, source_url)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                                ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         row.rawId(), row.importFileId(), row.sourceFile(), utc(row.sourceTimestamp()),
                         row.rowNumber(), utc(row.ingestedAt()), utc(Instant.now()),
@@ -103,7 +106,10 @@ public class GdeltRawToStagingTransformer {
                         event.actor1Code(), event.actor1Name(), event.actor1CountryCode(),
                         event.actor2Code(), event.actor2Name(), event.actor2CountryCode(),
                         event.eventCode(), event.quadClass(), event.goldsteinScale(),
-                        event.avgTone(), event.sourceUrl());
+                        event.avgTone(), event.actionGeoType(), event.actionGeoName(),
+                        event.actionGeoCountryCode(), event.actionGeoAdm1Code(), event.actionGeoAdm2Code(),
+                        event.actionGeoLatitude(), event.actionGeoLongitude(), event.actionGeoFeatureId(),
+                        event.sourceUrl());
                 resolveErrors("EVENTS", row.rawId());
                 staged++;
             } catch (GdeltParseException exception) {

@@ -65,6 +65,7 @@ class GdeltRawToStagingTransformerTests {
             new V18__migrate_gkg_to_payload_and_domain_model().migrate(connection);
             ScriptUtils.executeSqlScript(connection,
                     new ClassPathResource("db/migration/V21__remove_redundant_gkg_raw_columns.sql"));
+            new db.migration.V28__add_event_action_location().migrate(connection);
         }
 
         jdbcTemplate = new JdbcTemplate(dataSource);
@@ -119,6 +120,19 @@ class GdeltRawToStagingTransformerTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT global_event_id FROM gdelt_events",
                 Long.class)).isEqualTo(123L);
+        assertThat(jdbcTemplate.queryForMap("""
+                SELECT action_geo_name, action_geo_country_code, action_geo_adm1_code,
+                       action_geo_adm2_code, action_geo_latitude, action_geo_longitude,
+                       action_geo_feature_id
+                FROM gdelt_events
+                """))
+                .containsEntry("ACTION_GEO_NAME", "Berlin, Germany")
+                .containsEntry("ACTION_GEO_COUNTRY_CODE", "GM")
+                .containsEntry("ACTION_GEO_ADM1_CODE", "GM16")
+                .containsEntry("ACTION_GEO_ADM2_CODE", "11000")
+                .containsEntry("ACTION_GEO_LATITUDE", 52.52)
+                .containsEntry("ACTION_GEO_LONGITUDE", 13.405)
+                .containsEntry("ACTION_GEO_FEATURE_ID", "-1746443");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT page_title FROM gdelt_gkg",
                 String.class)).isEqualTo("First Rain Exposes Flaws In ₹28 Lakh & More");

@@ -32,7 +32,14 @@ class StoryQueryServiceTests {
         jdbc.execute("""
                 CREATE TABLE gdelt_gkg (id BIGINT PRIMARY KEY, article_id BIGINT,
                     source_timestamp TIMESTAMP WITH TIME ZONE, page_title TEXT,
-                    page_precise_pub_timestamp TIMESTAMP WITH TIME ZONE, main_image_url TEXT)
+                    page_precise_pub_timestamp TIMESTAMP WITH TIME ZONE, main_image_url TEXT,
+                    locations JSON)
+                """);
+        jdbc.execute("""
+                CREATE TABLE gdelt_events (id BIGINT PRIMARY KEY, article_id BIGINT,
+                    action_geo_type INTEGER, action_geo_name TEXT, action_geo_country_code VARCHAR(16),
+                    action_geo_adm1_code VARCHAR(32), action_geo_latitude DOUBLE PRECISION,
+                    action_geo_longitude DOUBLE PRECISION, action_geo_feature_id VARCHAR(255))
                 """);
         jdbc.execute("""
                 CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT,
@@ -111,6 +118,40 @@ class StoryQueryServiceTests {
     }
 
     @Test
+    void selectsTheSameDeterministicPrimaryLocationForListAndDetail() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "a", "2026-09-01T10:00:00Z");
+        seedArticle(2, "b", "2026-09-01T11:00:00Z");
+        seedArticle(3, "c", "2026-09-01T12:00:00Z");
+        UUID located = seedStory(1, 1, "a", "ACTIVE", "2026-09-01T11:00:00Z");
+        UUID unlocated = seedStory(2, 1, "c", "ACTIVE", "2026-09-01T12:00:00Z");
+        seedMember(1, 1, 1, 1, "MATCHED_COMPONENT");
+        seedMember(1, 1, 2, 1, "MATCHED_COMPONENT");
+        seedMember(2, 1, 3, 1, "NEW_COMPONENT");
+        seedGkg(1, 1, """
+                [{"type":4,"name":"London","countryCode":"UK","adm1Code":"UKH9",
+                  "latitude":51.5,"longitude":-0.12,"featureId":"2643743"}]
+                """);
+        seedGkg(2, 2, """
+                [{"type":4,"name":"Invalid","countryCode":"UK","adm1Code":"UKH9",
+                  "latitude":95.0,"longitude":-0.12,"featureId":"invalid"}]
+                """);
+        seedEvent(1, 1, 1, "Germany", "GM", null, 51.0, 10.0, null);
+        seedEvent(2, 2, 4, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "-1746443");
+
+        StoryPage page = service.stories(0, 20, "time", "desc");
+        StoryLocation listLocation = page.stories().stream()
+                .filter(story -> story.id().equals(located)).findFirst().orElseThrow().location();
+        StoryLocation detailLocation = service.story(located).orElseThrow().location();
+
+        assertThat(listLocation).isEqualTo(new StoryLocation(
+                "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "GDELT_EVENT_ACTION"));
+        assertThat(detailLocation).isEqualTo(listLocation);
+        assertThat(page.stories().stream()
+                .filter(story -> story.id().equals(unlocated)).findFirst().orElseThrow().location()).isNull();
+    }
+
+    @Test
     void rejectsInvalidListParameters() {
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(-1, 20, "time", "desc"));
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 0, "time", "desc"));
@@ -139,6 +180,23 @@ class StoryQueryServiceTests {
     private void seedMember(long storySeed, long version, long article, Integer current, String reason) {
         jdbc.update("INSERT INTO story_memberships VALUES (?, ?, ?, ?, ?)",
                 new UUID(0, storySeed), version, article, current, reason);
+    }
+
+    private void seedEvent(long id, long articleId, int type, String name, String countryCode,
+                           String regionCode, double latitude, double longitude, String featureId) {
+        jdbc.update("""
+                INSERT INTO gdelt_events (
+                    id, article_id, action_geo_type, action_geo_name, action_geo_country_code,
+                    action_geo_adm1_code, action_geo_latitude, action_geo_longitude, action_geo_feature_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, id, articleId, type, name, countryCode, regionCode, latitude, longitude, featureId);
+    }
+
+    private void seedGkg(long id, long articleId, String locations) {
+        jdbc.update("""
+                INSERT INTO gdelt_gkg (id, article_id, source_timestamp, locations)
+                VALUES (?, ?, ?, CAST(? AS JSON))
+                """, id, articleId, utc("2026-09-01T10:00:00Z"), locations);
     }
 
     private OffsetDateTime utc(String instant) {

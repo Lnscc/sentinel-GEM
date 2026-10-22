@@ -9,6 +9,7 @@ public record StoryDetail(
         String state,
         Instant effectiveFrom,
         Instant effectiveTo,
+        StoryLocation location,
         StoryArticle representativeArticle,
         List<StoryMember> members
 ) {

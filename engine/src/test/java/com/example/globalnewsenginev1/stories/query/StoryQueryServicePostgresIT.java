@@ -36,7 +36,14 @@ class StoryQueryServicePostgresIT {
         jdbc.execute("""
                 CREATE TABLE gdelt_gkg (id BIGINT PRIMARY KEY, article_id BIGINT,
                     source_timestamp TIMESTAMP WITH TIME ZONE, page_title TEXT,
-                    page_precise_pub_timestamp TIMESTAMP WITH TIME ZONE, main_image_url TEXT)
+                    page_precise_pub_timestamp TIMESTAMP WITH TIME ZONE, main_image_url TEXT,
+                    locations JSONB)
+                """);
+        jdbc.execute("""
+                CREATE TABLE gdelt_events (id BIGINT PRIMARY KEY, article_id BIGINT,
+                    action_geo_type INTEGER, action_geo_name TEXT, action_geo_country_code VARCHAR(16),
+                    action_geo_adm1_code VARCHAR(32), action_geo_latitude DOUBLE PRECISION,
+                    action_geo_longitude DOUBLE PRECISION, action_geo_feature_id VARCHAR(255))
                 """);
         jdbc.execute("""
                 CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT,

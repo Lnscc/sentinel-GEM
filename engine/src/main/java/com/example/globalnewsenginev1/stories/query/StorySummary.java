@@ -8,6 +8,7 @@ public record StorySummary(
         String state,
         Instant effectiveFrom,
         Instant effectiveTo,
+        StoryLocation location,
         StoryArticle representativeArticle,
         long memberCount
 ) {
