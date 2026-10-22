@@ -3,6 +3,7 @@ import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Select, Stack, T
 import StateMessage from "../../shared/StateMessage";
 import StoryCard from "./StoryCard";
 import StoryFilters, { type StoryFilterValues } from "./StoryFilters";
+import StoryRefreshStatus from "./StoryRefreshStatus";
 import LiveMap from "../live-map/LiveMap";
 import type { StoryPage } from "./storyTypes";
 
@@ -14,6 +15,9 @@ const PAGE_SIZE = 20;
 export default function StoryOverview() {
   const [page, setPage] = useState<StoryPage>();
   const [error, setError] = useState<string>();
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastLoadedAt, setLastLoadedAt] = useState<Date>();
+  const [refreshKey, setRefreshKey] = useState(0);
   const [offset, setOffset] = useState(0);
   const [sort, setSort] = useState<Sort>("time");
   const [direction, setDirection] = useState<Direction>("desc");
@@ -27,7 +31,7 @@ export default function StoryOverview() {
     if (filters.domain) query.set("domain", filters.domain);
     if (filters.country) query.set("country", filters.country);
     if (filters.region) query.set("region", filters.region);
-    setPage(undefined);
+    setIsLoading(true);
     setError(undefined);
 
     fetch(`/api/stories?${query}`, { signal: controller.signal })
@@ -35,17 +39,23 @@ export default function StoryOverview() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json() as Promise<StoryPage>;
       })
-      .then(setPage)
+      .then((nextPage) => {
+        setPage(nextPage);
+        setLastLoadedAt(new Date());
+      })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Unbekannter Fehler");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
       });
 
     return () => controller.abort();
-  }, [offset, sort, direction, filters]);
+  }, [offset, sort, direction, filters, refreshKey]);
 
-  const changeSort = (next: Sort) => { setSort(next); setOffset(0); };
-  const changeDirection = (next: Direction) => { setDirection(next); setOffset(0); };
-  const applyFilters = (next: StoryFilterValues) => { setFilters(next); setOffset(0); };
+  const changeSort = (next: Sort) => { setPage(undefined); setSort(next); setOffset(0); };
+  const changeDirection = (next: Direction) => { setPage(undefined); setDirection(next); setOffset(0); };
+  const applyFilters = (next: StoryFilterValues) => { setPage(undefined); setFilters(next); setOffset(0); };
 
   return (
     <>
@@ -76,7 +86,8 @@ export default function StoryOverview() {
         </FormControl>
       </Stack>
 
-      {!page && !error && <StateMessage>Stories werden geladen …</StateMessage>}
+      {lastLoadedAt && <StoryRefreshStatus isLoading={isLoading} lastLoadedAt={lastLoadedAt} onRefresh={() => setRefreshKey((key) => key + 1)} />}
+      {!page && isLoading && <StateMessage>Stories werden geladen …</StateMessage>}
       {error && <Alert severity="error">Die Stories konnten nicht geladen werden. {error}</Alert>}
       {page?.stories.length === 0 && <StateMessage>Derzeit sind keine Stories verfügbar.</StateMessage>}
       {page && page.stories.length > 0 && (
@@ -88,9 +99,9 @@ export default function StoryOverview() {
               {page.stories.map((story) => <StoryCard key={story.id} story={story} />)}
             </Box>
             <Stack component="nav" direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between", mt: 3 }} aria-label="Story-Seiten">
-              <Button variant="outlined" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>Zurück</Button>
+              <Button variant="outlined" disabled={offset === 0} onClick={() => { setPage(undefined); setOffset(Math.max(0, offset - PAGE_SIZE)); }}>Zurück</Button>
               <Typography>Seite {offset / PAGE_SIZE + 1} von {Math.ceil(page.total / PAGE_SIZE)}</Typography>
-              <Button variant="outlined" disabled={offset + PAGE_SIZE >= page.total} onClick={() => setOffset(offset + PAGE_SIZE)}>Weiter</Button>
+              <Button variant="outlined" disabled={offset + PAGE_SIZE >= page.total} onClick={() => { setPage(undefined); setOffset(offset + PAGE_SIZE); }}>Weiter</Button>
             </Stack>
           </Box>
         </>

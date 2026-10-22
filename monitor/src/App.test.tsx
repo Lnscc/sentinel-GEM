@@ -243,4 +243,41 @@ describe("App", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Die Stories konnten nicht geladen werden. HTTP 500");
   });
+
+  it("shows the last successful load and refreshes the current page without hiding it", async () => {
+    let resolveRefresh!: (response: Response) => void;
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => jsonResponse({ stories: [story], total: 1 }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve; }));
+    const user = userEvent.setup();
+    renderApp();
+
+    expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
+    const loadedAt = screen.getByText(/Zuletzt geladen:/).querySelector("time");
+    expect(loadedAt).toHaveAttribute("dateTime", expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+    const initialRequest = fetchMock.mock.calls[0][0];
+
+    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
+
+    expect(screen.getByText(/Aktualisierung läuft/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
+    expect(fetchMock.mock.calls[1][0]).toBe(initialRequest);
+
+    resolveRefresh(await jsonResponse({ stories: [story], total: 1 }));
+    await waitFor(() => expect(screen.queryByText(/Aktualisierung läuft/)).not.toBeInTheDocument());
+  });
+
+  it("keeps loaded stories and reports refresh failures accessibly", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => jsonResponse({ stories: [story], total: 1 }))
+      .mockImplementationOnce(() => jsonResponse({}, false));
+    const user = userEvent.setup();
+    renderApp();
+
+    expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Die Stories konnten nicht geladen werden. HTTP 500");
+    expect(screen.getByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
+  });
 });
