@@ -191,22 +191,25 @@
       "name": "Stories",
       "item": [
         {
-          "name": "Stories auflisten",
+          "name": "Stories filtern und auflisten",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/stories?offset={{offset}}&limit={{pageLimit}}&sort=articleCount&direction=desc",
+              "raw": "{{baseUrl}}/stories?offset={{offset}}&limit={{pageLimit}}&sort=articleCount&direction=desc&from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z&domain=example.org",
               "host": ["{{baseUrl}}"],
               "path": ["stories"],
               "query": [
                 { "key": "offset", "value": "{{offset}}" },
                 { "key": "limit", "value": "{{pageLimit}}" },
                 { "key": "sort", "value": "articleCount" },
-                { "key": "direction", "value": "desc" }
+                { "key": "direction", "value": "desc" },
+                { "key": "from", "value": "2020-01-01T00:00:00Z" },
+                { "key": "to", "value": "2030-01-01T00:00:00Z" },
+                { "key": "domain", "value": "example.org" }
               ]
             },
-            "description": "Liefert nicht abgeloeste Stories der serverseitig konfigurierten Clustering-Version, paginiert und nach Zeitpunkt oder Artikelanzahl sortiert."
+            "description": "Liefert nicht abgeloeste Stories der serverseitig konfigurierten Clustering-Version. from ist inklusiv, to exklusiv; Story-Intervalle muessen den Zeitraum ueberlappen. domain trifft exakt eine Artikeldomain eines aktuellen Story-Mitglieds. Filter, Sortierung und Pagination werden kombiniert."
           },
           "event": [
             {
@@ -232,6 +235,8 @@
                   "      pm.expect(story.location.source).to.be.oneOf(['GDELT_EVENT_ACTION', 'GDELT_GKG_MENTION']);",
                   "    }",
                   "    pm.expect(story.representativeArticle).to.have.all.keys('id', 'canonicalUrl', 'domain', 'firstSeenAt', 'title', 'publishedAt', 'mainImageUrl');",
+                  "    pm.expect(new Date(story.effectiveTo).getTime()).to.be.at.least(new Date('2020-01-01T00:00:00Z').getTime());",
+                  "    pm.expect(new Date(story.effectiveFrom).getTime()).to.be.below(new Date('2030-01-01T00:00:00Z').getTime());",
                   "  });",
                   "  for (let i = 1; i < body.stories.length; i += 1) pm.expect(body.stories[i - 1].memberCount).to.be.at.least(body.stories[i].memberCount);",
                   "});",
@@ -315,6 +320,34 @@
               "query": [
                 { "key": "offset", "value": "-1" },
                 { "key": "limit", "value": "101" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => pm.expect(pm.response.json()).to.have.all.keys('code', 'message'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ungueltiger Story-Zeitraum",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories?from=2026-02-01T00:00:00Z&to=2026-01-01T00:00:00Z",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories"],
+              "query": [
+                { "key": "from", "value": "2026-02-01T00:00:00Z" },
+                { "key": "to", "value": "2026-01-01T00:00:00Z" }
               ]
             }
           },

@@ -6,6 +6,7 @@ import com.example.globalnewsenginev1.stories.query.StoryLocation;
 import com.example.globalnewsenginev1.stories.query.StoryMember;
 import com.example.globalnewsenginev1.stories.query.StoryPage;
 import com.example.globalnewsenginev1.stories.query.StoryQueryService;
+import com.example.globalnewsenginev1.stories.query.StorySearchCriteria;
 import com.example.globalnewsenginev1.stories.query.StorySummary;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -67,7 +69,10 @@ class StoryControllerTests {
         mockMvc.perform(get("/stories")
                         .param("limit", "1")
                         .param("sort", "articleCount")
-                        .param("direction", "asc"))
+                        .param("direction", "asc")
+                        .param("from", "2026-09-01T00:00:00Z")
+                        .param("to", "2026-09-02T00:00:00Z")
+                        .param("domain", "example.org"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stories[0].id").value(id.toString()))
                 .andExpect(jsonPath("$.stories[0].state").value("ACTIVE"))
@@ -75,6 +80,9 @@ class StoryControllerTests {
                 .andExpect(jsonPath("$.stories[0].location.source").value("GDELT_EVENT_ACTION"))
                 .andExpect(jsonPath("$.stories[0].representativeArticle.title").value("Headline"))
                 .andExpect(jsonPath("$.stories[0].memberCount").value(1));
+        assertThat(queryService.criteria).isEqualTo(new StorySearchCriteria(
+                Instant.parse("2026-09-01T00:00:00Z"),
+                Instant.parse("2026-09-02T00:00:00Z"), "example.org"));
         mockMvc.perform(get("/stories/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
@@ -102,10 +110,19 @@ class StoryControllerTests {
         mockMvc.perform(get("/stories").param("direction", "unknown"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_request"));
+        mockMvc.perform(get("/stories").param("from", "not-an-instant"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_request"));
+        mockMvc.perform(get("/stories")
+                        .param("from", "2026-09-02T00:00:00Z")
+                        .param("to", "2026-09-01T00:00:00Z"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_request"));
     }
 
     private static class StubStoryQueryService extends StoryQueryService {
         private StoryPage page;
+        private StorySearchCriteria criteria;
         private final Map<UUID, StoryDetail> details = new HashMap<>();
 
         StubStoryQueryService() {
@@ -113,7 +130,8 @@ class StoryControllerTests {
         }
 
         @Override
-        public StoryPage stories(int offset, int limit, String sort, String direction) {
+        public StoryPage stories(int offset, int limit, String sort, String direction,
+                                 StorySearchCriteria criteria) {
             if (offset < 0) throw new IllegalArgumentException("offset must not be negative");
             if (!List.of("time", "articleCount").contains(sort)) {
                 throw new IllegalArgumentException("invalid sort");
@@ -121,6 +139,10 @@ class StoryControllerTests {
             if (!List.of("asc", "desc").contains(direction)) {
                 throw new IllegalArgumentException("invalid direction");
             }
+            if (criteria.from() != null && criteria.to() != null && !criteria.from().isBefore(criteria.to())) {
+                throw new IllegalArgumentException("invalid range");
+            }
+            this.criteria = criteria;
             return page;
         }
 

@@ -99,6 +99,28 @@ class StoryQueryServiceTests {
     }
 
     @Test
+    void filtersByOverlappingTimeRangeAndCurrentMemberDomain() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "a", "representative.org", "2026-09-01T10:00:00Z");
+        seedArticle(2, "b", "source.org", "2026-09-01T11:00:00Z");
+        seedArticle(3, "c", "other.org", "2026-09-03T10:00:00Z");
+        UUID matching = seedStory(1, 1, "a", "ACTIVE",
+                "2026-09-01T10:00:00Z", "2026-09-02T10:00:00Z");
+        seedStory(2, 1, "c", "ACTIVE",
+                "2026-09-03T10:00:00Z", "2026-09-04T10:00:00Z");
+        seedMember(1, 1, 1, 1, "NEW_COMPONENT");
+        seedMember(1, 1, 2, 1, "MATCHED_COMPONENT");
+        seedMember(2, 1, 3, 1, "NEW_COMPONENT");
+
+        StoryPage page = service.stories(0, 1, "articleCount", "desc", new StorySearchCriteria(
+                Instant.parse("2026-09-02T00:00:00Z"),
+                Instant.parse("2026-09-03T00:00:00Z"), "source.org"));
+
+        assertThat(page.total()).isOne();
+        assertThat(page.stories()).extracting(StorySummary::id).containsExactly(matching);
+    }
+
+    @Test
     void returnsCurrentMembersAndHidesSupersededIds() {
         seedVersion(1, "visible-version", "SHADOW");
         seedArticle(1, "a", "2026-09-01T10:00:00Z");
@@ -158,6 +180,9 @@ class StoryQueryServiceTests {
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 101, "time", "desc"));
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "unknown", "desc"));
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "unknown"));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "desc",
+                new StorySearchCriteria(Instant.parse("2026-09-02T00:00:00Z"),
+                        Instant.parse("2026-09-01T00:00:00Z"), null)));
     }
 
     private void seedVersion(long id, String versionKey, String status) {
@@ -165,15 +190,24 @@ class StoryQueryServiceTests {
     }
 
     private void seedArticle(long id, String ref, String seenAt) {
-        jdbc.update("INSERT INTO articles VALUES (?, ?, ?, 'example.org', ?)", id,
-                "https://example.org/" + ref, ref, utc(seenAt));
+        seedArticle(id, ref, "example.org", seenAt);
+    }
+
+    private void seedArticle(long id, String ref, String domain, String seenAt) {
+        jdbc.update("INSERT INTO articles VALUES (?, ?, ?, ?, ?)", id,
+                "https://" + domain + "/" + ref, ref, domain, utc(seenAt));
     }
 
     private UUID seedStory(long seed, long version, String representative, String state, String effectiveTo) {
+        return seedStory(seed, version, representative, state, "2026-09-01T10:00:00Z", effectiveTo);
+    }
+
+    private UUID seedStory(long seed, long version, String representative, String state,
+                           String effectiveFrom, String effectiveTo) {
         UUID internalId = new UUID(0, seed);
         UUID publicId = new UUID(1, seed);
         jdbc.update("INSERT INTO stories VALUES (?, ?, ?, ?, ?, ?, ?)", internalId, publicId, version,
-                representative, state, utc("2026-09-01T10:00:00Z"), utc(effectiveTo));
+                representative, state, utc(effectiveFrom), utc(effectiveTo));
         return publicId;
     }
 

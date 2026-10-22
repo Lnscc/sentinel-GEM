@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, createTheme } from "@mui/material";
 import App from "./App";
@@ -87,6 +87,32 @@ describe("App", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining("sort=articleCount"), expect.anything()));
     await user.click(screen.getByRole("button", { name: "Weiter" }));
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(expect.stringMatching(/offset=20.*sort=articleCount/), expect.anything()));
+  });
+
+  it("applies and resets story filters from the first page", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({ stories: [story], total: 21 }));
+    const user = userEvent.setup();
+    renderApp();
+
+    await screen.findByRole("heading", { name: "Eine wichtige Story" });
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.change(screen.getByLabelText("Von"), { target: { value: "2026-10-20T10:00" } });
+    await user.type(screen.getByLabelText("Artikeldomain"), "example.org");
+    await user.click(screen.getByRole("button", { name: "Filter anwenden" }));
+
+    await waitFor(() => {
+      const request = new URL(fetchMock.mock.calls.at(-1)?.[0] as string, "http://localhost");
+      expect(request.searchParams.get("offset")).toBe("0");
+      expect(request.searchParams.get("domain")).toBe("example.org");
+      expect(request.searchParams.get("from")).toBe(new Date("2026-10-20T10:00").toISOString());
+    });
+
+    await user.click(screen.getByRole("button", { name: "Zurücksetzen" }));
+    await waitFor(() => {
+      const request = new URL(fetchMock.mock.calls.at(-1)?.[0] as string, "http://localhost");
+      expect(request.searchParams.has("from")).toBe(false);
+      expect(request.searchParams.has("domain")).toBe(false);
+    });
   });
 
   it("shows located stories on an accessible map and groups nearby points", async () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
 import StateMessage from "../../shared/StateMessage";
 import StoryCard from "./StoryCard";
+import StoryFilters, { type StoryFilterValues } from "./StoryFilters";
 import LiveMap from "../live-map/LiveMap";
 import type { StoryPage } from "./storyTypes";
 
@@ -16,10 +17,14 @@ export default function StoryOverview() {
   const [offset, setOffset] = useState(0);
   const [sort, setSort] = useState<Sort>("time");
   const [direction, setDirection] = useState<Direction>("desc");
+  const [filters, setFilters] = useState<StoryFilterValues>({});
 
   useEffect(() => {
     const controller = new AbortController();
     const query = new URLSearchParams({ offset: String(offset), limit: String(PAGE_SIZE), sort, direction });
+    if (filters.from) query.set("from", filters.from);
+    if (filters.to) query.set("to", filters.to);
+    if (filters.domain) query.set("domain", filters.domain);
     setPage(undefined);
     setError(undefined);
 
@@ -34,10 +39,11 @@ export default function StoryOverview() {
       });
 
     return () => controller.abort();
-  }, [offset, sort, direction]);
+  }, [offset, sort, direction, filters]);
 
   const changeSort = (next: Sort) => { setSort(next); setOffset(0); };
   const changeDirection = (next: Direction) => { setDirection(next); setOffset(0); };
+  const applyFilters = (next: StoryFilterValues) => { setFilters(next); setOffset(0); };
 
   return (
     <>
@@ -48,6 +54,8 @@ export default function StoryOverview() {
           Nachrichtenereignisse aus verschiedenen Quellen, gebündelt im Überblick.
         </Typography>
       </Box>
+
+      <StoryFilters onApply={applyFilters} />
 
       <Stack component="section" direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }} aria-label="Story-Sortierung">
         <FormControl size="small" sx={{ minWidth: 180 }}>

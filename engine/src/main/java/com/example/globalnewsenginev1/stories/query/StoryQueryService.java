@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -86,7 +87,13 @@ public class StoryQueryService {
     }
 
     public StoryPage stories(int offset, int limit, String sort, String direction) {
+        return stories(offset, limit, sort, direction, StorySearchCriteria.defaults());
+    }
+
+    public StoryPage stories(int offset, int limit, String sort, String direction,
+                             StorySearchCriteria criteria) {
         validatePagination(offset, limit);
+        validateCriteria(criteria);
         String sortColumn = switch (sort) {
             case "time" -> "story.effective_to";
             case "articleCount" -> "member_count";
@@ -99,15 +106,54 @@ public class StoryQueryService {
         };
         String order = "\nORDER BY " + sortColumn + " " + sortDirection
                 + ", story.public_id ASC\nLIMIT ? OFFSET ?";
-        List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + order,
-                (resultSet, rowNum) -> summary(resultSet), visibleVersion, limit, offset);
+        List<Object> filterParameters = new ArrayList<>();
+        filterParameters.add(visibleVersion);
+        String filters = filterClause(criteria, filterParameters);
+        List<Object> pageParameters = new ArrayList<>(filterParameters);
+        pageParameters.add(limit);
+        pageParameters.add(offset);
+        List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + filters + order,
+                (resultSet, rowNum) -> summary(resultSet), pageParameters.toArray());
         Map<UUID, StoryLocation> locations = locations(stories.stream().map(StorySummary::id).toList());
         stories = stories.stream().map(story -> new StorySummary(
                 story.id(), story.state(), story.effectiveFrom(), story.effectiveTo(),
                 locations.get(story.id()), story.representativeArticle(), story.memberCount())).toList();
         long total = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) " + VISIBLE_STORY, Long.class, visibleVersion);
+                "SELECT COUNT(*) " + VISIBLE_STORY + filters, Long.class, filterParameters.toArray());
         return new StoryPage(stories, offset, limit, total);
+    }
+
+    private String filterClause(StorySearchCriteria criteria, List<Object> parameters) {
+        StringBuilder filters = new StringBuilder();
+        if (criteria.from() != null) {
+            filters.append(" AND story.effective_to >= ?");
+            parameters.add(Timestamp.from(criteria.from()));
+        }
+        if (criteria.to() != null) {
+            filters.append(" AND story.effective_from < ?");
+            parameters.add(Timestamp.from(criteria.to()));
+        }
+        if (criteria.domain() != null && !criteria.domain().isBlank()) {
+            filters.append("""
+                     AND EXISTS (
+                       SELECT 1
+                       FROM story_memberships filtered_member
+                       JOIN articles filtered_article ON filtered_article.id = filtered_member.article_id
+                       WHERE filtered_member.story_id = story.id
+                         AND filtered_member.clustering_version_id = story.clustering_version_id
+                         AND filtered_member.current_marker = 1
+                         AND filtered_article.domain = ?)
+                    """);
+            parameters.add(criteria.domain().trim());
+        }
+        return filters.toString();
+    }
+
+    private void validateCriteria(StorySearchCriteria criteria) {
+        if (criteria == null) throw new IllegalArgumentException("search criteria must not be null");
+        if (criteria.from() != null && criteria.to() != null && !criteria.from().isBefore(criteria.to())) {
+            throw new IllegalArgumentException("from must be before to");
+        }
     }
 
     public Optional<StoryDetail> story(UUID id) {
