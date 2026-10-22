@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
-import StateMessage from "./StateMessage";
+import StateMessage from "../../shared/StateMessage";
 import StoryMetadata, { DateRange, FormattedDate } from "./StoryMetadata";
 import type { StoryDetail } from "./storyTypes";
 

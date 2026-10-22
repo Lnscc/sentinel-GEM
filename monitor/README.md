@@ -19,6 +19,14 @@ $env:ENGINE_URL = "http://localhost:8081"
 npm run dev
 ```
 
+The world map uses the public OpenFreeMap Liberty style by default. Override it
+with any MapLibre-compatible style URL:
+
+```powershell
+$env:VITE_MAP_STYLE_URL = "https://example.com/style.json"
+npm run dev
+```
+
 ## Production build
 
 ```powershell

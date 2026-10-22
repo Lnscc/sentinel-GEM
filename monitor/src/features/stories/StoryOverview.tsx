@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
-import StateMessage from "./StateMessage";
+import StateMessage from "../../shared/StateMessage";
 import StoryCard from "./StoryCard";
+import LiveMap from "../live-map/LiveMap";
 import type { StoryPage } from "./storyTypes";
 
 type Sort = "time" | "articleCount";
@@ -69,17 +70,20 @@ export default function StoryOverview() {
       {error && <Alert severity="error">Die Stories konnten nicht geladen werden. {error}</Alert>}
       {page?.stories.length === 0 && <StateMessage>Derzeit sind keine Stories verfügbar.</StateMessage>}
       {page && page.stories.length > 0 && (
-        <Box component="section" aria-label="Story-Liste">
-          <Typography variant="overline" sx={{ display: "block", mb: 2 }}>{page.total} Stories insgesamt</Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))", gap: 2 }}>
-            {page.stories.map((story) => <StoryCard key={story.id} story={story} />)}
+        <>
+          <LiveMap stories={page.stories} />
+          <Box component="section" aria-label="Story-Liste">
+            <Typography variant="overline" sx={{ display: "block", mb: 2 }}>{page.total} Stories insgesamt</Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))", gap: 2 }}>
+              {page.stories.map((story) => <StoryCard key={story.id} story={story} />)}
+            </Box>
+            <Stack component="nav" direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between", mt: 3 }} aria-label="Story-Seiten">
+              <Button variant="outlined" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>Zurück</Button>
+              <Typography>Seite {offset / PAGE_SIZE + 1} von {Math.ceil(page.total / PAGE_SIZE)}</Typography>
+              <Button variant="outlined" disabled={offset + PAGE_SIZE >= page.total} onClick={() => setOffset(offset + PAGE_SIZE)}>Weiter</Button>
+            </Stack>
           </Box>
-          <Stack component="nav" direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between", mt: 3 }} aria-label="Story-Seiten">
-            <Button variant="outlined" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>Zurück</Button>
-            <Typography>Seite {offset / PAGE_SIZE + 1} von {Math.ceil(page.total / PAGE_SIZE)}</Typography>
-            <Button variant="outlined" disabled={offset + PAGE_SIZE >= page.total} onClick={() => setOffset(offset + PAGE_SIZE)}>Weiter</Button>
-          </Stack>
-        </Box>
+        </>
       )}
     </>
   );
