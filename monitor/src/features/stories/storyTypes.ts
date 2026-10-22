@@ -3,7 +3,7 @@ export type Story = {
   effectiveFrom: string;
   effectiveTo: string;
   location: StoryLocation | null;
-  representativeArticle: { domain: string; title: string };
+  representativeArticle: { domain: string; title: string; mainImageUrl: string | null };
   memberCount: number;
 };
 

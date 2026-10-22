@@ -52,7 +52,11 @@ const story = {
   effectiveFrom: "2026-10-21T10:00:00Z",
   effectiveTo: "2026-10-21T11:00:00Z",
   location: { name: "Berlin", countryCode: "GM", regionCode: "GM16", latitude: 52.52, longitude: 13.405, source: "GDELT_EVENT_ACTION" },
-  representativeArticle: { domain: "example.com", title: "Eine wichtige Story" },
+  representativeArticle: {
+    domain: "example.com",
+    title: "Eine wichtige Story",
+    mainImageUrl: "https://images.example.com/story.jpg",
+  },
   memberCount: 2,
 };
 
@@ -81,12 +85,29 @@ describe("App", () => {
     renderApp();
 
     expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
+    const image = document.querySelector('img[src="https://images.example.com/story.jpg"]');
+    expect(image).toHaveAttribute("alt", "");
+    fireEvent.error(image!);
+    expect(image).toHaveAttribute("hidden");
     expect(screen.getByText("21 Stories insgesamt")).toBeInTheDocument();
     await user.click(screen.getByLabelText("Sortieren nach"));
     await user.click(screen.getByRole("option", { name: "Artikelanzahl" }));
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining("sort=articleCount"), expect.anything()));
     await user.click(screen.getByRole("button", { name: "Weiter" }));
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(expect.stringMatching(/offset=20.*sort=articleCount/), expect.anything()));
+  });
+
+  it("omits missing and unusable story images", async () => {
+    const stories = [null, "javascript:alert('unsafe')"].map((mainImageUrl, index) => ({
+      ...story,
+      id: `story-${index + 2}`,
+      representativeArticle: { ...story.representativeArticle, mainImageUrl },
+    }));
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({ stories, total: stories.length }));
+    renderApp();
+
+    await screen.findAllByRole("heading", { name: "Eine wichtige Story" });
+    expect(document.querySelector("img")).not.toBeInTheDocument();
   });
 
   it("applies and resets story filters from the first page", async () => {
@@ -166,7 +187,7 @@ describe("App", () => {
         canonicalUrl: "https://example.com/1",
         firstSeenAt: story.effectiveFrom,
         publishedAt: null,
-        mainImageUrl: null,
+        mainImageUrl: story.representativeArticle.mainImageUrl,
       },
       members: [{
         assignmentReason: "representative",
@@ -195,6 +216,7 @@ describe("App", () => {
     renderApp();
 
     expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
+    expect(document.querySelector('img[src="https://images.example.com/story.jpg"]')).toHaveAttribute("alt", "");
     expect(screen.getByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
     expect(screen.getByText("Artikel eins")).toBeInTheDocument();
     const sourceLink = screen.getByRole("link", { name: "Artikel eins: externe Quelle öffnen (neuer Tab)" });

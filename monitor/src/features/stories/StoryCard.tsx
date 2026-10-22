@@ -1,4 +1,5 @@
 import { Box, Card, CardActionArea, CardContent, Typography } from "@mui/material";
+import StoryImage from "./StoryImage";
 import StoryMetadata, { DateRange } from "./StoryMetadata";
 import type { Story } from "./storyTypes";
 
@@ -8,8 +9,9 @@ export default function StoryCard({ story }: { story: Story }) {
       <CardActionArea
         component="a"
         href={`#${story.id}`}
-        sx={{ display: "flex", minHeight: { xs: 0, sm: 272 }, height: "100%", alignItems: "stretch" }}
+        sx={{ display: "flex", minHeight: { xs: 0, sm: 272 }, height: "100%", flexDirection: "column", alignItems: "stretch" }}
       >
+        <StoryImage src={story.representativeArticle.mainImageUrl} variant="card" />
         <CardContent sx={{ display: "flex", minWidth: 0, width: "100%", flexDirection: "column", p: 3 }}>
           <Typography variant="overline" color="primary.main">{story.representativeArticle.domain}</Typography>
           <Typography variant="h2" sx={{ my: 2, overflowWrap: "anywhere" }}>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Box, Button, Link, Paper, Stack, Typography } from "@mui/material";
 import StateMessage from "../../shared/StateMessage";
+import StoryImage from "./StoryImage";
 import StoryMetadata, { DateRange, FormattedDate } from "./StoryMetadata";
 import type { StoryDetail } from "./storyTypes";
 
@@ -51,6 +52,7 @@ export default function StoryDetails({ id }: { id: string }) {
             <Typography variant="body1" color="text.secondary">
               Repräsentativer Artikel von {story.representativeArticle.domain}
             </Typography>
+            <StoryImage src={story.representativeArticle.mainImageUrl} variant="detail" />
           </Box>
 
           <Paper variant="outlined" sx={{ mb: 6, p: 3 }}>
