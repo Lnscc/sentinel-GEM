@@ -60,6 +60,10 @@ public class StoryEmbeddingService {
         return process(batchSize, false);
     }
 
+    ProcessingResult processIncremental(String versionKey, boolean excludeVersion, int batchSize) {
+        return process(repository.findCandidates(versionKey, excludeVersion, batchSize, false));
+    }
+
     public ProcessingResult repair(int batchSize) {
         return process(batchSize, true);
     }

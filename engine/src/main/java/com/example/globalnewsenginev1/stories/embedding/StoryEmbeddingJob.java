@@ -15,15 +15,21 @@ class StoryEmbeddingJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(StoryEmbeddingJob.class);
 
     private final StoryEmbeddingService service;
+    private final String visibleVersion;
     private final int batchSize;
     private final int maxBatchesPerRun;
 
     StoryEmbeddingJob(
             StoryEmbeddingService service,
+            @Value("${stories.visible-version}") String visibleVersion,
             @Value("${stories.embeddings.batch-size:100}") int batchSize,
             @Value("${stories.embeddings.max-batches-per-run:10}") int maxBatchesPerRun
     ) {
+        if (maxBatchesPerRun < 2) {
+            throw new IllegalArgumentException("At least two batches are required to serve visible and shadow versions");
+        }
         this.service = service;
+        this.visibleVersion = visibleVersion;
         this.batchSize = batchSize;
         this.maxBatchesPerRun = maxBatchesPerRun;
     }
@@ -36,14 +42,26 @@ class StoryEmbeddingJob {
         int selected = 0;
         int processed = 0;
         int failed = 0;
-        for (int batch = 0; batch < maxBatchesPerRun; batch++) {
-            StoryEmbeddingService.ProcessingResult result = service.processIncremental(batchSize);
+        int batches = 0;
+        while (batches < maxBatchesPerRun - 1) {
+            StoryEmbeddingService.ProcessingResult result =
+                    service.processIncremental(visibleVersion, false, batchSize);
             selected += result.selected();
             processed += result.processed();
             failed += result.failed();
+            batches++;
             if (result.selected() < batchSize) {
                 break;
             }
+        }
+        while (batches < maxBatchesPerRun) {
+            StoryEmbeddingService.ProcessingResult result =
+                    service.processIncremental(visibleVersion, true, batchSize);
+            selected += result.selected();
+            processed += result.processed();
+            failed += result.failed();
+            batches++;
+            if (result.selected() < batchSize) break;
         }
         if (selected > 0) {
             LOGGER.info("Story embedding incremental run completed: selected={}, processed={}, failed={}",

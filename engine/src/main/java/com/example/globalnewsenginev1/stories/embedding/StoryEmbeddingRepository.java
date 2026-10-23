@@ -19,16 +19,24 @@ class StoryEmbeddingRepository {
     }
 
     List<ArticleCandidate> findCandidates(int limit, boolean repairRun) {
-        return queryCandidates(null, limit, repairRun, null);
+        return queryCandidates(null, null, false, limit, repairRun, null);
+    }
+
+    List<ArticleCandidate> findCandidates(String versionKey, boolean excludeVersion,
+                                          int limit, boolean repairRun) {
+        return queryCandidates(null, versionKey, excludeVersion, limit, repairRun, null);
     }
 
     List<ArticleCandidate> findCandidates(long versionId, int limit, boolean repairRun, Instant watermark) {
-        return queryCandidates(versionId, limit, repairRun, watermark);
+        return queryCandidates(versionId, null, false, limit, repairRun, watermark);
     }
 
-    private List<ArticleCandidate> queryCandidates(Long versionId, int limit, boolean repairRun,
-                                                   Instant watermark) {
-        String versionPredicate = versionId == null ? "" : "AND version.id = ?";
+    private List<ArticleCandidate> queryCandidates(Long versionId, String versionKey,
+                                                   boolean excludeVersion, int limit,
+                                                   boolean repairRun, Instant watermark) {
+        String versionPredicate = versionId != null ? "AND version.id = ?"
+                : versionKey == null ? ""
+                : "AND version.version_key " + (excludeVersion ? "<>" : "=") + " ?";
         String watermarkPredicate = watermark == null ? "" : "AND article.first_seen_at <= ?";
         String retryPredicate = repairRun
                 ? "(current.embedding_status = 'PENDING' OR "
@@ -72,7 +80,7 @@ class StoryEmbeddingRepository {
                     ) > current.created_at
                     OR %s
                   )
-                ORDER BY CASE WHEN version.status = 'ACTIVE' THEN 0 ELSE 1 END, article.id, version.id
+                ORDER BY article.first_seen_at DESC, article.id DESC, version.id
                 LIMIT ?
                 """.formatted(versionPredicate, watermarkPredicate, retryPredicate), (resultSet, rowNum) -> new ArticleCandidate(
                 resultSet.getLong("version_id"),
@@ -88,7 +96,8 @@ class StoryEmbeddingRepository {
                 resultSet.getString("canonical_url"),
                 resultSet.getTimestamp("first_seen_at").toInstant(),
                 resultSet.getString("title"),
-                nullableInstant(resultSet.getTimestamp("published_at"))), parameters(versionId, watermark, limit));
+                nullableInstant(resultSet.getTimestamp("published_at"))),
+                parameters(versionId, versionKey, watermark, limit));
     }
 
     boolean lockProcessingVersion(long versionId) {
@@ -312,9 +321,10 @@ class StoryEmbeddingRepository {
         return instant == null ? null : Timestamp.from(instant);
     }
 
-    private Object[] parameters(Long versionId, Instant watermark, int limit) {
+    private Object[] parameters(Long versionId, String versionKey, Instant watermark, int limit) {
         List<Object> parameters = new ArrayList<>();
         if (versionId != null) parameters.add(versionId);
+        if (versionKey != null) parameters.add(versionKey);
         if (watermark != null) parameters.add(Timestamp.from(watermark));
         parameters.add(limit);
         return parameters.toArray();

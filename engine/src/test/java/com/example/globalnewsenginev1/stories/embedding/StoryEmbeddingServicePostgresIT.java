@@ -256,6 +256,35 @@ class StoryEmbeddingServicePostgresIT {
                 """, Integer.class)).isOne();
     }
 
+    @Test
+    void prioritizesNewestArticlesAndSeparatesVisibleFromOtherVersions() {
+        long older = insertArticle("older");
+        long newer = insertArticle("newer");
+        jdbc.update("UPDATE articles SET first_seen_at = ? WHERE id = ?", timestamp.minusHours(1), older);
+        jdbc.update("UPDATE articles SET first_seen_at = ? WHERE id = ?", timestamp.plusHours(1), newer);
+        insertGkg(older, 501, "Older title", null);
+        insertGkg(newer, 502, "Newer title", null);
+
+        StoryEmbeddingService.ProcessingResult visible = service.processIncremental(
+                "story-mvp-title-embedding-24h-v1.1.0", false, 1);
+
+        assertThat(visible.selected()).isOne();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_article_inputs input
+                JOIN story_clustering_versions version ON version.id = input.clustering_version_id
+                WHERE version.version_key = 'story-mvp-title-embedding-24h-v1.1.0'
+                  AND input.article_id = ? AND input.current_marker = 1
+                """, Integer.class, newer)).isOne();
+        assertThat(service.processIncremental(
+                "story-mvp-title-embedding-24h-v1.1.0", true, 1).selected()).isOne();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_article_inputs input
+                JOIN story_clustering_versions version ON version.id = input.clustering_version_id
+                WHERE version.version_key <> 'story-mvp-title-embedding-24h-v1.1.0'
+                  AND input.article_id = ? AND input.current_marker = 1
+                """, Integer.class, newer)).isOne();
+    }
+
     private void awaitAndProcess(CountDownLatch start) {
         try {
             start.await();
