@@ -4,6 +4,22 @@
 
 - Always use the `keep-it-simple` skill for every task in this repository.
 
+## Token efficiency
+
+- Never enumerate all available tools or request bulk tool schemas or metadata,
+  including provider-wide listings such as all Linear tools. Resolve only the
+  exact required capability.
+- Scope repository searches to relevant directories and file types. Exclude
+  `.git`, `node_modules`, `target`, `build`, `dist`, generated files, lockfiles,
+  source maps, and minified files unless they are explicitly needed.
+- Limit command output. Prefer targeted matches, relevant excerpts, and failure
+  summaries over complete files or logs.
+- Read complete files only when their full context is necessary.
+- Fetch Linear issues once per task when possible. Avoid returning or rewriting
+  the complete issue description when only a status or section changes.
+- Batch independent reads and tool calls.
+- Load only required skills and only the supporting material needed for the task.
+
 ## Component design
 
 - Keep UI components small and limited to one cohesive responsibility.
