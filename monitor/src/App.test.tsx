@@ -8,6 +8,8 @@ const mapLibre = vi.hoisted(() => {
   const handlers = new globalThis.Map<string, (...args: any[]) => any>();
   const addSource = vi.fn();
   const addLayer = vi.fn();
+  const setData = vi.fn();
+  const remove = vi.fn();
   class MockMap {
     private canvas = document.createElement("canvas");
     constructor({ container }: { container: HTMLElement }) { container.append(this.canvas); setTimeout(() => handlers.get("load")?.(), 0); }
@@ -16,11 +18,11 @@ const mapLibre = vi.hoisted(() => {
     addLayer = addLayer;
     easeTo() {}
     getCanvas = () => this.canvas;
-    getSource = () => ({ getClusterExpansionZoom: () => Promise.resolve(5) });
+    getSource = () => ({ getClusterExpansionZoom: () => Promise.resolve(5), setData });
     on(event: string, layerOrHandler: string | ((...args: any[]) => any), handler?: (...args: any[]) => any) { handlers.set(typeof layerOrHandler === "string" ? `${event}:${layerOrHandler}` : event, handler ?? layerOrHandler as (...args: any[]) => any); }
-    remove() {}
+    remove = remove;
   }
-  return { handlers, addSource, addLayer, MockMap };
+  return { handlers, addSource, addLayer, setData, remove, MockMap };
 });
 
 vi.mock("maplibre-gl", () => ({ Map: mapLibre.MockMap, NavigationControl: class {}, setWorkerUrl: vi.fn() }));
@@ -36,7 +38,7 @@ const response = (body: unknown, ok = true) => Promise.resolve({ ok, status: ok 
 const renderApp = () => render(<ThemeProvider theme={createTheme()}><App /></ThemeProvider>);
 
 describe("Globales Lagebild", () => {
-  beforeEach(() => { vi.restoreAllMocks(); mapLibre.handlers.clear(); mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); });
+  beforeEach(() => { vi.restoreAllMocks(); mapLibre.handlers.clear(); mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); mapLibre.setData.mockClear(); mapLibre.remove.mockClear(); });
   afterEach(cleanup);
 
   it("zeigt Karte und priorisierte Ereignisse aus der bestehenden API", async () => {
@@ -89,8 +91,11 @@ describe("Globales Lagebild", () => {
     expect(await screen.findByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
 
     await waitFor(() => expect(mapLibre.addSource).toHaveBeenCalled());
+    const removalsBeforeMarkerClick = mapLibre.remove.mock.calls.length;
     mapLibre.handlers.get("click:story-points")?.({ features: [{ properties: { storyId: "story-1" } }] });
     expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
+    expect(mapLibre.remove).toHaveBeenCalledTimes(removalsBeforeMarkerClick);
+    expect(mapLibre.setData).toHaveBeenCalled();
   });
 
   it("bildet Lade-, Leer- und Fehlerzustände mit Produktbegriffen ab", async () => {

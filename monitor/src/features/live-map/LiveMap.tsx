@@ -20,15 +20,19 @@ type Props = { stories: Story[]; selectedId?: string; onSelect: (id: string) => 
 
 export default function LiveMap({ stories, selectedId, onSelect }: Props) {
   const container = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<Map>(null);
+  const dataRef = useRef<GeoJSON.FeatureCollection<GeoJSON.Point>>({ type: "FeatureCollection", features: [] });
   const locatedStories = useMemo(() => stories.filter(hasValidLocation), [stories]);
+  dataRef.current = { type: "FeatureCollection", features: locatedStories.map((story) => ({ type: "Feature", geometry: { type: "Point", coordinates: [story.location!.longitude, story.location!.latitude] }, properties: { storyId: story.id, selected: story.id === selectedId } })) };
 
   useEffect(() => {
     if (!container.current) return;
     const map = new Map({ container: container.current, style: import.meta.env.VITE_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty", center: [0, 20], zoom: 1.2, minZoom: 1 });
+    mapRef.current = map;
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.getCanvas().setAttribute("aria-label", "Interaktive Weltkarte der aktuellen Ereignisse");
     map.on("load", () => {
-      map.addSource(SOURCE, { type: "geojson", cluster: true, clusterMaxZoom: 10, clusterRadius: 48, data: { type: "FeatureCollection", features: locatedStories.map((story) => ({ type: "Feature", geometry: { type: "Point", coordinates: [story.location!.longitude, story.location!.latitude] }, properties: { storyId: story.id, selected: story.id === selectedId } })) } });
+      map.addSource(SOURCE, { type: "geojson", cluster: true, clusterMaxZoom: 10, clusterRadius: 48, data: dataRef.current });
       map.addLayer({ id: CLUSTERS, type: "circle", source: SOURCE, filter: ["has", "point_count"], paint: { "circle-color": "#13795b", "circle-radius": ["step", ["get", "point_count"], 18, 10, 24], "circle-stroke-color": "#ffffff", "circle-stroke-width": 3 } });
       map.addLayer({ id: "story-cluster-count", type: "symbol", source: SOURCE, filter: ["has", "point_count"], layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 13 }, paint: { "text-color": "#ffffff" } });
       map.addLayer({ id: POINTS, type: "circle", source: SOURCE, filter: ["!", ["has", "point_count"]], paint: { "circle-color": ["case", ["get", "selected"], "#d97706", "#13795b"], "circle-radius": ["case", ["get", "selected"], 12, 9], "circle-stroke-color": "#ffffff", "circle-stroke-width": 3 } });
@@ -43,8 +47,12 @@ export default function LiveMap({ stories, selectedId, onSelect }: Props) {
         if (id) onSelect(String(id));
       });
     });
-    return () => map.remove();
-  }, [locatedStories, onSelect, selectedId]);
+    return () => { mapRef.current = null; map.remove(); };
+  }, [onSelect]);
+
+  useEffect(() => {
+    (mapRef.current?.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(dataRef.current);
+  }, [locatedStories, selectedId]);
 
   return <Box ref={container} sx={{ position: "absolute", inset: 0, "& .maplibregl-map": { fontFamily: "inherit" } }} />;
 }
