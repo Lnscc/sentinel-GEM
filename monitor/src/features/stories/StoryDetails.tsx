@@ -16,7 +16,7 @@ function externalUrl(value: unknown) {
   }
 }
 
-export default function StoryDetails({ id }: { id: string }) {
+export default function StoryDetails({ id, onBack }: { id: string; onBack: () => void }) {
   const [story, setStory] = useState<StoryDetail>();
   const [error, setError] = useState<string>();
 
@@ -41,21 +41,21 @@ export default function StoryDetails({ id }: { id: string }) {
 
   return (
     <>
-      <Button component="a" href="#" sx={{ mb: 3, px: 0 }}>← Zurück zur Übersicht</Button>
-      {!story && !error && <StateMessage>Story wird geladen …</StateMessage>}
-      {error && <Alert severity="error">Die Story konnte nicht geladen werden. {error}</Alert>}
+      <Button onClick={onBack} sx={{ mb: 2, px: 0 }}>← Alle Ereignisse</Button>
+      {!story && !error && <StateMessage>Ereignis wird geladen …</StateMessage>}
+      {error && <Alert severity="error">Das Ereignis konnte nicht geladen werden. {error}</Alert>}
       {story && (
         <Box component="article">
-          <Box component="header" sx={{ maxWidth: 704, mb: 4 }}>
-            <Typography variant="overline">Story · {story.state}</Typography>
-            <Typography variant="h1">{story.representativeArticle.title}</Typography>
+          <Box component="header" sx={{ mb: 3 }}>
+            <Typography variant="overline">Ereignis · {story.state}</Typography>
+            <Typography variant="h2" sx={{ my: 1 }}>{story.representativeArticle.title}</Typography>
             <Typography variant="body1" color="text.secondary">
               Repräsentativer Artikel von {story.representativeArticle.domain}
             </Typography>
             <StoryImage src={story.representativeArticle.mainImageUrl} variant="detail" />
           </Box>
 
-          <Paper variant="outlined" sx={{ mb: 6, p: 3 }}>
+          <Paper variant="outlined" sx={{ mb: 3, p: 2 }}>
             <StoryMetadata columns="2fr 1fr 1fr">
               <Box><dt>Zeitraum</dt><dd><DateRange from={story.effectiveFrom} to={story.effectiveTo} /></dd></Box>
               <Box><dt>Status</dt><dd>{story.state}</dd></Box>
@@ -72,7 +72,7 @@ export default function StoryDetails({ id }: { id: string }) {
                 return (
                   <Paper component="article" variant="outlined" key={article.id} sx={{ minWidth: 0, p: 2.5 }}>
                     <Typography variant="overline" color="primary.main">{article.domain}</Typography>
-                    <Typography variant="h3" sx={{ my: 1, overflowWrap: "anywhere" }}>{article.title}</Typography>
+                    <Typography variant="body1" sx={{ my: 0.5, overflowWrap: "anywhere", fontWeight: 700 }}>{article.title}</Typography>
                     <Typography color="text.secondary" sx={{ fontSize: "0.9rem" }}>
                       <FormattedDate value={article.publishedAt ?? article.firstSeenAt} />
                     </Typography>

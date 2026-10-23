@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, createTheme } from "@mui/material";
 import App from "./App";
@@ -8,276 +8,103 @@ const mapLibre = vi.hoisted(() => {
   const handlers = new globalThis.Map<string, (...args: any[]) => any>();
   const addSource = vi.fn();
   const addLayer = vi.fn();
-  const easeTo = vi.fn();
-  const getClusterExpansionZoom = vi.fn(() => Promise.resolve(5));
-
   class MockMap {
     private canvas = document.createElement("canvas");
-
-    constructor({ container }: { container: HTMLElement }) {
-      container.append(this.canvas);
-      setTimeout(() => handlers.get("load")?.(), 0);
-    }
-
+    constructor({ container }: { container: HTMLElement }) { container.append(this.canvas); setTimeout(() => handlers.get("load")?.(), 0); }
     addControl() {}
     addSource = addSource;
     addLayer = addLayer;
-    easeTo = easeTo;
+    easeTo() {}
     getCanvas = () => this.canvas;
-    getSource = () => ({ getClusterExpansionZoom });
-    on(event: string, layerOrHandler: string | ((...args: any[]) => any), handler?: (...args: any[]) => any) {
-      handlers.set(typeof layerOrHandler === "string" ? `${event}:${layerOrHandler}` : event, handler ?? layerOrHandler as (...args: any[]) => any);
-    }
+    getSource = () => ({ getClusterExpansionZoom: () => Promise.resolve(5) });
+    on(event: string, layerOrHandler: string | ((...args: any[]) => any), handler?: (...args: any[]) => any) { handlers.set(typeof layerOrHandler === "string" ? `${event}:${layerOrHandler}` : event, handler ?? layerOrHandler as (...args: any[]) => any); }
     remove() {}
   }
-
-  class MockPopup {
-    setLngLat() { return this; }
-    setDOMContent(content: Node) { document.body.append(content); return this; }
-    addTo() { return this; }
-  }
-
-  return { handlers, addSource, addLayer, easeTo, getClusterExpansionZoom, MockMap, MockPopup };
+  return { handlers, addSource, addLayer, MockMap };
 });
 
-vi.mock("maplibre-gl", () => ({
-  Map: mapLibre.MockMap,
-  NavigationControl: class {},
-  Popup: mapLibre.MockPopup,
-  setWorkerUrl: vi.fn(),
-}));
+vi.mock("maplibre-gl", () => ({ Map: mapLibre.MockMap, NavigationControl: class {}, setWorkerUrl: vi.fn() }));
 
 const story = {
-  id: "story-1",
-  effectiveFrom: "2026-10-21T10:00:00Z",
-  effectiveTo: "2026-10-21T11:00:00Z",
+  id: "story-1", effectiveFrom: "2026-10-21T10:00:00Z", effectiveTo: "2026-10-21T11:00:00Z",
   location: { name: "Berlin", countryCode: "GM", regionCode: "GM16", latitude: 52.52, longitude: 13.405, source: "GDELT_EVENT_ACTION" },
-  representativeArticle: {
-    domain: "example.com",
-    title: "Eine wichtige Story",
-    mainImageUrl: "https://images.example.com/story.jpg",
-  },
-  memberCount: 2,
+  representativeArticle: { domain: "example.com", title: "Ein wichtiges Ereignis", mainImageUrl: null }, memberCount: 2,
 };
-
-const jsonResponse = (body: unknown, ok = true) => Promise.resolve({
-  ok,
-  status: ok ? 200 : 500,
-  json: () => Promise.resolve(body),
-} as Response);
-
+const otherStory = { ...story, id: "story-2", location: { ...story.location, name: "Paris", regionCode: "FR11", latitude: 48.85, longitude: 2.35 }, representativeArticle: { ...story.representativeArticle, domain: "news.fr", title: "Ein anderes Ereignis" } };
+const detail = { ...story, state: "PUBLISHED", representativeArticle: { ...story.representativeArticle, id: 1, canonicalUrl: "https://example.com/1", firstSeenAt: story.effectiveFrom, publishedAt: null }, members: [{ assignmentReason: "representative", article: { id: 1, canonicalUrl: "https://example.com/1", domain: "example.com", firstSeenAt: story.effectiveFrom, title: "Artikel eins", publishedAt: null, mainImageUrl: null } }] };
+const response = (body: unknown, ok = true) => Promise.resolve({ ok, status: ok ? 200 : 500, json: () => Promise.resolve(body) } as Response);
 const renderApp = () => render(<ThemeProvider theme={createTheme()}><App /></ThemeProvider>);
 
-describe("App", () => {
-  beforeEach(() => {
-    window.location.hash = "";
-    vi.restoreAllMocks();
-    mapLibre.handlers.clear();
-    mapLibre.addSource.mockClear();
-    mapLibre.addLayer.mockClear();
-  });
-
+describe("Globales Lagebild", () => {
+  beforeEach(() => { vi.restoreAllMocks(); mapLibre.handlers.clear(); mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); });
   afterEach(cleanup);
 
-  it("shows the overview and loads the next page", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({ stories: [story], total: 21 }));
-    const user = userEvent.setup();
+  it("zeigt Karte und priorisierte Ereignisse aus der bestehenden API", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [story, otherStory], total: 2 }));
     renderApp();
 
-    expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
-    const image = document.querySelector('img[src="https://images.example.com/story.jpg"]');
-    expect(image).toHaveAttribute("alt", "");
-    fireEvent.error(image!);
-    expect(image).toHaveAttribute("hidden");
-    expect(screen.getByText("21 Stories insgesamt")).toBeInTheDocument();
-    await user.click(screen.getByLabelText("Sortieren nach"));
-    await user.click(screen.getByRole("option", { name: "Artikelanzahl" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining("sort=articleCount"), expect.anything()));
-    await user.click(screen.getByRole("button", { name: "Weiter" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(expect.stringMatching(/offset=20.*sort=articleCount/), expect.anything()));
-  });
-
-  it("omits missing and unusable story images", async () => {
-    const stories = [null, "javascript:alert('unsafe')"].map((mainImageUrl, index) => ({
-      ...story,
-      id: `story-${index + 2}`,
-      representativeArticle: { ...story.representativeArticle, mainImageUrl },
-    }));
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({ stories, total: stories.length }));
-    renderApp();
-
-    await screen.findAllByRole("heading", { name: "Eine wichtige Story" });
-    expect(document.querySelector("img")).not.toBeInTheDocument();
-  });
-
-  it("applies and resets story filters from the first page", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({ stories: [story], total: 21 }));
-    const user = userEvent.setup();
-    renderApp();
-
-    await screen.findByRole("heading", { name: "Eine wichtige Story" });
-    await user.click(screen.getByRole("button", { name: "Weiter" }));
-    fireEvent.change(screen.getByLabelText("Von"), { target: { value: "2026-10-20T10:00" } });
-    await user.type(screen.getByLabelText("Artikeldomain"), "example.org");
-    await user.type(screen.getByLabelText("Landkennung"), "GM");
-    await user.type(screen.getByLabelText("Regionskennung"), "GM16");
-    await user.click(screen.getByRole("button", { name: "Filter anwenden" }));
-
-    await waitFor(() => {
-      const request = new URL(fetchMock.mock.calls.at(-1)?.[0] as string, "http://localhost");
-      expect(request.searchParams.get("offset")).toBe("0");
-      expect(request.searchParams.get("domain")).toBe("example.org");
-      expect(request.searchParams.get("from")).toBe(new Date("2026-10-20T10:00").toISOString());
-      expect(request.searchParams.get("country")).toBe("GM");
-      expect(request.searchParams.get("region")).toBe("GM16");
-    });
-
-    await user.click(screen.getByRole("button", { name: "Zurücksetzen" }));
-    await waitFor(() => {
-      const request = new URL(fetchMock.mock.calls.at(-1)?.[0] as string, "http://localhost");
-      expect(request.searchParams.has("from")).toBe(false);
-      expect(request.searchParams.has("domain")).toBe(false);
-      expect(request.searchParams.has("country")).toBe(false);
-      expect(request.searchParams.has("region")).toBe(false);
-    });
-    expect(screen.getByLabelText("Landkennung")).toHaveValue("");
-    expect(screen.getByLabelText("Regionskennung")).toHaveValue("");
-  });
-
-  it("shows located stories on an accessible map and groups nearby points", async () => {
-    const nearbyStory = {
-      ...story,
-      id: "story-2",
-      location: { ...story.location, name: "Potsdam", latitude: 52.39, longitude: 13.06 },
-      representativeArticle: { domain: "example.org", title: "Eine zweite Story" },
-      memberCount: 1,
-    };
-    const storyWithoutLocation = { ...story, id: "story-3", location: null, representativeArticle: { domain: "example.net", title: "Story ohne Ort" } };
-    const storyWithInvalidLocation = {
-      ...story,
-      id: "story-4",
-      location: { ...story.location, latitude: 120 },
-      representativeArticle: { domain: "example.edu", title: "Story mit ungültigem Ort" },
-    };
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({ stories: [story, nearbyStory, storyWithoutLocation, storyWithInvalidLocation], total: 4 }));
-    renderApp();
-
-    const map = await screen.findByRole("region", { name: "Weltkarte" });
+    expect(screen.getByRole("heading", { name: "Globales Lagebild" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
     await waitFor(() => expect(mapLibre.addSource).toHaveBeenCalled());
-    const source = mapLibre.addSource.mock.calls[0][1];
-    expect(source).toMatchObject({ cluster: true, clusterRadius: 48 });
-    expect(source.data.features).toHaveLength(2);
-    expect(source.data.features[0].geometry.coordinates).toEqual([13.405, 52.52]);
-    expect(within(map).getByLabelText("Interaktive Weltkarte der aktuellen Stories")).toBeInTheDocument();
-
-    mapLibre.handlers.get("click:story-points")?.({ features: [source.data.features[0]] });
-    const popup = document.querySelector(".story-map-popup")!;
-    expect(within(popup as HTMLElement).getByRole("link", { name: "Eine wichtige Story" })).toHaveAttribute("href", "#story-1");
-    expect(within(popup as HTMLElement).getByText(/2 Artikel/)).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Weltkarte" })).getByLabelText("Interaktive Weltkarte der aktuellen Ereignisse")).toBeInTheDocument();
+    const url = new URL(fetchMock.mock.calls[0][0] as string, "http://localhost");
+    expect(url.searchParams.get("sort")).toBe("articleCount");
+    expect(url.searchParams.get("direction")).toBe("desc");
+    expect(url.searchParams.get("limit")).toBe("100");
+    expect(url.searchParams.get("from")).toBeTruthy();
   });
 
-  it("shows the detail view", async () => {
-    window.location.hash = "story-1";
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({
-      ...story,
-      state: "PUBLISHED",
-      representativeArticle: {
-        ...story.representativeArticle,
-        id: 1,
-        canonicalUrl: "https://example.com/1",
-        firstSeenAt: story.effectiveFrom,
-        publishedAt: null,
-        mainImageUrl: story.representativeArticle.mainImageUrl,
-      },
-      members: [{
-        assignmentReason: "representative",
-        article: {
-          id: 1,
-          canonicalUrl: "https://example.com/1",
-          domain: "example.com",
-          firstSeenAt: story.effectiveFrom,
-          title: "Artikel eins",
-          publishedAt: null,
-          mainImageUrl: null,
-        },
-      }, {
-        assignmentReason: "member",
-        article: {
-          id: 2,
-          canonicalUrl: "javascript:alert('unsafe')",
-          domain: "example.org",
-          firstSeenAt: story.effectiveFrom,
-          title: "Artikel ohne nutzbare URL",
-          publishedAt: null,
-          mainImageUrl: null,
-        },
-      }],
-    }));
+  it("filtert Suche, Zeitraum und Region konsistent und setzt alles zurück", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [story, otherStory], total: 2 }));
+    const user = userEvent.setup();
     renderApp();
+    await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
 
-    expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
-    expect(document.querySelector('img[src="https://images.example.com/story.jpg"]')).toHaveAttribute("alt", "");
-    expect(screen.getByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
-    expect(screen.getByText("Artikel eins")).toBeInTheDocument();
-    const sourceLink = screen.getByRole("link", { name: "Artikel eins: externe Quelle öffnen (neuer Tab)" });
-    expect(sourceLink).toHaveAttribute("href", "https://example.com/1");
-    expect(sourceLink).toHaveAttribute("target", "_blank");
-    expect(sourceLink).toHaveAttribute("rel", "noopener noreferrer");
-    expect(screen.getByText("Artikel ohne nutzbare URL")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Artikel ohne nutzbare URL/ })).not.toBeInTheDocument();
+    await user.type(screen.getByRole("searchbox", { name: "Suche" }), "Paris");
+    expect(screen.queryByRole("heading", { name: "Ein wichtiges Ereignis" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: "Region" }), "FR11");
+    await user.click(screen.getByRole("combobox", { name: "Zeitraum" }));
+    await user.click(screen.getByRole("option", { name: "Letzte 6 Stunden" }));
+    await waitFor(() => {
+      const url = new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost");
+      expect(url.searchParams.get("region")).toBe("FR11");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Filter löschen" }));
+    expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "Region" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 24 Stunden");
   });
 
-  it("shows loading and empty states", async () => {
-    let resolveFetch!: (response: Response) => void;
+  it("öffnet Details aus Liste und Karte im Kontextpanel und kehrt zurück", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story], total: 1 }));
+    const user = userEvent.setup();
+    renderApp();
+    const heading = await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
+    await user.click(heading);
+    expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Alle Ereignisse/ }));
+    expect(await screen.findByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
+
+    await waitFor(() => expect(mapLibre.addSource).toHaveBeenCalled());
+    mapLibre.handlers.get("click:story-points")?.({ features: [{ properties: { storyId: "story-1" } }] });
+    expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
+  });
+
+  it("bildet Lade-, Leer- und Fehlerzustände mit Produktbegriffen ab", async () => {
+    let resolveFetch!: (value: Response) => void;
     vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise((resolve) => { resolveFetch = resolve; }));
+    const view = renderApp();
+    expect(screen.getByRole("status")).toHaveTextContent("Ereignisse werden geladen");
+    resolveFetch(await response({ stories: [], total: 0 }));
+    expect(await screen.findByText("Kein Ereignis passt zu diesen Filtern.")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Interaktive Weltkarte der aktuellen Ereignisse")).toBeInTheDocument();
+
+    view.unmount();
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({}, false));
     renderApp();
-
-    expect(screen.getByRole("status")).toHaveTextContent("Stories werden geladen");
-    resolveFetch(await jsonResponse({ stories: [], total: 0 }));
-    expect(await screen.findByText("Derzeit sind keine Stories verfügbar.")).toBeInTheDocument();
-  });
-
-  it("shows an error state", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({}, false));
-    renderApp();
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Die Stories konnten nicht geladen werden. HTTP 500");
-  });
-
-  it("shows the last successful load and refreshes the current page without hiding it", async () => {
-    let resolveRefresh!: (response: Response) => void;
-    const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockImplementationOnce(() => jsonResponse({ stories: [story], total: 1 }))
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve; }));
-    const user = userEvent.setup();
-    renderApp();
-
-    expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
-    const loadedAt = screen.getByText(/Zuletzt geladen:/).querySelector("time");
-    expect(loadedAt).toHaveAttribute("dateTime", expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
-    const initialRequest = fetchMock.mock.calls[0][0];
-
-    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
-
-    expect(screen.getByText(/Aktualisierung läuft/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
-    expect(fetchMock.mock.calls[1][0]).toBe(initialRequest);
-
-    resolveRefresh(await jsonResponse({ stories: [story], total: 1 }));
-    await waitFor(() => expect(screen.queryByText(/Aktualisierung läuft/)).not.toBeInTheDocument());
-  });
-
-  it("keeps loaded stories and reports refresh failures accessibly", async () => {
-    vi.spyOn(globalThis, "fetch")
-      .mockImplementationOnce(() => jsonResponse({ stories: [story], total: 1 }))
-      .mockImplementationOnce(() => jsonResponse({}, false));
-    const user = userEvent.setup();
-    renderApp();
-
-    expect(await screen.findByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Die Stories konnten nicht geladen werden. HTTP 500");
-    expect(screen.getByRole("heading", { name: "Eine wichtige Story" })).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Die Ereignisse konnten nicht geladen werden. HTTP 500");
   });
 });

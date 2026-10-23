@@ -1,20 +1,17 @@
-import { useEffect, useState } from "react";
-import { Container } from "@mui/material";
-import StoryDetails from "./features/stories/StoryDetails";
+import { Box, Typography } from "@mui/material";
 import StoryOverview from "./features/stories/StoryOverview";
 
 export default function App() {
-  const [selectedStoryId, setSelectedStoryId] = useState(() => window.location.hash.slice(1));
-
-  useEffect(() => {
-    const selectStory = () => setSelectedStoryId(window.location.hash.slice(1));
-    window.addEventListener("hashchange", selectStory);
-    return () => window.removeEventListener("hashchange", selectStory);
-  }, []);
-
   return (
-    <Container component="main" maxWidth="lg" sx={{ py: { xs: 5, sm: 8 } }}>
-      {selectedStoryId ? <StoryDetails id={selectedStoryId} /> : <StoryOverview />}
-    </Container>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100dvh", minWidth: 960, overflow: "hidden" }}>
+      <Box component="header" sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 60, px: 4, bgcolor: "background.paper", borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box aria-hidden="true" sx={{ display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: "9px", bgcolor: "primary.main", color: "common.white", fontWeight: 800 }}>S</Box>
+          <Typography sx={{ fontWeight: 800 }}>Sentinel GEM</Typography>
+        </Box>
+        <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>Globale Ereignisse im Überblick</Typography>
+      </Box>
+      <StoryOverview />
+    </Box>
   );
 }
