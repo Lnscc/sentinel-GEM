@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sentinel GEM · Globales Lagebild</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #f4f7f5;
+      --surface: #ffffff;
+      --surface-soft: #eaf1ed;
+      --text: #13231c;
+      --muted: #66756d;
+      --border: #d7e0db;
+      --signal: #13795b;
+      --signal-dark: #0c5e46;
+      --warm: #d97706;
+      --shadow: 0 16px 40px rgba(20, 45, 34, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      margin: 0;
+      min-width: 960px;
+      color: var(--text);
+      background: var(--canvas);
+      font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand, .brand-mark, .status, .story-meta, .detail-meta, .sources {
+      display: flex;
+      align-items: center;
+    }
+
+    .brand { gap: 12px; font-weight: 800; letter-spacing: -0.02em; }
+    .brand-mark { justify-content: center; width: 28px; height: 28px; color: white; background: var(--signal); border-radius: 9px; }
+    .status { gap: 9px; color: var(--muted); font-size: 13px; }
+    .status-dot { width: 8px; height: 8px; background: #20a474; border-radius: 50%; box-shadow: 0 0 0 5px #daf2e8; }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 60px);
+      padding: 16px 32px 24px;
+      overflow: hidden;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 150px minmax(220px, 1fr) 180px 160px auto;
+      gap: 10px;
+      flex: 0 0 auto;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 3px 12px rgba(20, 45, 34, 0.04);
+    }
+
+    .view-title { display: grid; align-content: center; padding: 0 8px; }
+    .view-title span { color: var(--signal); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .view-title strong { font-size: 16px; letter-spacing: -.02em; }
+
+    .eyebrow { margin: 0 0 6px; color: var(--signal); font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+
+    label { position: relative; }
+    label > span { position: absolute; top: 7px; left: 13px; z-index: 1; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+    input, select {
+      width: 100%;
+      height: 52px;
+      padding: 21px 13px 7px;
+      color: var(--text);
+      background: var(--canvas);
+      border: 1px solid transparent;
+      border-radius: 12px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--signal); box-shadow: 0 0 0 3px rgba(19, 121, 91, 0.12); }
+    .reset { padding: 0 18px; color: var(--signal-dark); background: transparent; border: 0; border-radius: 12px; font-weight: 750; }
+    .reset:hover { background: var(--surface-soft); }
+
+    .explorer {
+      display: grid;
+      grid-template-columns: minmax(560px, 1fr) minmax(280px, 340px);
+      flex: 1 1 auto;
+      min-height: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .context {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+    }
+    .context-view { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+    .context-view[hidden] { display: none; }
+    .panel-heading { display: flex; align-items: baseline; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+    .panel-heading h2 { margin: 0; font-size: 14px; letter-spacing: 0.02em; }
+    .panel-heading span { color: var(--muted); font-size: 12px; }
+
+    .story-list { display: grid; align-content: start; flex: 1 1 auto; min-height: 0; overflow: auto; }
+    .story {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 13px;
+      padding: 18px 20px;
+      text-align: left;
+      color: inherit;
+      background: var(--surface);
+      border: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .story:hover { background: #f8faf9; }
+    .story[aria-selected="true"] { background: #edf6f2; box-shadow: inset 3px 0 var(--signal); }
+    .rank { display: grid; place-items: center; width: 34px; height: 34px; color: var(--signal-dark); background: var(--surface-soft); border-radius: 10px; font-size: 12px; font-weight: 800; }
+    .story h3 { margin: 5px 0 8px; font-size: 17px; line-height: 1.28; letter-spacing: -0.02em; }
+    .story-meta { flex-wrap: wrap; gap: 6px 12px; color: var(--muted); font-size: 12px; }
+    .region { color: var(--signal-dark); font-weight: 750; }
+    .urgency { color: var(--warm); font-weight: 750; }
+
+    .map {
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+      background:
+        radial-gradient(circle at 72% 22%, rgba(255,255,255,.9), transparent 21%),
+        linear-gradient(150deg, #dbeae3, #eef4f1 52%, #d8e6df);
+    }
+
+    .map::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .45;
+      background-image: linear-gradient(rgba(19, 121, 91, .08) 1px, transparent 1px), linear-gradient(90deg, rgba(19, 121, 91, .08) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    .continents { position: absolute; inset: 8% 5% 7%; width: 90%; height: 85%; opacity: .72; }
+    .continents path { fill: #b7cec2; stroke: #9bb8aa; stroke-width: 1.5; }
+    .map-label { position: absolute; top: 18px; right: 20px; z-index: 2; padding: 8px 11px; color: var(--muted); background: rgba(255,255,255,.86); border: 1px solid rgba(255,255,255,.9); border-radius: 10px; font-size: 11px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+
+    .pin {
+      position: absolute;
+      z-index: 3;
+      width: 17px;
+      height: 17px;
+      padding: 0;
+      background: var(--signal);
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(8, 70, 50, .35);
+      transform: translate(-50%, -50%);
+    }
+    .pin::after { content: attr(data-label); position: absolute; top: 17px; left: 50%; width: max-content; max-width: 150px; padding: 4px 7px; color: var(--text); background: rgba(255,255,255,.9); border-radius: 7px; box-shadow: 0 2px 10px rgba(20,45,34,.12); font-size: 11px; font-weight: 700; transform: translateX(-50%); opacity: 0; pointer-events: none; }
+    .pin:hover::after, .pin.active::after { opacity: 1; }
+    .pin.active { width: 23px; height: 23px; background: var(--warm); }
+
+    .back { align-self: flex-start; margin-bottom: 20px; padding: 0; color: var(--signal-dark); background: transparent; border: 0; font-weight: 750; }
+    .detail { padding: 24px; overflow: auto; }
+    .detail h2 { margin: 5px 0 12px; font-size: 25px; line-height: 1.18; letter-spacing: -0.035em; }
+    .detail p { margin: 0; color: var(--muted); }
+    .detail-meta { align-items: flex-start; flex-direction: column; gap: 5px; margin-top: 18px; color: var(--muted); font-size: 12px; }
+    .sources { align-items: flex-start; justify-content: flex-start; flex-wrap: wrap; gap: 7px; margin-top: 22px; }
+    .source { padding: 6px 9px; color: var(--signal-dark); background: var(--surface-soft); border-radius: 999px; font-size: 11px; font-weight: 750; }
+    .empty { padding: 50px 24px; text-align: center; color: var(--muted); }
+
+    @media (max-width: 1180px) {
+      .explorer { grid-template-columns: minmax(520px, 1fr) 280px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">S</span> Sentinel GEM</div>
+    <div class="status"><span class="status-dot" aria-hidden="true"></span> Prototyp · statische Daten · Stand 23.10.2026</div>
+  </header>
+
+  <main>
+    <form class="filters" id="filters" aria-label="Ereignisse filtern">
+      <div class="view-title"><span>Weltweit</span><strong>Globales Lagebild</strong></div>
+      <label><span>Suche</span><input id="query" type="search" placeholder="Thema, Ort oder Quelle"></label>
+      <label><span>Region</span><select id="region"><option value="">Alle Regionen</option><option>Europa</option><option>Asien</option><option>Afrika</option><option>Nordamerika</option><option>Südamerika</option></select></label>
+      <label><span>Zeitraum</span><select id="time"><option value="24">Letzte 24 Stunden</option><option value="12">Letzte 12 Stunden</option><option value="6">Letzte 6 Stunden</option></select></label>
+      <button class="reset" type="reset">Filter löschen</button>
+    </form>
+
+    <section class="explorer" aria-label="Globales Lagebild">
+      <section class="map" id="map" aria-label="Geografischer Kontext">
+        <div class="map-label">Weltkarte · zentrale Ansicht</div>
+        <svg class="continents" viewBox="0 0 900 430" role="img" aria-label="Abstrahierte Weltkarte">
+          <path d="M55 95 110 55l92 8 51 46-18 45-57 18-28 51-66-18-33-61Z"/>
+          <path d="m218 230 44 19 34 58-20 91-36-28-10-69-28-36Z"/>
+          <path d="m386 89 53-24 65 10 31 31-36 26-61-7-29 22-35-20Z"/>
+          <path d="m444 150 63-8 46 38-13 76-45 88-42-30-14-84-31-34Z"/>
+          <path d="m527 91 89-48 132 17 94 59-39 42-111-1-64 36-74-24-39-40Z"/>
+          <path d="m716 287 54-25 65 31-16 47-72 10-35-31Z"/>
+        </svg>
+        <div id="pins"></div>
+      </section>
+
+      <aside class="context" aria-label="Ereignisse und Details">
+        <section class="context-view" id="story-view" aria-labelledby="feed-title">
+          <header class="panel-heading"><h2 id="feed-title">Priorisierte Ereignisse</h2><span id="result-count" aria-live="polite"></span></header>
+          <div class="story-list" id="story-list" role="listbox" aria-label="Gefilterte Ereignisse"></div>
+        </section>
+        <article class="context-view detail" id="detail" aria-live="polite" hidden></article>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const stories = [
+      { id: 1, rank: 94, region: "Europa", place: "Brüssel", x: 49, y: 31, hours: 1, sources: 18, title: "EU-Staaten einigen sich auf gemeinsames Energiepaket", summary: "Die Mitgliedstaaten bündeln Netzausbau, Beschaffung und strategische Reserven. Mehrere Regierungen kündigten nationale Umsetzungsschritte an.", domains: ["reuters.com", "politico.eu", "handelsblatt.com"] },
+      { id: 2, rank: 89, region: "Asien", place: "Taipeh", x: 79, y: 43, hours: 3, sources: 14, title: "Neue Halbleiter-Allianz koordiniert regionale Produktion", summary: "Unternehmen und Regierungen vereinbaren gemeinsame Kapazitätsplanung, Forschung und Lieferkettenstandards für moderne Chips.", domains: ["nikkei.com", "scmp.com", "bloomberg.com"] },
+      { id: 3, rank: 85, region: "Afrika", place: "Nairobi", x: 55, y: 59, hours: 5, sources: 11, title: "Ostafrika baut grenzüberschreitendes Stromnetz aus", summary: "Neue Leitungen sollen erneuerbare Energie zwischen mehreren Ländern austauschbar machen und regionale Engpässe reduzieren.", domains: ["nation.africa", "africanews.com", "theeastafrican.co.ke"] },
+      { id: 4, rank: 81, region: "Nordamerika", place: "New York", x: 25, y: 38, hours: 7, sources: 26, title: "Märkte reagieren auf überraschende Inflationsdaten", summary: "Anleiherenditen und Technologiewerte bewegen sich deutlich, nachdem neue Preisdaten unter den Erwartungen lagen.", domains: ["bloomberg.com", "wsj.com", "ft.com"] },
+      { id: 5, rank: 76, region: "Südamerika", place: "Brasília", x: 32, y: 71, hours: 10, sources: 9, title: "Brasilien kündigt erweitertes Schutzprogramm für Regenwald an", summary: "Das Programm kombiniert Satellitenüberwachung, lokale Schutzteams und neue Finanzierungsmodelle für betroffene Gemeinden.", domains: ["folha.uol.com.br", "bbc.com", "elpais.com"] },
+      { id: 6, rank: 71, region: "Europa", place: "Reykjavík", x: 40, y: 20, hours: 18, sources: 5, title: "Island meldet erhöhte vulkanische Aktivität", summary: "Behörden beobachten eine neue Erdbebenserie und halten vorsorgliche Sperrzonen rund um das betroffene Gebiet aufrecht.", domains: ["ruv.is", "visir.is", "apnews.com"] }
+    ];
+
+    const list = document.querySelector("#story-list");
+    const pins = document.querySelector("#pins");
+    const detail = document.querySelector("#detail");
+    const storyView = document.querySelector("#story-view");
+    const resultCount = document.querySelector("#result-count");
+    const query = document.querySelector("#query");
+    const region = document.querySelector("#region");
+    const time = document.querySelector("#time");
+    let visible = stories;
+    let selectedId = stories[0].id;
+
+    function selectStory(id, openDetails = false) {
+      selectedId = id;
+      const selected = stories.find(story => story.id === id);
+      document.querySelectorAll(".story").forEach(item => item.setAttribute("aria-selected", String(Number(item.dataset.id) === id)));
+      document.querySelectorAll(".pin").forEach(pin => pin.classList.toggle("active", Number(pin.dataset.id) === id));
+      detail.innerHTML = `
+        <button class="back" type="button">← Alle Ereignisse</button>
+        <div>
+          <p class="eyebrow">${selected.region} · ${selected.place}</p>
+          <h2>${selected.title}</h2>
+          <p>${selected.summary}</p>
+          <div class="detail-meta"><strong>${selected.sources} Quellen</strong><span>vor ${selected.hours} Std.</span><span>Relevanz ${selected.rank}/100</span></div>
+        </div>
+        <div class="sources" aria-label="Beispielquellen">${selected.domains.map(domain => `<span class="source">${domain}</span>`).join("")}</div>`;
+      detail.querySelector(".back").addEventListener("click", () => {
+        detail.hidden = true;
+        storyView.hidden = false;
+      });
+      if (openDetails) {
+        storyView.hidden = true;
+        detail.hidden = false;
+      }
+    }
+
+    function render() {
+      const term = query.value.trim().toLowerCase();
+      const maxHours = Number(time.value);
+      visible = stories.filter(story =>
+        story.hours <= maxHours &&
+        (!region.value || story.region === region.value) &&
+        (!term || [story.title, story.place, story.region, ...story.domains].join(" ").toLowerCase().includes(term))
+      );
+
+      resultCount.textContent = `${visible.length} von ${stories.length}`;
+      list.innerHTML = visible.length ? visible.map(story => `
+        <button class="story" type="button" role="option" aria-selected="${story.id === selectedId}" data-id="${story.id}">
+          <span class="rank">${story.rank}</span>
+          <span>
+            <span class="story-meta"><span class="region">${story.region} · ${story.place}</span><span>${story.hours} Std.</span></span>
+            <h3>${story.title}</h3>
+            <span class="story-meta"><span>${story.sources} Quellen</span><span class="urgency">Relevanz ${story.rank}</span></span>
+          </span>
+        </button>`).join("") : `<p class="empty">Kein Ereignis passt zu diesen Filtern.</p>`;
+
+      pins.innerHTML = visible.map(story => `<button class="pin ${story.id === selectedId ? "active" : ""}" type="button" style="left:${story.x}%;top:${story.y}%" data-id="${story.id}" data-label="${story.place}" aria-label="${story.title}"></button>`).join("");
+
+      document.querySelectorAll("[data-id]").forEach(item => item.addEventListener("click", () => selectStory(Number(item.dataset.id), true)));
+      if (!visible.some(story => story.id === selectedId) && visible[0]) selectedId = visible[0].id;
+      if (visible.length) {
+        selectStory(selectedId);
+      } else {
+        detail.hidden = true;
+        storyView.hidden = false;
+      }
+    }
+
+    document.querySelector("#filters").addEventListener("input", render);
+    document.querySelector("#filters").addEventListener("reset", () => requestAnimationFrame(render));
+    render();
+  </script>
+</body>
+</html>
