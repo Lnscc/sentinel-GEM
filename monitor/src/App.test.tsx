@@ -11,12 +11,13 @@ const mapLibre = vi.hoisted(() => {
   const setData = vi.fn();
   const remove = vi.fn();
   const easeTo = vi.fn();
+  let options: any;
   let sourceData: any = { features: [] };
   const state: { queryFeatures: any[] | null; bounds: [number, number, number, number] } = { queryFeatures: null, bounds: [-180, -90, 180, 90] };
   class MockMap {
     private canvas = document.createElement("canvas");
     readonly container: HTMLElement;
-    constructor({ container }: { container: HTMLElement }) { this.container = container; container.append(this.canvas); setTimeout(() => handlers.get("load")?.(), 0); }
+    constructor(nextOptions: { container: HTMLElement }) { options = nextOptions; this.container = nextOptions.container; nextOptions.container.append(this.canvas); setTimeout(() => handlers.get("load")?.(), 0); }
     addControl() {}
     addSource(id: string, source: any) { sourceData = source.data; addSource(id, source); }
     addLayer = addLayer;
@@ -38,7 +39,7 @@ const mapLibre = vi.hoisted(() => {
     addTo(map: MockMap) { map.container.append(this.options.element); return this; }
     remove() { this.options.element.remove(); }
   }
-  return { handlers, addSource, addLayer, setData, remove, easeTo, state, MockMap, MockMarker };
+  return { handlers, addSource, addLayer, setData, remove, easeTo, state, get options() { return options; }, MockMap, MockMarker };
 });
 
 vi.mock("maplibre-gl", () => ({ Map: mapLibre.MockMap, Marker: mapLibre.MockMarker, NavigationControl: class {}, setWorkerUrl: vi.fn() }));
@@ -54,7 +55,7 @@ const response = (body: unknown, ok = true) => Promise.resolve({ ok, status: ok 
 const renderApp = () => render(<ThemeProvider theme={createTheme()}><App /></ThemeProvider>);
 
 describe("Globales Lagebild", () => {
-  beforeEach(() => { vi.restoreAllMocks(); mapLibre.handlers.clear(); mapLibre.state.queryFeatures = null; mapLibre.state.bounds = [-180, -90, 180, 90]; mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); mapLibre.setData.mockClear(); mapLibre.remove.mockClear(); mapLibre.easeTo.mockClear(); });
+  beforeEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/"); mapLibre.handlers.clear(); mapLibre.state.queryFeatures = null; mapLibre.state.bounds = [-180, -90, 180, 90]; mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); mapLibre.setData.mockClear(); mapLibre.remove.mockClear(); mapLibre.easeTo.mockClear(); });
   afterEach(cleanup);
 
   it("zeigt Karte und priorisierte Ereignisse aus der bestehenden API", async () => {
@@ -91,11 +92,41 @@ describe("Globales Lagebild", () => {
       const url = new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost");
       expect(url.searchParams.get("region")).toBe("FR11");
     });
+    await waitFor(() => {
+      expect(new URLSearchParams(window.location.search).get("q")).toBe("Paris");
+      expect(new URLSearchParams(window.location.search).get("region")).toBe("FR11");
+      expect(new URLSearchParams(window.location.search).get("hours")).toBe("6");
+    });
 
     await user.click(screen.getByRole("button", { name: "Filter löschen" }));
     expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("");
     expect(screen.getByRole("textbox", { name: "Region" })).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 24 Stunden");
+  });
+
+  it("stellt Filter, Kartenausschnitt und ausgewähltes Ereignis aus der URL wieder her", async () => {
+    window.history.replaceState(null, "", "/?hours=6&region=GM16&q=wichtig&bounds=10,50,15,55&story=story-1");
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story], total: 1 }));
+    renderApp();
+
+    expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("wichtig");
+    expect(screen.getByRole("textbox", { name: "Region" })).toHaveValue("GM16");
+    expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 6 Stunden");
+    expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
+    await waitFor(() => expect(mapLibre.options.bounds).toEqual([[10, 50], [15, 55]]));
+    expect(window.location.search).toContain("story=story-1");
+  });
+
+  it("fällt bei ungültigen URL-Parametern auf den Standardzustand zurück", async () => {
+    window.history.replaceState(null, "", "/?hours=7&region=GM16&story=story-1&bounds=10,50,15");
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [story], total: 1 }));
+    renderApp();
+
+    expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "Region" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 24 Stunden");
+    expect(await screen.findByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
+    expect(window.location.search).toBe("");
   });
 
   it("öffnet Details aus Liste und Karte im Kontextpanel und kehrt zurück", async () => {
@@ -105,8 +136,10 @@ describe("Globales Lagebild", () => {
     const heading = await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
     await user.click(heading);
     expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).get("story")).toBe("story-1");
     await user.click(screen.getByRole("button", { name: /Alle Ereignisse/ }));
     expect(await screen.findByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).has("story")).toBe(false);
 
     await waitFor(() => expect(mapLibre.addSource).toHaveBeenCalled());
     const removalsBeforeMarkerClick = mapLibre.remove.mock.calls.length;
@@ -174,6 +207,7 @@ describe("Globales Lagebild", () => {
     mapLibre.handlers.get("moveend")?.();
 
     expect(await screen.findByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).get("bounds")).toBe("2,48,3,49");
     expect(screen.queryByRole("heading", { name: "Ein wichtiges Ereignis" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
     expect(screen.getByText("1 von 2")).toBeInTheDocument();

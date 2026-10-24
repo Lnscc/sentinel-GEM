@@ -33,9 +33,9 @@ function removeMarkers(markers: RenderedMarker[]) {
 }
 
 export type MapBounds = { west: number; south: number; east: number; north: number };
-type Props = { stories: Story[]; selectedId?: string; onSelect: (id: string) => void; onBoundsChange: (bounds: MapBounds) => void };
+type Props = { stories: Story[]; selectedId?: string; initialBounds?: MapBounds; onSelect: (id: string) => void; onBoundsChange: (bounds: MapBounds) => void };
 
-export default function LiveMap({ stories, selectedId, onSelect, onBoundsChange }: Props) {
+export default function LiveMap({ stories, selectedId, initialBounds, onSelect, onBoundsChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map>(null);
   const markersRef = useRef<RenderedMarker[]>([]);
@@ -58,7 +58,14 @@ export default function LiveMap({ stories, selectedId, onSelect, onBoundsChange 
 
   useEffect(() => {
     if (!container.current) return;
-    const map = new Map({ container: container.current, style: import.meta.env.VITE_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty", center: [0, 20], zoom: 1.2, minZoom: 1 });
+    const map = new Map({
+      container: container.current,
+      style: import.meta.env.VITE_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty",
+      center: [0, 20],
+      zoom: 1.2,
+      minZoom: 1,
+      bounds: initialBounds ? [[initialBounds.west, initialBounds.south], [initialBounds.east, initialBounds.north]] : undefined,
+    });
     let renderVersion = 0;
     mapRef.current = map;
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");

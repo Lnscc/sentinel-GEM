@@ -1,24 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Box, ButtonBase, Divider, Paper, Stack, Typography } from "@mui/material";
 import StateMessage from "../../shared/StateMessage";
 import LiveMap, { type MapBounds } from "../live-map/LiveMap";
 import StoryDetails from "./StoryDetails";
-import StoryFilters, { DEFAULT_FILTERS, type StoryFilterValues } from "./StoryFilters";
+import StoryFilters, { type StoryFilterValues } from "./StoryFilters";
 import StoryRefreshStatus from "./StoryRefreshStatus";
 import { FormattedDate } from "./StoryMetadata";
+import { readLagebildUrl, writeLagebildUrl } from "./lagebildUrlState";
 import type { StoryPage } from "./storyTypes";
 
 const PAGE_SIZE = 100;
 
 export default function StoryOverview() {
+  const [initialUrlState] = useState(() => readLagebildUrl(window.location.search));
   const [page, setPage] = useState<StoryPage>();
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
   const [lastLoadedAt, setLastLoadedAt] = useState<Date>();
   const [refreshKey, setRefreshKey] = useState(0);
-  const [filters, setFilters] = useState<StoryFilterValues>(DEFAULT_FILTERS);
-  const [selectedId, setSelectedId] = useState<string>();
-  const [mapBounds, setMapBounds] = useState<MapBounds>();
+  const [filters, setFilters] = useState<StoryFilterValues>(initialUrlState.filters);
+  const [selectedId, setSelectedId] = useState<string | undefined>(initialUrlState.selectedId);
+  const [mapBounds, setMapBounds] = useState<MapBounds | undefined>(initialUrlState.mapBounds);
+  const hasReportedBounds = useRef(false);
+
+  useEffect(() => {
+    const search = writeLagebildUrl({ filters, mapBounds, selectedId });
+    window.history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`);
+  }, [filters, mapBounds, selectedId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -56,12 +64,13 @@ export default function StoryOverview() {
     return latitude >= mapBounds.south && latitude <= mapBounds.north && longitudeVisible;
   }), [filteredStories, mapBounds]);
 
-  useEffect(() => {
-    if (selectedId && !stories.some((story) => story.id === selectedId)) setSelectedId(undefined);
-  }, [selectedId, stories]);
-
   const select = useCallback((id: string) => setSelectedId(id), []);
   const changeFilters = (next: StoryFilterValues) => { setSelectedId(undefined); setFilters(next); };
+  const changeBounds = useCallback((bounds: MapBounds) => {
+    if (hasReportedBounds.current) setSelectedId(undefined);
+    hasReportedBounds.current = true;
+    setMapBounds(bounds);
+  }, []);
 
   return (
     <Box component="main" sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, px: 4, pt: 2, pb: 3, overflow: "hidden" }}>
@@ -72,7 +81,7 @@ export default function StoryOverview() {
 
       <Paper component="section" aria-label="Globales Lagebild" variant="outlined" sx={{ display: "grid", gridTemplateColumns: "minmax(560px, 1fr) minmax(300px, 360px)", flex: 1, minHeight: 0, overflow: "hidden", borderRadius: 2.5, boxShadow: "0 16px 40px rgba(20,45,34,.09)" }}>
         <Box component="section" aria-label="Weltkarte" sx={{ position: "relative", minHeight: 0, bgcolor: "#dbeae3" }}>
-          {!page && isLoading ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={filteredStories} selectedId={selectedId} onSelect={select} onBoundsChange={setMapBounds} />}
+          {!page && isLoading ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={filteredStories} selectedId={selectedId} initialBounds={initialUrlState.mapBounds} onSelect={select} onBoundsChange={changeBounds} />}
         </Box>
         <Box component="aside" aria-label="Ereignisse und Details" sx={{ display: "flex", flexDirection: "column", minHeight: 0, borderLeft: 1, borderColor: "divider", overflow: "hidden" }}>
           {selectedId ? (
