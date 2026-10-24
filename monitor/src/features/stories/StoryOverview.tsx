@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Box, ButtonBase, Divider, Paper, Stack, Typography } from "@mui/material";
 import StateMessage from "../../shared/StateMessage";
 import LiveMap, { type MapBounds } from "../live-map/LiveMap";
@@ -6,47 +6,29 @@ import StoryDetails from "./StoryDetails";
 import StoryFilters, { type StoryFilterValues } from "./StoryFilters";
 import StoryRefreshStatus from "./StoryRefreshStatus";
 import { FormattedDate } from "./StoryMetadata";
-import { readLagebildUrl, writeLagebildUrl } from "./lagebildUrlState";
-import type { StoryPage } from "./storyTypes";
+import { readLagebildUrl } from "./lagebildUrlState";
+import type { Story } from "./storyTypes";
+import useLagebildUrlSync from "./useLagebildUrlSync";
+import useStories from "./useStories";
 
-const PAGE_SIZE = 100;
+function isInBounds(story: Story, bounds: MapBounds) {
+  if (!story.location) return false;
+  const { latitude, longitude } = story.location;
+  const longitudeVisible = bounds.west <= bounds.east
+    ? longitude >= bounds.west && longitude <= bounds.east
+    : longitude >= bounds.west || longitude <= bounds.east;
+  return latitude >= bounds.south && latitude <= bounds.north && longitudeVisible;
+}
 
 export default function StoryOverview() {
   const [initialUrlState] = useState(() => readLagebildUrl(window.location.search));
-  const [page, setPage] = useState<StoryPage>();
-  const [error, setError] = useState<string>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastLoadedAt, setLastLoadedAt] = useState<Date>();
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [filters, setFilters] = useState<StoryFilterValues>(initialUrlState.filters);
+  const [filters, setFilters] = useState(initialUrlState.filters);
   const [selectedId, setSelectedId] = useState<string | undefined>(initialUrlState.selectedId);
   const [mapBounds, setMapBounds] = useState<MapBounds | undefined>(initialUrlState.mapBounds);
   const hasReportedBounds = useRef(false);
+  const { page, error, isLoading, lastLoadedAt, refresh } = useStories(filters);
 
-  useEffect(() => {
-    const search = writeLagebildUrl({ filters, mapBounds, selectedId });
-    window.history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`);
-  }, [filters, mapBounds, selectedId]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const from = new Date(Date.now() - Number(filters.hours) * 60 * 60 * 1000).toISOString();
-    const query = new URLSearchParams({ offset: "0", limit: String(PAGE_SIZE), sort: "articleCount", direction: "desc", from });
-    if (filters.region.trim()) query.set("region", filters.region.trim());
-    setIsLoading(true);
-    setError(undefined);
-    fetch(`/api/stories?${query}`, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json() as Promise<StoryPage>;
-      })
-      .then((nextPage) => { setPage(nextPage); setLastLoadedAt(new Date()); })
-      .catch((reason: unknown) => {
-        if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Unbekannter Fehler");
-      })
-      .finally(() => { if (!controller.signal.aborted) setIsLoading(false); });
-    return () => controller.abort();
-  }, [filters.hours, filters.region, refreshKey]);
+  useLagebildUrlSync({ filters, mapBounds, selectedId });
 
   const filteredStories = useMemo(() => {
     const term = filters.query.trim().toLocaleLowerCase("de");
@@ -54,15 +36,10 @@ export default function StoryOverview() {
     return (page?.stories ?? []).filter((story) => [story.representativeArticle.title, story.representativeArticle.domain, story.location?.name, story.location?.countryCode, story.location?.regionCode]
       .some((value) => value?.toLocaleLowerCase("de").includes(term)));
   }, [filters.query, page]);
-
-  const stories = useMemo(() => filteredStories.filter((story) => {
-    if (!mapBounds || !story.location) return !mapBounds;
-    const { latitude, longitude } = story.location;
-    const longitudeVisible = mapBounds.west <= mapBounds.east
-      ? longitude >= mapBounds.west && longitude <= mapBounds.east
-      : longitude >= mapBounds.west || longitude <= mapBounds.east;
-    return latitude >= mapBounds.south && latitude <= mapBounds.north && longitudeVisible;
-  }), [filteredStories, mapBounds]);
+  const stories = useMemo(
+    () => mapBounds ? filteredStories.filter((story) => isInBounds(story, mapBounds)) : filteredStories,
+    [filteredStories, mapBounds],
+  );
 
   const select = useCallback((id: string) => setSelectedId(id), []);
   const changeFilters = (next: StoryFilterValues) => { setSelectedId(undefined); setFilters(next); };
@@ -90,7 +67,7 @@ export default function StoryOverview() {
             <>
               <Box sx={{ px: 2.5, py: 2, flexShrink: 0 }}>
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "baseline" }}><Typography variant="h3">Priorisierte Ereignisse</Typography><Typography color="text.secondary" sx={{ fontSize: "0.75rem" }}>{stories.length} von {page?.total ?? 0}</Typography></Stack>
-                {lastLoadedAt && <StoryRefreshStatus isLoading={isLoading} lastLoadedAt={lastLoadedAt} onRefresh={() => setRefreshKey((key) => key + 1)} />}
+                {lastLoadedAt && <StoryRefreshStatus isLoading={isLoading} lastLoadedAt={lastLoadedAt} onRefresh={refresh} />}
               </Box>
               <Divider />
               {error && <Alert severity="error" sx={{ m: 2 }}>Die Ereignisse konnten nicht geladen werden. {error}</Alert>}
