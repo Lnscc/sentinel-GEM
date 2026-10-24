@@ -40,7 +40,10 @@ Whenever a REST API endpoint or its request/response contract is added, changed,
 
 - Track engineering work in the Linear team `Sentinel GEM` (`GEM`).
 - Do not add repository-local ticket files.
-- When implementing a Linear issue, summarize the implemented behavior in the issue.
+- When implementing a Linear issue, summarize the implemented behavior in the
+  issue. Prefer a comment for chronological updates, implementation results,
+  and verification evidence; update the description only when the durable
+  requirements or acceptance criteria change.
 - When implementation work starts on a Linear issue, move it to `In Progress`
   without asking.
 - Keep the issue `In Progress` until its verified commit is contained in `main`;
