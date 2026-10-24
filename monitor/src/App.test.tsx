@@ -143,6 +143,25 @@ describe("Globales Lagebild", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toHaveClass("is-selected"));
   });
 
+  it("aktualisiert Marker bereits während des Zoomens", async () => {
+    mapLibre.state.queryFeatures = [{
+      type: "Feature", geometry: { type: "Point", coordinates: [13.4, 52.5] },
+      properties: { cluster: true, cluster_id: 7, point_count: 2, point_count_abbreviated: "2" },
+    }];
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [story, otherStory], total: 2 }));
+    renderApp();
+    await screen.findByRole("button", { name: "Cluster mit 2 Ereignissen" });
+
+    mapLibre.state.queryFeatures = null;
+    mapLibre.handlers.get("zoom")?.();
+
+    const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
+    expect(screen.queryByRole("button", { name: "Cluster mit 2 Ereignissen" })).not.toBeInTheDocument();
+
+    mapLibre.handlers.get("zoom")?.();
+    expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
+  });
+
   it("bildet Lade-, Leer- und Fehlerzustände mit Produktbegriffen ab", async () => {
     let resolveFetch!: (value: Response) => void;
     vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise((resolve) => { resolveFetch = resolve; }));

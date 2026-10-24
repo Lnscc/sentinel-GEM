@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { Box } from "@mui/material";
 import { Map, Marker, NavigationControl, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
@@ -23,7 +24,7 @@ type RenderedMarker = { marker: Marker; root: Root };
 function createMarker(content: ReactNode, coordinates: [number, number], anchor?: "bottom") {
   const element = document.createElement("div");
   const root = createRoot(element);
-  root.render(content);
+  flushSync(() => root.render(content));
   return { marker: new Marker({ element, anchor }).setLngLat(coordinates), root };
 }
 
@@ -37,6 +38,7 @@ export default function LiveMap({ stories, selectedId, onSelect }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map>(null);
   const markersRef = useRef<RenderedMarker[]>([]);
+  const markerSignatureRef = useRef("");
   const dataRef = useRef<GeoJSON.FeatureCollection<GeoJSON.Point>>({ type: "FeatureCollection", features: [] });
   const locatedStories = useMemo(() => stories.filter(hasValidLocation), [stories]);
   dataRef.current = {
@@ -70,6 +72,8 @@ export default function LiveMap({ stories, selectedId, onSelect }: Props) {
         const key = feature.properties.cluster ? `cluster-${feature.properties.cluster_id}` : `story-${feature.properties.storyId}`;
         return features.findIndex((candidate) => (candidate.properties.cluster ? `cluster-${candidate.properties.cluster_id}` : `story-${candidate.properties.storyId}`) === key) === index;
       });
+      const signature = JSON.stringify(unique.map(({ geometry, properties }) => [geometry, properties]));
+      if (signature === markerSignatureRef.current) return;
       const next = await Promise.all(unique.map(async (feature) => {
         if (feature.geometry.type !== "Point") return null;
         const coordinates = feature.geometry.coordinates as [number, number];
@@ -93,15 +97,17 @@ export default function LiveMap({ stories, selectedId, onSelect }: Props) {
       }));
       const rendered = next.filter((marker): marker is RenderedMarker => marker !== null);
       if (version !== renderVersion) { removeMarkers(rendered); return; }
+      rendered.forEach(({ marker }) => marker.addTo(map));
       removeMarkers(markersRef.current);
       markersRef.current = rendered;
-      markersRef.current.forEach(({ marker }) => marker.addTo(map));
+      markerSignatureRef.current = signature;
     };
 
     map.on("load", () => {
       map.addSource(SOURCE, { type: "geojson", cluster: true, clusterMaxZoom: 10, clusterRadius: 64, data: dataRef.current });
       map.addLayer({ id: CLUSTERS, type: "circle", source: SOURCE, filter: ["has", "point_count"], paint: { "circle-opacity": 0, "circle-radius": 1 } });
       map.addLayer({ id: POINTS, type: "circle", source: SOURCE, filter: ["!", ["has", "point_count"]], paint: { "circle-opacity": 0, "circle-radius": 1 } });
+      map.on("zoom", renderMarkers);
       map.on("idle", renderMarkers);
       void renderMarkers();
     });
@@ -115,6 +121,7 @@ export default function LiveMap({ stories, selectedId, onSelect }: Props) {
   }, [onSelect]);
 
   useEffect(() => {
+    markerSignatureRef.current = "";
     (mapRef.current?.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(dataRef.current);
   }, [locatedStories, selectedId]);
 
