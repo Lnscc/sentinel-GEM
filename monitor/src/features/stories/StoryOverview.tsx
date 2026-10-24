@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Box, ButtonBase, Divider, Paper, Stack, Typography } from "@mui/material";
 import StateMessage from "../../shared/StateMessage";
-import LiveMap from "../live-map/LiveMap";
+import LiveMap, { type MapBounds } from "../live-map/LiveMap";
 import StoryDetails from "./StoryDetails";
 import StoryFilters, { DEFAULT_FILTERS, type StoryFilterValues } from "./StoryFilters";
 import StoryRefreshStatus from "./StoryRefreshStatus";
@@ -18,6 +18,7 @@ export default function StoryOverview() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [filters, setFilters] = useState<StoryFilterValues>(DEFAULT_FILTERS);
   const [selectedId, setSelectedId] = useState<string>();
+  const [mapBounds, setMapBounds] = useState<MapBounds>();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,12 +40,25 @@ export default function StoryOverview() {
     return () => controller.abort();
   }, [filters.hours, filters.region, refreshKey]);
 
-  const stories = useMemo(() => {
+  const filteredStories = useMemo(() => {
     const term = filters.query.trim().toLocaleLowerCase("de");
     if (!term) return page?.stories ?? [];
     return (page?.stories ?? []).filter((story) => [story.representativeArticle.title, story.representativeArticle.domain, story.location?.name, story.location?.countryCode, story.location?.regionCode]
       .some((value) => value?.toLocaleLowerCase("de").includes(term)));
   }, [filters.query, page]);
+
+  const stories = useMemo(() => filteredStories.filter((story) => {
+    if (!mapBounds || !story.location) return !mapBounds;
+    const { latitude, longitude } = story.location;
+    const longitudeVisible = mapBounds.west <= mapBounds.east
+      ? longitude >= mapBounds.west && longitude <= mapBounds.east
+      : longitude >= mapBounds.west || longitude <= mapBounds.east;
+    return latitude >= mapBounds.south && latitude <= mapBounds.north && longitudeVisible;
+  }), [filteredStories, mapBounds]);
+
+  useEffect(() => {
+    if (selectedId && !stories.some((story) => story.id === selectedId)) setSelectedId(undefined);
+  }, [selectedId, stories]);
 
   const select = useCallback((id: string) => setSelectedId(id), []);
   const changeFilters = (next: StoryFilterValues) => { setSelectedId(undefined); setFilters(next); };
@@ -58,7 +72,7 @@ export default function StoryOverview() {
 
       <Paper component="section" aria-label="Globales Lagebild" variant="outlined" sx={{ display: "grid", gridTemplateColumns: "minmax(560px, 1fr) minmax(300px, 360px)", flex: 1, minHeight: 0, overflow: "hidden", borderRadius: 2.5, boxShadow: "0 16px 40px rgba(20,45,34,.09)" }}>
         <Box component="section" aria-label="Weltkarte" sx={{ position: "relative", minHeight: 0, bgcolor: "#dbeae3" }}>
-          {!page && isLoading ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={stories} selectedId={selectedId} onSelect={select} />}
+          {!page && isLoading ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={filteredStories} selectedId={selectedId} onSelect={select} onBoundsChange={setMapBounds} />}
         </Box>
         <Box component="aside" aria-label="Ereignisse und Details" sx={{ display: "flex", flexDirection: "column", minHeight: 0, borderLeft: 1, borderColor: "divider", overflow: "hidden" }}>
           {selectedId ? (

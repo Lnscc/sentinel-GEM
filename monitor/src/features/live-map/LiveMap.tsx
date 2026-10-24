@@ -32,9 +32,10 @@ function removeMarkers(markers: RenderedMarker[]) {
   markers.forEach(({ marker, root }) => { marker.remove(); root.unmount(); });
 }
 
-type Props = { stories: Story[]; selectedId?: string; onSelect: (id: string) => void };
+export type MapBounds = { west: number; south: number; east: number; north: number };
+type Props = { stories: Story[]; selectedId?: string; onSelect: (id: string) => void; onBoundsChange: (bounds: MapBounds) => void };
 
-export default function LiveMap({ stories, selectedId, onSelect }: Props) {
+export default function LiveMap({ stories, selectedId, onSelect, onBoundsChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map>(null);
   const markersRef = useRef<RenderedMarker[]>([]);
@@ -62,6 +63,10 @@ export default function LiveMap({ stories, selectedId, onSelect }: Props) {
     mapRef.current = map;
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.getCanvas().setAttribute("aria-label", "Interaktive Weltkarte der aktuellen Ereignisse");
+    const reportBounds = () => {
+      const bounds = map.getBounds();
+      onBoundsChange({ west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() });
+    };
 
     const renderMarkers = async () => {
       const version = ++renderVersion;
@@ -109,6 +114,8 @@ export default function LiveMap({ stories, selectedId, onSelect }: Props) {
       map.addLayer({ id: POINTS, type: "circle", source: SOURCE, filter: ["!", ["has", "point_count"]], paint: { "circle-opacity": 0, "circle-radius": 1 } });
       map.on("zoom", renderMarkers);
       map.on("idle", renderMarkers);
+      map.on("moveend", reportBounds);
+      reportBounds();
       void renderMarkers();
     });
     return () => {
@@ -118,7 +125,7 @@ export default function LiveMap({ stories, selectedId, onSelect }: Props) {
       mapRef.current = null;
       map.remove();
     };
-  }, [onSelect]);
+  }, [onBoundsChange, onSelect]);
 
   useEffect(() => {
     markerSignatureRef.current = "";

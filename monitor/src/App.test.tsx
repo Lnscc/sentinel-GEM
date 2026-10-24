@@ -12,7 +12,7 @@ const mapLibre = vi.hoisted(() => {
   const remove = vi.fn();
   const easeTo = vi.fn();
   let sourceData: any = { features: [] };
-  const state: { queryFeatures: any[] | null } = { queryFeatures: null };
+  const state: { queryFeatures: any[] | null; bounds: [number, number, number, number] } = { queryFeatures: null, bounds: [-180, -90, 180, 90] };
   class MockMap {
     private canvas = document.createElement("canvas");
     readonly container: HTMLElement;
@@ -22,6 +22,7 @@ const mapLibre = vi.hoisted(() => {
     addLayer = addLayer;
     easeTo = easeTo;
     getCanvas = () => this.canvas;
+    getBounds = () => ({ getWest: () => state.bounds[0], getSouth: () => state.bounds[1], getEast: () => state.bounds[2], getNorth: () => state.bounds[3] });
     getSource = () => ({
       getClusterExpansionZoom: () => Promise.resolve(5),
       getClusterLeaves: () => Promise.resolve(sourceData.features.slice(0, 3)),
@@ -53,7 +54,7 @@ const response = (body: unknown, ok = true) => Promise.resolve({ ok, status: ok 
 const renderApp = () => render(<ThemeProvider theme={createTheme()}><App /></ThemeProvider>);
 
 describe("Globales Lagebild", () => {
-  beforeEach(() => { vi.restoreAllMocks(); mapLibre.handlers.clear(); mapLibre.state.queryFeatures = null; mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); mapLibre.setData.mockClear(); mapLibre.remove.mockClear(); mapLibre.easeTo.mockClear(); });
+  beforeEach(() => { vi.restoreAllMocks(); mapLibre.handlers.clear(); mapLibre.state.queryFeatures = null; mapLibre.state.bounds = [-180, -90, 180, 90]; mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); mapLibre.setData.mockClear(); mapLibre.remove.mockClear(); mapLibre.easeTo.mockClear(); });
   afterEach(cleanup);
 
   it("zeigt Karte und priorisierte Ereignisse aus der bestehenden API", async () => {
@@ -160,6 +161,22 @@ describe("Globales Lagebild", () => {
 
     mapLibre.handlers.get("zoom")?.();
     expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
+  });
+
+  it("synchronisiert Liste, Anzahl und Auswahl mit dem Kartenausschnitt", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story, otherStory], total: 2 }));
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" }));
+    expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
+
+    mapLibre.state.bounds = [2, 48, 3, 49];
+    mapLibre.handlers.get("moveend")?.();
+
+    expect(await screen.findByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Ein wichtiges Ereignis" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
+    expect(screen.getByText("1 von 2")).toBeInTheDocument();
   });
 
   it("bildet Lade-, Leer- und Fehlerzustände mit Produktbegriffen ab", async () => {
