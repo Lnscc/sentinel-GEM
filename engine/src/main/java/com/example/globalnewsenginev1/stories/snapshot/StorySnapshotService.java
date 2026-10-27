@@ -147,14 +147,17 @@ public class StorySnapshotService {
             Optional<StorySnapshotRepository.RetrySnapshot> retry =
                     repository.findRetryableSnapshot(
                             version.id(), mode, now, claimTimeout);
+            List<StorySnapshotRepository.SnapshotInput> inputs =
+                    repository.findSnapshotInputs(version.id(), watermark);
+            retry = retry.filter(candidate -> candidate.snapshot().inputHash().equals(
+                    StorySnapshotCanonicalizer.snapshotInputHash(
+                            version.key(), candidate.snapshot().watermark(), inputs)));
             StorySnapshotRepository.Snapshot snapshot;
             int memberCount;
             if (retry.isPresent()) {
                 snapshot = retry.get().snapshot();
                 memberCount = retry.get().memberCount();
             } else {
-                List<StorySnapshotRepository.SnapshotInput> inputs =
-                        repository.findSnapshotInputs(version.id(), watermark);
                 String inputHash = StorySnapshotCanonicalizer.snapshotInputHash(
                         version.key(), watermark, inputs);
                 String snapshotKey = StorySnapshotCanonicalizer.snapshotKey(

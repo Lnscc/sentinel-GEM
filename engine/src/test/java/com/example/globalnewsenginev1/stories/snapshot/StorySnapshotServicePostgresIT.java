@@ -247,7 +247,7 @@ class StorySnapshotServicePostgresIT {
     }
 
     @Test
-    void freshRunBlocksANewSnapshotAndStaleRunResumesTheExistingSnapshot() {
+    void freshRunBlocksANewSnapshotButNewInputSupersedesAStaleRun() {
         insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
         insertReadyInput(VERSION_24, "b", vector(0.8f, 0.6f), effectiveAt, null);
         StorySnapshotRepository repository = new StorySnapshotRepository(jdbc);
@@ -291,23 +291,26 @@ class StorySnapshotServicePostgresIT {
 
         Clock afterTimeout = Clock.fixed(
                 clock.instant().plus(Duration.ofMinutes(31)), ZoneOffset.UTC);
+        insertReadyInput(VERSION_24, "c", vector(0, 1),
+                effectiveAt.plus(Duration.ofMinutes(1)), null);
         StorySnapshotService.ProcessingResult resumed =
                 service(afterTimeout).process(StorySnapshotService.RunMode.INCREMENTAL,
                         watermark.plusSeconds(600), 1);
 
         assertThat(resumed.succeededVersions()).isOne();
         assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM story_snapshots", Integer.class)).isOne();
+                "SELECT COUNT(*) FROM story_snapshots", Integer.class)).isEqualTo(2);
         assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM story_processing_runs", Integer.class)).isOne();
+                "SELECT COUNT(*) FROM story_processing_runs", Integer.class)).isEqualTo(2);
         assertThat(jdbc.queryForObject(
-                "SELECT status FROM story_processing_runs", String.class))
+                "SELECT status FROM story_processing_runs ORDER BY id DESC LIMIT 1", String.class))
                 .isEqualTo("SUCCEEDED");
         assertThat(jdbc.queryForObject(
-                "SELECT fencing_token FROM story_processing_runs", Long.class))
-                .isGreaterThan(originalClaim.fencingToken());
+                "SELECT fencing_token FROM story_processing_runs WHERE id = ?", Long.class,
+                originalClaim.id())).isEqualTo(originalClaim.fencingToken());
         assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM story_pair_decisions", Integer.class)).isOne();
+                "SELECT COUNT(*) FROM story_memberships WHERE current_marker = 1", Integer.class))
+                .isEqualTo(3);
     }
 
     @Test
@@ -507,7 +510,7 @@ class StorySnapshotServicePostgresIT {
         assertThat(service().reprocess(watermark, 1).reusedVersions()).isOne();
         assertThat(story("b")).isEqualTo(id);
         assertThat(jdbc.queryForObject("SELECT status FROM story_processing_runs WHERE id = ?",
-                String.class, old.run().id())).isEqualTo("DISCARDED");
+                String.class, old.run().id())).isEqualTo("FAILED");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_publish_commits", Integer.class)).isOne();
     }
 
