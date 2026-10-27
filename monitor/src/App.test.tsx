@@ -85,7 +85,8 @@ describe("Globales Lagebild", () => {
     await user.type(screen.getByRole("searchbox", { name: "Suche" }), "Paris");
     expect(screen.queryByRole("heading", { name: "Ein wichtiges Ereignis" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
-    await user.type(screen.getByRole("textbox", { name: "Region" }), "FR11");
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+    await user.click(screen.getByRole("option", { name: "Paris (FR11)" }));
     await user.click(screen.getByRole("combobox", { name: "Zeitraum" }));
     await user.click(screen.getByRole("option", { name: "Letzte 6 Stunden" }));
     await waitFor(() => {
@@ -98,9 +99,13 @@ describe("Globales Lagebild", () => {
       expect(new URLSearchParams(window.location.search).get("hours")).toBe("6");
     });
 
+    await user.click(screen.getByTitle("Clear"));
+    await waitFor(() => expect(new URLSearchParams(window.location.search).has("region")).toBe(false));
+    expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("");
+
     await user.click(screen.getByRole("button", { name: "Filter löschen" }));
     expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("");
-    expect(screen.getByRole("textbox", { name: "Region" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 24 Stunden");
   });
 
@@ -110,11 +115,11 @@ describe("Globales Lagebild", () => {
     renderApp();
 
     expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("wichtig");
-    expect(screen.getByRole("textbox", { name: "Region" })).toHaveValue("GM16");
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 6 Stunden");
     expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
-    await waitFor(() => expect(mapLibre.options.bounds).toEqual([[10, 50], [15, 55]]));
     expect(window.location.search).toContain("story=story-1");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("Berlin (GM16)"));
+    await waitFor(() => expect(mapLibre.options.bounds).toEqual([[10, 50], [15, 55]]));
   });
 
   it("fällt bei ungültigen URL-Parametern auf den Standardzustand zurück", async () => {
@@ -123,7 +128,7 @@ describe("Globales Lagebild", () => {
     renderApp();
 
     expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("");
-    expect(screen.getByRole("textbox", { name: "Region" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 24 Stunden");
     expect(await screen.findByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
     expect(window.location.search).toBe("");

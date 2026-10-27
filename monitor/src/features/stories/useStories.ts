@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { StoryPage } from "./storyTypes";
-import type { StoryFilterValues } from "./StoryFilters";
+import type { RegionOption, StoryFilterValues } from "./StoryFilters";
 
 const PAGE_SIZE = 100;
 
@@ -9,6 +9,7 @@ export default function useStories(filters: StoryFilterValues) {
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
   const [lastLoadedAt, setLastLoadedAt] = useState<Date>();
+  const [regions, setRegions] = useState<RegionOption[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -24,7 +25,19 @@ export default function useStories(filters: StoryFilterValues) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json() as Promise<StoryPage>;
       })
-      .then((nextPage) => { setPage(nextPage); setLastLoadedAt(new Date()); })
+      .then((nextPage) => {
+        setPage(nextPage);
+        setRegions((current) => {
+          const known = new Map(current.map((region) => [region.code, region]));
+          nextPage.stories.forEach(({ location }) => {
+            if (location?.regionCode && location.name && !known.has(location.regionCode)) {
+              known.set(location.regionCode, { code: location.regionCode, name: location.name });
+            }
+          });
+          return [...known.values()].sort((left, right) => left.name.localeCompare(right.name, "de"));
+        });
+        setLastLoadedAt(new Date());
+      })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Unbekannter Fehler");
       })
@@ -33,5 +46,5 @@ export default function useStories(filters: StoryFilterValues) {
     return () => controller.abort();
   }, [filters.hours, filters.region, refreshKey]);
 
-  return { page, error, isLoading, lastLoadedAt, refresh: () => setRefreshKey((key) => key + 1) };
+  return { page, regions, error, isLoading, lastLoadedAt, refresh: () => setRefreshKey((key) => key + 1) };
 }
