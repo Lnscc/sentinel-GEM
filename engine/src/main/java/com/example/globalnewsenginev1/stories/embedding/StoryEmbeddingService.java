@@ -68,6 +68,10 @@ public class StoryEmbeddingService {
         return process(batchSize, true);
     }
 
+    ProcessingResult repair(String versionKey, int batchSize) {
+        return process(repository.findCandidates(versionKey, false, batchSize, true));
+    }
+
     public ProcessingResult processVersion(long versionId, int batchSize, Instant watermark) {
         List<StoryEmbeddingRepository.ArticleCandidate> candidates =
                 repository.findCandidates(versionId, batchSize, true, watermark);

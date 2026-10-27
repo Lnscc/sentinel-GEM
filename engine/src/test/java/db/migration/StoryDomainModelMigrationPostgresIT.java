@@ -53,7 +53,7 @@ class StoryDomainModelMigrationPostgresIT {
     }
 
     @Test
-    void createsStorySchemaAndShadowVersionsWithoutChangingArticles() {
+    void createsStorySchemaAndConsolidatesTheWinningVersionWithoutChangingArticles() {
         migrateToLatest();
 
         assertThat(jdbcTemplate.queryForObject(
@@ -61,15 +61,21 @@ class StoryDomainModelMigrationPostgresIT {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM story_clustering_versions", Integer.class)).isEqualTo(4);
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM story_clustering_versions WHERE status = 'SHADOW'", Integer.class))
-                .isEqualTo(4);
+                "SELECT COUNT(*) FROM story_clustering_versions WHERE status = 'ACTIVE'", Integer.class))
+                .isOne();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM story_clustering_versions WHERE status = 'RETIRED'", Integer.class))
+                .isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT version_key FROM story_clustering_versions WHERE status = 'ACTIVE'
+                """, String.class)).isEqualTo("story-mvp-title-embedding-24h-v1.1.0");
         assertThat(jdbcTemplate.queryForList("""
                 SELECT candidate_window_hours
                 FROM story_clustering_versions
                 ORDER BY candidate_window_hours
                 """, Integer.class)).containsExactly(24, 24, 48, 72);
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM story_clustering_version_status_history", Integer.class)).isEqualTo(4);
+                "SELECT COUNT(*) FROM story_clustering_version_status_history", Integer.class)).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT input_eligibility_rule_version FROM story_clustering_versions
                 WHERE version_key = 'story-mvp-title-embedding-24h-v1.1.0'

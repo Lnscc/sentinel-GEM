@@ -66,7 +66,10 @@ public class StorySnapshotService {
     }
 
     public ProcessingResult processIncremental(int maxVersions) {
-        return process(RunMode.INCREMENTAL, clock.instant(), maxVersions);
+        if (maxVersions <= 0) {
+            throw new IllegalArgumentException("maxVersions must be positive");
+        }
+        return process(RunMode.INCREMENTAL, clock.instant(), repository.findActiveVersion());
     }
 
     public ProcessingResult processBackfill(Instant watermark, int maxVersions) {
@@ -98,9 +101,12 @@ public class StorySnapshotService {
         if (maxVersions <= 0) {
             throw new IllegalArgumentException("maxVersions must be positive");
         }
+        return process(mode, requestedWatermark, repository.findProcessingVersions(maxVersions));
+    }
+
+    private ProcessingResult process(RunMode mode, Instant requestedWatermark,
+                                     List<StorySnapshotRepository.ClusteringVersion> versions) {
         Instant watermark = StorySnapshotCanonicalizer.normalizeWatermark(requestedWatermark);
-        List<StorySnapshotRepository.ClusteringVersion> versions =
-                repository.findProcessingVersions(maxVersions);
         int succeeded = 0;
         int reused = 0;
         int failed = 0;

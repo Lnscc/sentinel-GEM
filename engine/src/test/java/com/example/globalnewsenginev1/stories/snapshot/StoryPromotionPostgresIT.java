@@ -59,6 +59,12 @@ class StoryPromotionPostgresIT {
         Flyway.configure().dataSource(dataSource).locations("classpath:db/migration")
                 .schemas(schemaName).defaultSchema(schemaName).load().migrate();
         jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("ALTER TABLE story_clustering_versions DISABLE TRIGGER USER");
+        jdbc.update("UPDATE story_clustering_versions SET status = 'SHADOW'");
+        jdbc.execute("ALTER TABLE story_clustering_versions ENABLE TRIGGER USER");
+        jdbc.execute("ALTER TABLE story_clustering_version_status_history DISABLE TRIGGER USER");
+        jdbc.update("DELETE FROM story_clustering_version_status_history WHERE previous_status IS NOT NULL");
+        jdbc.execute("ALTER TABLE story_clustering_version_status_history ENABLE TRIGGER USER");
         effectiveAt = Instant.parse("2026-07-25T08:00:00Z");
         watermark = effectiveAt.plus(Duration.ofHours(26));
         clock = Clock.fixed(watermark.plusSeconds(60), ZoneOffset.UTC);

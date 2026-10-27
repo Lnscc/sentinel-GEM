@@ -82,7 +82,7 @@ Die beiden Zustandsarten sind unabhaengig:
 
 | Ebene | Werte | Bedeutung |
 |---|---|---|
-| Clustering-Version | `SHADOW`, `ACTIVE`, `RETIRED` | `SHADOW` und `ACTIVE` werden verarbeitet; `RETIRED` wird nicht weiterverarbeitet. Die API-Sichtbarkeit wird separat konfiguriert. |
+| Clustering-Version | `SHADOW`, `ACTIVE`, `RETIRED` | Periodische Produktion verarbeitet nur `ACTIVE`; `SHADOW` wird nur explizit evaluiert und `RETIRED` nicht weiterverarbeitet. Die API-Sichtbarkeit wird separat konfiguriert. |
 | Story | `ACTIVE`, `CLOSED`, `SUPERSEDED` | `ACTIVE` und `CLOSED` sind aktuelle fachliche Stories; `SUPERSEDED` ist innerhalb der Version abgeloest und fuer die API unsichtbar. |
 
 Eine fachlich freigegebene Promotion wechselt die neue Version atomar von `SHADOW` nach `ACTIVE`
@@ -223,8 +223,8 @@ flowchart TD
 Ohne verwendbaren Titel oder erfolgreiches Embedding erreicht ein Input die Paarbewertung
 nicht; der Publish erfasst ihn stattdessen mit einer begruendeten `UNASSIGNED`-Entscheidung.
 Ohne API-Schluessel bleiben verwendbare Embedding-Artefakte `PENDING`. Snapshot und Publish
-verarbeiten `SHADOW`- und `ACTIVE`-Versionen, bevorzugen aber die aktive Version; `RETIRED` wird
-nicht weiterverarbeitet. Nur die mit `stories.visible-version` konfigurierte Version ist ueber
+verarbeiten periodisch nur die `ACTIVE`-Version; `SHADOW` wird ausschliesslich in einer expliziten
+Release-Evaluation verarbeitet und `RETIRED` nicht weiterverarbeitet. Nur die mit `stories.visible-version` konfigurierte Version ist ueber
 `GET /stories` und `GET /stories/{id}` sichtbar. Erfolgreich verarbeitete Payloads duerfen nach
 Ablauf der Retention verschwinden; Fachzeilen und Fehlerhistorie bleiben erhalten.
 

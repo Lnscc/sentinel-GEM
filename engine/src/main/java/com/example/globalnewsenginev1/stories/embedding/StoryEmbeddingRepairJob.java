@@ -15,20 +15,23 @@ class StoryEmbeddingRepairJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(StoryEmbeddingRepairJob.class);
 
     private final StoryEmbeddingService service;
+    private final String visibleVersion;
     private final int batchSize;
 
     StoryEmbeddingRepairJob(
             StoryEmbeddingService service,
+            @Value("${stories.visible-version}") String visibleVersion,
             @Value("${stories.embeddings.repair.batch-size:500}") int batchSize
     ) {
         this.service = service;
+        this.visibleVersion = visibleVersion;
         this.batchSize = batchSize;
     }
 
     @Scheduled(cron = "${stories.embeddings.repair.cron:0 15 3 * * *}",
             zone = "${stories.embeddings.repair.zone:UTC}")
     void repair() {
-        StoryEmbeddingService.ProcessingResult result = service.repair(batchSize);
+        StoryEmbeddingService.ProcessingResult result = service.repair(visibleVersion, batchSize);
         LOGGER.info("Story embedding repair run completed: selected={}, processed={}, failed={}",
                 result.selected(), result.processed(), result.failed());
     }

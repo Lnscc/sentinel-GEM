@@ -25,9 +25,6 @@ class StoryEmbeddingJob {
             @Value("${stories.embeddings.batch-size:100}") int batchSize,
             @Value("${stories.embeddings.max-batches-per-run:10}") int maxBatchesPerRun
     ) {
-        if (maxBatchesPerRun < 2) {
-            throw new IllegalArgumentException("At least two batches are required to serve visible and shadow versions");
-        }
         this.service = service;
         this.visibleVersion = visibleVersion;
         this.batchSize = batchSize;
@@ -43,7 +40,7 @@ class StoryEmbeddingJob {
         int processed = 0;
         int failed = 0;
         int batches = 0;
-        while (batches < maxBatchesPerRun - 1) {
+        while (batches < maxBatchesPerRun) {
             StoryEmbeddingService.ProcessingResult result =
                     service.processIncremental(visibleVersion, false, batchSize);
             selected += result.selected();
@@ -53,15 +50,6 @@ class StoryEmbeddingJob {
             if (result.selected() < batchSize) {
                 break;
             }
-        }
-        while (batches < maxBatchesPerRun) {
-            StoryEmbeddingService.ProcessingResult result =
-                    service.processIncremental(visibleVersion, true, batchSize);
-            selected += result.selected();
-            processed += result.processed();
-            failed += result.failed();
-            batches++;
-            if (result.selected() < batchSize) break;
         }
         if (selected > 0) {
             LOGGER.info("Story embedding incremental run completed: selected={}, processed={}, failed={}",

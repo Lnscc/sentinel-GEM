@@ -80,8 +80,8 @@ erhalten.
 Artikel werden ueber die normalisierte URL und ihren SHA-256-Hash dedupliziert. Titel und
 Publikationszeitpunkt projiziert die API aus geeigneten GKG-Feldern.
 
-Fuer jede verarbeitbare Clustering-Version (`SHADOW` oder `ACTIVE`) werden aktuelle Artikel-Inputs
-versioniert und verwendbare Titel eingebettet. Der Snapshot-Job friert die Inputs ein und
+Fuer die `ACTIVE`-Clustering-Version werden periodisch aktuelle Artikel-Inputs versioniert und
+verwendbare Titel eingebettet; `SHADOW` wird nur in einer expliziten Evaluation verarbeitet. Der Snapshot-Job friert die Inputs ein und
 berechnet innerhalb des versionierten Zeitfensters alle zulaessigen Paare mit exakter Cosine
 Similarity. Treffer ab `0.700000` werden als `SAME_STORY`, die beste Diagnose ohne Treffer als
 `UNCERTAIN` gespeichert. Aus den verwendbaren Snapshot-Mitgliedern entsteht anschliessend eine

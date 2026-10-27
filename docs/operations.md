@@ -63,8 +63,9 @@ GKG ab.
 
 ## Story-Titel-Inputs und Embeddings
 
-Der inkrementelle Job erzeugt fuer `ACTIVE`- und `SHADOW`-Clustering-Versionen aktuelle
-`story_article_inputs`. Verwendbare, normalisierte Titel werden mit dem in der jeweiligen Version
+Die periodischen Jobs erzeugen nur fuer die konfigurierte `ACTIVE`-Clustering-Version aktuelle
+`story_article_inputs`. Eine `SHADOW`-Version wird ausschliesslich durch einen explizit gestarteten
+Release-Evaluationslauf verarbeitet. Verwendbare, normalisierte Titel werden mit dem in der jeweiligen Version
 gespeicherten Modell eingebettet. Identische fachliche Artefaktschluessel verwenden genau eine
 Zeile in `story_embedding_artifacts`; jeder Provider-Versuch steht dauerhaft in
 `story_embedding_attempts`.
@@ -106,8 +107,8 @@ per `status`-Tag aus; `stories.embedding.backlog` misst den offenen Rueckstand.
 
 ## Story-Snapshots und Kandidatenpaare
 
-Der inkrementelle Snapshot-Job verarbeitet zuerst die `ACTIVE`-Version, danach
-`SHADOW`-Versionen in der Reihenfolge ihrer Datenbank-ID. Pro Version friert er die aktuellen Inputs bis zum Lauf-Watermark
+Der inkrementelle Snapshot-Job verarbeitet ausschliesslich die `ACTIVE`-Version. Explizite
+Release-Evaluationslaeufe koennen eine `SHADOW`-Version auf demselben Watermark verarbeiten. Pro Version friert er die aktuellen Inputs bis zum Lauf-Watermark
 atomar in `story_snapshots` und `story_snapshot_members` ein, auch unbrauchbare Titel und
 Inputs ohne fertiges Embedding. Nur eingefrorene `READY`-Vektoren gehen in die Paarberechnung ein. Anschliessend
 validiert er die kanonischen Float32-Vektoren und berechnet innerhalb des versionierten

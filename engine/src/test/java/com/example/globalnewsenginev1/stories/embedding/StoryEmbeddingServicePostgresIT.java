@@ -43,6 +43,9 @@ class StoryEmbeddingServicePostgresIT {
         Flyway.configure().dataSource(dataSource).locations("classpath:db/migration")
                 .schemas(schemaName).defaultSchema(schemaName).load().migrate();
         jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("ALTER TABLE story_clustering_versions DISABLE TRIGGER USER");
+        jdbc.update("UPDATE story_clustering_versions SET status = 'SHADOW'");
+        jdbc.execute("ALTER TABLE story_clustering_versions ENABLE TRIGGER USER");
         client = new FakeClient();
         repository = new StoryEmbeddingRepository(jdbc);
         service = new StoryEmbeddingService(
