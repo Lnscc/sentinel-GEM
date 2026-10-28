@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 
 @Service
@@ -106,38 +107,20 @@ public class StoryPartitionService {
         Scores scores = new Scores(vectors);
         Duration window = Duration.ofHours(rules.windowHours());
         long threshold = rules.threshold().movePointRight(6).longValueExact();
-        Set<Candidate> rejected = new HashSet<>();
         List<MergeDecision> decisions = new ArrayList<>();
         Comparator<Candidate> order = Comparator.comparingLong(Candidate::similarity).reversed()
                 .thenComparing(c -> inputs.get(c.left().medoid()).articleRef())
                 .thenComparing(c -> inputs.get(c.right().medoid()).articleRef());
-        // ponytail: rescan cluster pairs after each merge; use an invalidating priority queue
-        // if measured snapshot sizes make these O(n^3) pair scans too slow.
-        while (true) {
-            Candidate best = null;
-            for (int i = 0; i < clusters.size(); i++) {
-                for (int j = i + 1; j < clusters.size(); j++) {
-                    Cluster left = clusters.get(i);
-                    Cluster right = clusters.get(j);
-                    if (inputs.get(left.medoid()).articleRef()
-                            .compareTo(inputs.get(right.medoid()).articleRef()) > 0) {
-                        Cluster swap = left;
-                        left = right;
-                        right = swap;
-                    }
-                    if (distance(inputs, left.medoid(), right.medoid()).compareTo(window) > 0) {
-                        continue;
-                    }
-                    long score = scores.get(left.medoid(), right.medoid());
-                    Candidate candidate = new Candidate(left, right, score);
-                    if (score >= threshold && !rejected.contains(candidate)
-                            && (best == null || order.compare(candidate, best) < 0)) {
-                        best = candidate;
-                    }
-                }
+        PriorityQueue<Candidate> candidates = new PriorityQueue<>(order);
+        Set<Cluster> active = new HashSet<>(clusters);
+        for (int i = 0; i < clusters.size(); i++) {
+            for (int j = i + 1; j < clusters.size(); j++) {
+                addCandidate(candidates, clusters.get(i), clusters.get(j), inputs, scores, window, threshold);
             }
-            if (best == null) break;
-            Candidate candidate = best;
+        }
+        while (!candidates.isEmpty()) {
+            Candidate candidate = candidates.remove();
+            if (!active.contains(candidate.left()) || !active.contains(candidate.right())) continue;
             List<Integer> members = new ArrayList<>(candidate.left().members());
             members.addAll(candidate.right().members());
             members.sort(Integer::compareTo);
@@ -150,22 +133,38 @@ public class StoryPartitionService {
                     refs(candidate.right(), inputs), decimal(candidate.similarity()),
                     inputs.get(medoid).articleRef(), accepted, evidence));
             if (accepted) {
+                active.remove(candidate.left());
+                active.remove(candidate.right());
                 clusters.remove(candidate.left());
                 clusters.remove(candidate.right());
-                clusters.add(new Cluster(List.copyOf(members), medoid));
+                Cluster merged = new Cluster(List.copyOf(members), medoid);
+                for (Cluster cluster : clusters) {
+                    addCandidate(candidates, merged, cluster, inputs, scores, window, threshold);
+                }
+                clusters.add(merged);
+                active.add(merged);
                 clusters.sort(Comparator.comparingInt(c -> c.members().getFirst()));
-                rejected.removeIf(previous -> previous.left().equals(candidate.left())
-                        || previous.right().equals(candidate.left())
-                        || previous.left().equals(candidate.right())
-                        || previous.right().equals(candidate.right()));
-            } else {
-                rejected.add(candidate);
             }
         }
         List<Component> components = clusters.stream().map(cluster -> new Component(
                 inputs.get(cluster.medoid()).articleRef(),
                 evidence(cluster.members(), cluster.medoid(), inputs, scores))).toList();
         return new Partition(rules, components, List.copyOf(decisions));
+    }
+
+    private static void addCandidate(PriorityQueue<Candidate> candidates, Cluster first, Cluster second,
+                                     List<StorySnapshotRepository.SnapshotInput> inputs, Scores scores,
+                                     Duration window, long threshold) {
+        Cluster left = first;
+        Cluster right = second;
+        if (inputs.get(left.medoid()).articleRef().compareTo(inputs.get(right.medoid()).articleRef()) > 0) {
+            left = second;
+            right = first;
+        }
+        if (distance(inputs, left.medoid(), right.medoid()).compareTo(window) <= 0) {
+            long score = scores.get(left.medoid(), right.medoid());
+            if (score >= threshold) candidates.add(new Candidate(left, right, score));
+        }
     }
 
     private static int medoid(List<Integer> members, Scores scores) {

@@ -131,6 +131,13 @@ stories.snapshots.backfill.watermark=2026-07-25T00:00:00Z
 Der Backfill ist standardmaessig ausgeschaltet. Sein festes Watermark begrenzt die Eingabemenge
 auf `effective_at <= watermark` und macht wiederholte Aufrufe idempotent. Fuer einen manuellen
 Reprocessing-Aufruf steht `StorySnapshotService.reprocess(watermark, maxVersions)` bereit.
+
+Ein reproduzierbarer Lauf gegen einen eingefrorenen produktionsnahen Snapshot kann als
+One-shot-Benchmark gestartet werden. Alle regulaeren Jobs bleiben dabei deaktiviert:
+
+```powershell
+.\mvnw.cmd spring-boot:run '-Dspring-boot.run.arguments=--spring.main.web-application-type=none --gdelt.ingestion.enabled=false --gdelt.staging.enabled=false --gdelt.retention.enabled=false --articles.enabled=false --stories.embeddings.incremental.enabled=false --stories.embeddings.repair.enabled=false --stories.snapshots.incremental.enabled=false --stories.snapshots.backfill.enabled=false --stories.snapshots.benchmark.watermark=2026-10-24T16:57:16.034881Z'
+```
 `max-versions-per-run` begrenzt jeweils die Anzahl der Versionen. Ein `RUNNING`-Claim darf nach
 `claim-timeout` mit demselben Snapshot, derselben Run-Zeile und einem neuen Fencing-Token
 wiederaufgenommen werden. Snapshot-Erzeugung und Run-Claim liegen unter demselben
