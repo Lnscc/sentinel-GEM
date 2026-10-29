@@ -67,7 +67,7 @@ export default function StoryOverview() {
             <>
               <Box sx={{ px: 2.5, py: 2, flexShrink: 0 }}>
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "baseline" }}><Typography variant="h3">Priorisierte Ereignisse</Typography><Typography color="text.secondary" sx={{ fontSize: "0.75rem" }}>{stories.length} von {page?.total ?? 0}</Typography></Stack>
-                {lastLoadedAt && <StoryRefreshStatus isLoading={isLoading} lastLoadedAt={lastLoadedAt} onRefresh={refresh} />}
+                <StoryRefreshStatus isLoading={isLoading} lastLoadedAt={lastLoadedAt} onRefresh={refresh} />
               </Box>
               <Divider />
               {error && <Alert severity="error" sx={{ m: 2 }}>Die Ereignisse konnten nicht geladen werden. {error}</Alert>}

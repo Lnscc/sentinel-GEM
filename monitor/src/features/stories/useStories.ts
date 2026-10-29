@@ -3,6 +3,7 @@ import type { StoryPage } from "./storyTypes";
 import type { RegionOption, StoryFilterValues } from "./StoryFilters";
 
 const PAGE_SIZE = 100;
+const REFRESH_INTERVAL_MS = 60_000;
 
 export default function useStories(filters: StoryFilterValues) {
   const [page, setPage] = useState<StoryPage>();
@@ -11,6 +12,11 @@ export default function useStories(filters: StoryFilterValues) {
   const [lastLoadedAt, setLastLoadedAt] = useState<Date>();
   const [regions, setRegions] = useState<RegionOption[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setRefreshKey((key) => key + 1), REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, createTheme } from "@mui/material";
 import App from "./App";
@@ -74,6 +74,62 @@ describe("Globales Lagebild", () => {
     expect(url.searchParams.get("direction")).toBe("desc");
     expect(url.searchParams.get("limit")).toBe("100");
     expect(url.searchParams.get("from")).toBeTruthy();
+  });
+
+  it("lädt Ereignisse automatisch nach und erhält Karten- und Auswahlzustand", async () => {
+    let automaticRefresh: (() => void) | undefined;
+    vi.spyOn(window, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 60_000) automaticRefresh = handler as () => void;
+      return 1;
+    }) as typeof window.setInterval);
+    let listRequests = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      if (String(input).includes("/story-1")) return response(detail);
+      listRequests += 1;
+      return response({ stories: listRequests === 1 ? [story] : [story, otherStory], total: listRequests === 1 ? 1 : 2 });
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
+
+    mapLibre.state.bounds = [2, 48, 15, 55];
+    mapLibre.handlers.get("moveend")?.();
+    await user.click(screen.getByRole("heading", { name: "Ein wichtiges Ereignis" }));
+    await screen.findByRole("heading", { name: "Zugehörige Artikel" });
+
+    act(() => automaticRefresh?.());
+    await waitFor(() => expect(listRequests).toBe(2));
+    expect(screen.getByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).get("story")).toBe("story-1");
+    expect(new URLSearchParams(window.location.search).get("bounds")).toBe("2,48,15,55");
+
+    await user.click(screen.getByRole("button", { name: /Alle Ereignisse/ }));
+    expect(await screen.findByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
+  });
+
+  it("behält bei Aktualisierungsfehlern die Daten und bietet einen erneuten Versuch an", async () => {
+    let automaticRefresh: (() => void) | undefined;
+    vi.spyOn(window, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 60_000) automaticRefresh = handler as () => void;
+      return 1;
+    }) as typeof window.setInterval);
+    let listRequests = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      listRequests += 1;
+      if (listRequests === 2) return response({}, false);
+      return response({ stories: listRequests === 1 ? [story] : [story, otherStory], total: listRequests === 1 ? 1 : 2 });
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
+
+    act(() => automaticRefresh?.());
+    expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 500");
+    expect(screen.getByRole("heading", { name: "Ein wichtiges Ereignis" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
+    expect(await screen.findByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("filtert Suche, Zeitraum und Region konsistent und setzt alles zurück", async () => {
