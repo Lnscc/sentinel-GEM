@@ -1,6 +1,6 @@
 # Sentinel-GEM – Produktideen
 
-**Stand:** 21. Oktober 2026
+**Stand:** 29. Oktober 2026
 
 **Status:** Diskussionsgrundlage, keine Roadmap oder Zusage zur Umsetzung
 
@@ -22,12 +22,12 @@ Sentinel-GEM wird zunächst als geografische Ereignisübersicht entwickelt. Eine
 breitere News-Intelligence-Plattform ist eine mögliche spätere Ausbaustufe und
 bestimmt nicht den aktuellen Produktumfang.
 
-Die Umsetzung folgt dieser Reihenfolge:
+Die Produktentwicklung folgt dieser Reihenfolge:
 
 1. verlässliche Artikel- und Story-Daten
 2. geografische Zuordnung von Ereignissen
-3. Live Map mit Filtern
-4. Story-Details mit Artikeln, Quellen und Timeline
+3. Live Map mit grundlegenden Filtern (umgesetzt)
+4. Story-Details mit Artikeln und Quellen (umgesetzt), später Timeline
 5. Suche und Explorer
 6. erst danach zusätzliche Intelligence-Funktionen
 
@@ -39,23 +39,28 @@ Das Projekt besitzt bereits die technische Grundlage für:
 - normalisierte Artikel und zusammengeführte GDELT-Signale
 - versionierte Story-Snapshots auf Basis von Titel-Embeddings
 - REST-Endpunkte für Artikel, Stories und Pipeline-Zustand
-- einen React-Monitor für die vorhandenen Story-Daten
+- einen React-Monitor mit Live Map, geclusterten Story-Markern, Filtern und
+  Story-Details mit Artikeln und Quellen
 
-Die geografische Produktansicht ist das Ziel, aber noch nicht umgesetzt. Der
-aktuelle Stand ist in der [Projektübersicht](../README.md) und der
-[Architekturdokumentation](global_event_analysis_platform_architecture.md)
+Das Lagebild lädt bis zu 100 priorisierte Stories und aktualisiert sie alle 60
+Sekunden. Zeitraum, Region, Text und sichtbarer Kartenausschnitt lassen sich
+filtern; Stories ohne Koordinaten erscheinen nicht auf der Karte. Eigene Topic-
+und Quellenfilter sowie Push-basierte Live-Aktualisierung sind noch nicht
+vorhanden. Der aktuelle Stand ist in der [Projektübersicht](../README.md) und
+der [Architekturdokumentation](global_event_analysis_platform_architecture.md)
 beschrieben.
 
 ## 3. Naheliegende Produktfähigkeiten
 
 Diese Funktionen unterstützen den Produktkern unmittelbar.
 
-### 3.1 Live Map
+### 3.1 Live Map (vorhanden)
 
-- Ereignisse und zugehörige Berichte auf einer Weltkarte darstellen.
-- Nach Zeitraum, Region, Thema und Quelle filtern.
-- Zwischen Ereignissen, Erwähnungen und weiteren Signalen unterscheiden.
+- Stories auf einer Weltkarte darstellen und nahe Marker clustern.
+- Nach Zeitraum, Region, Text und sichtbarem Kartenausschnitt filtern.
 - Von einem Kartenpunkt zu Story, Artikeln und Quellen navigieren.
+- Als nächste Ausbaustufe nach Topic und Quelle filtern und weitere Signale
+  neben Stories unterscheiden.
 
 ### 3.2 News Explorer
 
@@ -75,7 +80,7 @@ Diese Funktionen unterstützen den Produktkern unmittelbar.
 
 ## 4. Mögliche spätere Erweiterungen
 
-Diese Ideen können nützlich werden, sobald Karte, Artikel und Stories stabil
+Diese Ideen können nützlich werden, sobald Lagebild, Artikel und Stories stabil
 funktionieren. Sie sind derzeit nicht priorisiert.
 
 ### Trending Topics und Historical Analytics
@@ -140,7 +145,8 @@ Komplexität und die Gefahr unbelegter Antworten rechtfertigen.
 
 ## 6. Mögliche Produktoberfläche
 
-Eine erste Oberfläche könnte aus drei Bereichen bestehen:
+Die vorhandene Oberfläche verbindet die Live Map mit einer Ereignisliste und
+Story-Details. Eine spätere breitere Navigation könnte drei Bereiche umfassen:
 
 1. **Map** – geografischer Einstieg in aktuelle Ereignisse
 2. **Stories** – Ereignisse, Verlauf und zugehörige Berichte
@@ -152,7 +158,7 @@ mögliche Gestaltung, aber keine Produktanforderung.
 
 ## 7. Offene Entscheidungen
 
-- Was ist die kleinste nützliche Version der Live Map?
+- Welche Erweiterung der vorhandenen Live Map bringt als Nächstes den größten Nutzen?
 - Welche Rolle spielen Topics und Themes oberhalb der bestehenden Stories?
 - Welche Funktionen benötigen echte Live-Aktualisierung?
 - Soll das Produkt Beobachtungen zeigen oder auch Risiken bewerten und warnen?

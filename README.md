@@ -2,14 +2,14 @@
 
 **See where the world's news is happening.**
 
-Sentinel-GEM is being built to turn global news signals into a geographic view
+Sentinel-GEM turns global news signals into a geographic view
 of real-world events: what is happening, where it is happening and which
 reports belong to the same event.
 
-The current milestone builds the data foundation. It continuously ingests
+The system continuously ingests
 [GDELT 2.0](https://www.gdeltproject.org/) data, normalizes articles and groups
-related reporting into reproducible stories. The geographic visualization is
-the product goal and is not implemented yet.
+related reporting into reproducible stories. Its React monitor presents these
+stories in a live global map and links them to their articles and sources.
 
 ## Current capabilities
 
@@ -17,7 +17,17 @@ the product goal and is not implemented yet.
 - normalizes article URLs and combines their GDELT signals
 - creates versioned story snapshots from title embeddings
 - exposes articles, stories and pipeline health through a REST API
-- presents the current story data in a React monitor
+- presents located stories as clustered markers on an interactive world map
+- filters the Lagebild by 6, 12 or 24 hours, region, text and visible map area
+- opens story details with their articles and source links
+- preserves filters, map bounds and the selected story in the URL and refreshes
+  the story list every 60 seconds
+
+The Lagebild loads at most the 100 stories with the most articles for the
+selected period. Stories without coordinates remain available through the API
+but do not appear on the map. Text search is applied to this loaded set; there
+are no dedicated topic or source filters and updates are polled rather than
+pushed in real time.
 
 ## Architecture
 
@@ -28,13 +38,13 @@ flowchart LR
     Database --> Engine
     Engine --> API[REST API]
     API --> Monitor[React monitor]
-    Monitor -. product goal .-> Map[Geographic event view]
+    Monitor --> Map[Live Map and story details]
 ```
 
 | Component | Technology | Purpose |
 |---|---|---|
 | [`engine`](engine) | Java 21, Spring Boot 4 | ingestion, processing and REST API |
-| [`monitor`](monitor) | React 19, TypeScript, Vite | current story view and future geographic interface |
+| [`monitor`](monitor) | React 19, TypeScript, Vite, MapLibre GL | Live Map, filters and story details |
 | PostgreSQL | PostgreSQL 17 | durable article, signal and story data |
 
 ## Quick start

@@ -1,7 +1,8 @@
-# Sentinel-GEM Engine - Projektuebersicht
+# Sentinel-GEM - Projektuebersicht
 
-Sentinel-GEM Engine ist ein Spring-Boot-Dienst, der GDELT-2.0-Daten importiert und daraus
-abfragbare Artikel sowie versionierte, reproduzierbare Stories erzeugt.
+Sentinel-GEM besteht aus einem Spring-Boot-Dienst, der GDELT-2.0-Daten importiert und daraus
+abfragbare Artikel sowie versionierte, reproduzierbare Stories erzeugt, und einem React-Monitor
+fuer das globale Lagebild.
 
 ```text
 GDELT-Signale -> Artikel -> Stories -> Topics -> Themes
@@ -23,9 +24,11 @@ Implementiert sind:
   Story-Partitionen;
 - atomare Veroeffentlichung von Stories, aktuellen Mitgliedschaften und Begruendungen;
 - kontrollierte Promotion einer Clustering-Version mit stabilen Public IDs;
-- eine lesende Story REST API fuer eine konfigurierte Clustering-Version.
+- eine lesende Story REST API fuer eine konfigurierte Clustering-Version;
+- ein globales Lagebild mit Live Map, geclusterten Story-Markern, Filtern, Story-Details und
+  Links zu den zugehoerigen Quellen.
 
-Noch nicht implementiert sind Topics, Themes und Visualisierung.
+Noch nicht implementiert sind Topics und Themes.
 
 Volltext-Crawling, Volltext-Embeddings, generative Zusammenfassungen und approximative
 Vektorsuche gehoeren nicht zum aktuellen Story-MVP.
@@ -50,6 +53,7 @@ GDELT Masterfile
     -> atomarer Publish
     -> konfigurierte sichtbare Version
     -> Story REST API
+    -> React-Monitor mit Live Map und Story-Details
 ```
 
 | Bereich | Verantwortung |
@@ -63,6 +67,13 @@ GDELT Masterfile
 | `stories.snapshot` | Inputs einfrieren, Paare und Partition berechnen, Stories atomar publizieren und Versionen promovieren |
 | `stories.query` | aktuelle Stories der konfigurierten Version ueber Public IDs lesen |
 | `stories.api` | Story-Liste und -Detail ueber HTTP bereitstellen |
+| `monitor` | Stories filtern, geografisch darstellen und mit Artikeln und Quellen verknuepfen |
+
+Der Monitor fragt alle 60 Sekunden bis zu 100 Stories fuer die letzten 6, 12 oder 24 Stunden ab.
+Die API filtert Zeitraum und Region; die Oberflaeche filtert den geladenen Bestand zusaetzlich
+nach Text und sichtbarem Kartenausschnitt. MapLibre stellt nur Stories mit gueltigen Koordinaten
+dar und clustert nahe Marker. Filter, Kartenausschnitt und ausgewaehlte Story werden in der URL
+gespeichert. Topic- und Quellenfilter sowie Push-basierte Live-Aktualisierung sind nicht vorhanden.
 
 ## Datenfluesse
 
