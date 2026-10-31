@@ -1,0 +1,529 @@
+{
+  "measuredAt" : "2026-10-31T15:56:34.628184900Z",
+  "totalArticleCount" : 36892,
+  "windowArticleCount" : 15389,
+  "windowStart" : "2026-10-23T16:00:00Z",
+  "watermark" : "2026-10-24T16:00:00Z",
+  "windowSelection" : "densest-24h",
+  "dimensions" : 1536,
+  "windowHours" : 24,
+  "topK" : 50,
+  "annFetchK" : 200,
+  "sampleSize" : 100,
+  "recallTarget" : 0.98,
+  "recall" : 0.9994,
+  "targetMet" : true,
+  "minimumCandidatesReturned" : 50,
+  "loadMilliseconds" : 4171,
+  "indexBuildMilliseconds" : 16172,
+  "exactSearchMilliseconds" : 2470.4966,
+  "hnswSearchMilliseconds" : 703.8453,
+  "indexBytes" : 88858624,
+  "hnsw" : {
+    "m" : 16,
+    "efConstruction" : 128,
+    "efSearch" : 400,
+    "timePrefiltered" : true
+  },
+  "queries" : [ {
+    "articleRef" : "cc2e946e9d7ce0b7c07ae2db4725b000546ff6b0b73116bd53b93c56acd42dae",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "75ae077ccd58b26d2b800de615da3ef1c2f17b8f48f857bf11b67c6341b5f5e0",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "6da6f6c0e3100d773a0a619425e67c3486d8b109784d7871b844a82b901368b0",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "6859b0cb39984f54c86e975e62963398147d5293fd86ff851353a436c7ba6c80",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "7829d94600a8972437c8401b017d6b7e4d31b66dfd02deaa4f5eb8112f6ddfb5",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "0301c5d55f3e9b924060f7197fad1e584810f3c2051b3ce85cf15660778f809e",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "c89c0e8ab847aac9e57c5cc08107fc82e40ab908bdd78de3bfed4ba1a121182a",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "01fc2066bb657481807be5aa6e529862a8b63c615bb67bac047fb9873705a04a",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "9af2c3033f2c27cd0e73eac4fe2187ea2174085cf53925414c5547a32a690464",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d8d1e1666d49a8ac5b55fc95c8d416605db724ccac1a0fea00cedf1e7bfb6eea",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d83de4b76feabdeefb5ca55ab4d6fbb8d631c8f6ae3a46643c450b190c44b769",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "bcd08002bd79165c7e9fe438e8936b85d1ff5ac47c5afbd36b5c34cf0aec40b8",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "bf6dce99019d8a4b8bc104603c726e42ba563bfeb1d58cda593f13e34b81abf9",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "61fb9433fb76ee28ba70b5790ca8740d27b5b54da2eba48280f15652dff94a20",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "235e8dd5d7a8a5de3f720244ba47ba8b0ade0ac5963373223c8a5ac2783c1393",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d62a149577cd9ff68a443f37b016c3717ce31ea2c808339b31fa8dfedb099241",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "8562dd09bbbcd1eca77d22aa941b0f7046d81707a6b072d228d85589fca69fce",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "97ef92709a1a75bc357a8e03935d5700e7e12aa05b05ae247161f6212a0691ce",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "6c689f9082722cc74629212fb46115ca790d661c78314694dea7d57ba3ee66cc",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "29ea4f3f999903ba76dc252b98416c29c3e5d5947ce7818ccdee2ab6b325bab5",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "51daf6ce986cc6df60945851586df24e16b02e1d9560bb5d736b354bfc097109",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "22010491e9b4cb456652b1e0036f4b39a648dfd2b9a23f6890aa2010f8b7b8cc",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "c3ea245e8fcf874e8d0dc7a76bcfd1726e2a46b6b4ce7a314541a4240bd30374",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d0ccf298c554bc594d3f970fa59493001f27ebdcf2093a26c5af8e1be7a02042",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "dcbc8a6c0f83f08377134a811a129013cffa31ca33dd75d0b93bf3017c008f9e",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "ad1c9ac3f36f7489d3b4955e9b8884215b71b2d06f02d142bde93603976c7d0e",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "4f2b4500886e975df401d1f0c66f96259e2d3196a78722cf7f036ee6f9ad24ae",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "c032e5a6ed73cd5b1ed5892b3a7716c8e73e41c4b66ce41f5ca8a1d1ba218215",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "54517090e108b5402ffb1579799940797dd2926e1edce4df5b6cc8d749619e73",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "0880f8d8f6e3ce7dcb3b85a0817ed078a867c5a3decfaf147c6559a670dbf25f",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "bdab130f517c1efe2e421fcb6cb1ca7239e82a6d518648bc07ac298b33d9c19d",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "cc8032d926e238ef427607f89a34e623d36e5bde9c44dbec116d183ea987b130",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "b12e0080b2fef16759c9bae8f1ed25f186878be2ee8aa5276ed1109f9434f99f",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "0a19a687e1df2a139ca29e75dff1a21521ec7547791fa5f9e9af3bbe90e3682d",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "2b1883cf6e3c966850f3e7c25e0252f4ece79ab750f12e6831a6b591d6101d98",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "157a6d83f192ad11fa23c7364d2ff21d811aabc846cedf085df48fc761183bbd",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "bdcce28801efc1cfd6cfde46df901fe06bab99383b332167c45f26f68bcc2694",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 49
+  }, {
+    "articleRef" : "83bc3ace079ff5da8a4b21b1581557a95477843273b87d4148c3a4abba204605",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "8b2a33b25fea35971edfe98d50d2dad3292e346288748b583799928ef6e83286",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "201d1bb10e2a944a4f5513686486402150dd284986564dfe20bdc14a54e8ac6f",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "7f65172f1d83f8874ffdbce12101fc19181b6587532a4331301fd4589f2735c9",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "1331fe4b8683fcd1a5aa30d61bd2be3945cce49004957272653dfdae88706e3c",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "291c6495b8e7d98cbc29d36cf83ee6537ce6a552e0d31019515c25c164bc3e0a",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "412dde6f5ef228c48688c2bcb5a2556e33f901f4f40594290738b6cb40f27b9e",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "49a0c8852ccc1dd32f80c9dad5df2174e79c3f2e8c6c4c07e8f2c01ac0458e82",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "2e9ee808eccc052f85f3bdd2c48477d1524c710304c7d4d2647407f7f521cc04",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "ef9b75075e0ed0fd6f297be2c193a0b3403ac6216f91d6af2c62bb7478a9f736",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 49
+  }, {
+    "articleRef" : "ae74c76ea062f9060d35bd01df89515a1afec8db5db07657c9e2023a15b0b442",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "56482bfe0557825772bf5ad6e89d2c39b21716310b757418e801838533a1e36f",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "3325ca9f70ee3e37953a01ba46b7d163374b1990465ca48864494f177e32ef7a",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d3a16c13d6bf5fdd4a09e5c1e1c8c1a2043e7b154c739947ed2e40cc0009e999",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "336586c1e6873473a7c74ed0d4d684829fafeca920661a13d338b884c6449517",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "69f8848d23908902b27e2a496c638e8c80c9f6f0aca99a4fa3c9c031ba030787",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "6ed384a5577a721c5e4c34644838a8760075f751dd0a01e13df7711fba58c11d",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "4c601a6e9e12021b2794706877c2248f40e851a88810287e4edd8b62213a46ce",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "3cc622303e6736c0261ad49383cf77a7fe001a5eb8601380ecebcf75b763e41a",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "53fe4213e1024f82f3d33b6953a722ede425e035937144d9ba2d18ffd239c9e7",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "bcd2f6175982c3a209f8270489e3ee119a9f4808c3206863069319c4392c5b65",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "dfaffcdf870313ad0afb4e2f8690157ffc376e45ba8fca90919153c6ac11cc3f",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "99136578cafbe314246c9862928a6c972396483089687ddda35609e5b6a9e138",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "897f06162d7ceaebb4f839450ea56998c71377c7f5b9e2b57c3b05bf752ecb9f",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "3c5412d07524c2974f118da0dd53808f4db2e9bc3bb461273c0504d3f12da4bb",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "c99aaa150ffe22c368ca0870923bc6fd5cb44bdb2831882c9cb3e5b404b836b0",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "a6f99473312ad453f023ff3f6cf4cc60298735a8fdfec75e9ed4a21026165c34",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "0929a9ebb3255097ed2f04b64815798dd1c9ed618bfb6b7dbc02f73a721f8ec3",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "51109284616c4e15e6a5eb62a11e95b7e673121bb266434d2ceff020431bb7d2",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "4fae0139bcb7232e2aa54aa637b6afe21f0050c5ded87ea51a117505473d5ec9",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "184347038f85f263e055a8f66a89491ec526c815a0f13335bc8b55a21206db31",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d9901832d76e16b65a3f33f7f6e4d396aa692235241c5dad8b9d00c9a8c2a2a0",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "8e71052c6ee2048f42d2f777e97594009d3e54b6a9784588836bd4f8d36c4580",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "9087f424a1352b77429cb4b502b8f69d96d5063ab0731d5734836fc126810d41",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "8fb229f79fad0017ca76159297d756c6647359c8e159818f83d8969cf3706cbd",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "541b9582a6cbe12e802b4bf085ca8ea47901a72db3c5b86031854b6a5c5235ec",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "87b7a6944baac8599e8849aa8af74e25b64a26e21339616ec25a855845977907",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d7e3bd4814deeab8e058679aa3eba6a9d338a80bb9492f6b65d225964f8e62bc",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "143f17851bd0e791400145065397c0b6d9fb76801feb71f8c38c5934f2291f70",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d129a20244437306e1d7c559a48a3cbabeae0e288b3e502082bf86642b1f539b",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "96f1cb59737f0328f4ce09a1108b77bdf5b1922cfe2e6f802f738e0d802f48c7",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "d461edd2be13a2d104ac7449431fde937c72bf6e0be67a38eac49de070caddad",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "cf8618b2027ddeeeb239c23c28efda79488c4ea942f6977312f9ae037197d28f",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "cab93225f8c5632862c58e7bb80eabc378094555677c0a6a500d722236bca9fd",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "c37a976b9b4bfb8de19b4a6b97d512adcea58d3ae688fe15d4170209afaab725",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "40a08ffc88433a6e121c7b67bb55c02983bfcdd9428ea67d00edb393202fa034",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "1ed2b16fffeaf70a7e7236febad2a4805bcf18a7f927814fd5093d0b7eb7c295",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "3bfbd1c019ec525005db79d618ee4cdd6d919dae26860fca298812ed82bfb9b0",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "52e5e194dd4e4e8a882d3ed122b67e6c2eae46c68f7aed38a8923a5e1f4d6949",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "80d9b50fff789da22473d5a46c64a6fbb3fe9fec58559481a5a053bf226301cd",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "aedd6e624f264798d07967f8b879d017753246b75f1b5d6f4b05bcd72fc354c9",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "7923717630f55f8835f300e5d89166d992f314bcf80817575ca95400ce0be680",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "b079cc6238542ca30de2f2055402adb533329cb30b78f8c0bf3975f6e2126dfd",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "7082d4001c2ad7d985b50642cd129bf665251eb7c6638d5fe542efd814f19f79",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "02eb5a23798477302df4cec05dbe12c8e1747b7c5d0323cd83dd8fec9c8234e4",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "1fb1bf0e342e6378bfc1d9ec8c91145f0879efc022a1f10bd64f9eb627fb68a6",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "a1b3a2dfd666611a719e3f6d0e99208408ef0d554a45145a413d4ebc53137691",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 49
+  }, {
+    "articleRef" : "a16f7d556317103330d4142be2e62db8a7684bec7c8fb831cdf7bfb5d1286397",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "09a1e9ff40ec9a4e09c8fca50783963cedee4c3de5518cb5a8cb98f45ce6e20c",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "c0578c1131e3af14eaac03da09518d979f2305a2ceee215d227fbecfe279514a",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "944961cd13a3baf0af6224591fd79ff6c50ceb9204aa6b76ee87680f31342685",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "68fb4eb7bcbd5dee4dd6643c46d67d723d24038988c026ddabd37d2ce1e07dad",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  }, {
+    "articleRef" : "b597b00017b6eabb4e805ea041e077f385d519dc9b49cd38a11029f0dece2dea",
+    "eligible" : 50,
+    "returned" : 200,
+    "hits" : 50
+  } ]
+}
