@@ -1,0 +1,54 @@
+{
+  "measuredAt": "2026-10-30",
+  "currentDataset": {
+    "uniqueReadyArticleRefs": 36892,
+    "versionedReadyInputs": 68899,
+    "deduplicatedReadyVectors": 25340,
+    "embeddingDimensions": 1536,
+    "vectorPayloadMiB": 148.48,
+    "artifactTableTotalMiB": 221,
+    "windowComparisons": {
+      "12h": 174181597,
+      "24h": 238476121,
+      "72h": 410394081
+    },
+    "maximumPriorCandidates": {
+      "12h": 9947,
+      "24h": 15388,
+      "72h": 25067
+    },
+    "warm24hWindowCountMilliseconds": 4741.035
+  },
+  "art032Evaluation": {
+    "articles": 46,
+    "pairs": 108,
+    "sameStory": 33,
+    "differentStory": 70,
+    "uncertain": 5,
+    "hardNegatives": 27,
+    "lexical": {
+      "pairwisePrecision": 0.5135,
+      "pairwiseRecall": 1.0,
+      "pairwiseF1": 0.6786,
+      "falseMerges": 18
+    },
+    "embedding": {
+      "pairwisePrecision": 0.6786,
+      "pairwiseRecall": 1.0,
+      "pairwiseF1": 0.8085,
+      "falseMerges": 9
+    }
+  },
+  "projectionFor43000": {
+    "assumption": "same temporal density; pair count scales quadratically",
+    "windowComparisons24h": 323979410,
+    "rawFloat32VectorMiB": 251.95
+  },
+  "recommendedStart": {
+    "candidateSearch": "HNSW top-50 followed by exact cosine reranking",
+    "windowHours": 24,
+    "topK": 50,
+    "clustering": "existing medoid-radius agglomerative rule",
+    "activation": "shadow benchmark only"
+  }
+}
