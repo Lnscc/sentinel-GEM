@@ -182,6 +182,26 @@ class StoryEmbeddingServicePostgresIT {
     }
 
     @Test
+    void batchesDistinctTitlesIntoOneProviderCallAndPersistsEachArtifact() {
+        long first = insertArticle("batch-first");
+        long second = insertArticle("batch-second");
+        insertGkg(first, 601, "First batch title", null);
+        insertGkg(second, 602, "Second batch title", null);
+
+        StoryEmbeddingService.ProcessingResult result = service.processIncremental(100);
+
+        assertThat(result.failed()).isZero();
+        assertThat(client.calls()).isOne();
+        assertThat(client.lastBatchSize()).isEqualTo(2);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM story_embedding_artifacts WHERE status = 'READY'",
+                Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM story_embedding_attempts WHERE status = 'READY'",
+                Integer.class)).isEqualTo(2);
+    }
+
+    @Test
     void concurrentWorkersDoNotDuplicateArtifactsInputsOrModelCalls() throws Exception {
         long article = insertArticle("concurrent");
         insertGkg(article, 201, "Concurrent title", null);
@@ -371,6 +391,7 @@ class StoryEmbeddingServicePostgresIT {
 
     private static final class FakeClient implements EmbeddingClient {
         private final AtomicInteger calls = new AtomicInteger();
+        private volatile int lastBatchSize;
         private volatile java.time.Duration retryAfter;
         private volatile boolean invalidDimension;
 
@@ -382,6 +403,7 @@ class StoryEmbeddingServicePostgresIT {
         @Override
         public List<EmbeddingResponse> embed(String modelId, int dimension, List<String> inputs) {
             calls.incrementAndGet();
+            lastBatchSize = inputs.size();
             if (retryAfter != null) {
                 throw new EmbeddingClientException("RATE_LIMIT", "rate limited",
                         true, retryAfter, "request-" + calls.get(), null);
@@ -389,14 +411,20 @@ class StoryEmbeddingServicePostgresIT {
             if (invalidDimension) {
                 return List.of(new EmbeddingResponse(0, new float[]{1}, "request-" + calls.get()));
             }
-            float[] vector = new float[dimension];
-            vector[0] = 3;
-            vector[1] = 4;
-            return List.of(new EmbeddingResponse(0, vector, "request-" + calls.get()));
+            return java.util.stream.IntStream.range(0, inputs.size()).mapToObj(index -> {
+                float[] vector = new float[dimension];
+                vector[0] = 3;
+                vector[1] = 4 + index;
+                return new EmbeddingResponse(index, vector, "request-" + calls.get());
+            }).toList();
         }
 
         int calls() {
             return calls.get();
+        }
+
+        int lastBatchSize() {
+            return lastBatchSize;
         }
     }
 }
