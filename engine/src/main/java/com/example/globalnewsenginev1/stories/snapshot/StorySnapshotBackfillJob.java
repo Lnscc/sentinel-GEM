@@ -36,11 +36,18 @@ class StorySnapshotBackfillJob {
             fixedDelayString = "${stories.snapshots.backfill.poll-interval:PT1H}"
     )
     void processBackfill() {
+        long startedAt = System.nanoTime();
         StorySnapshotService.ProcessingResult result =
                 service.processBackfill(watermark, maxVersionsPerRun);
-        LOGGER.info("Story snapshot backfill completed: watermark={}, selected={}, "
-                        + "succeeded={}, reused={}, failed={}",
-                watermark, result.selectedVersions(), result.succeededVersions(),
-                result.reusedVersions(), result.failedVersions());
+        if (result.selectedVersions() > 0) {
+            LOGGER.info("Story snapshot backfill completed: watermark={}, selected={}, "
+                            + "succeeded={}, reused={}, failed={}, durationMs={}",
+                    watermark, result.selectedVersions(), result.succeededVersions(),
+                    result.reusedVersions(), result.failedVersions(), elapsedMillis(startedAt));
+        }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 }

@@ -36,6 +36,7 @@ class StoryEmbeddingJob {
             fixedDelayString = "${stories.embeddings.incremental.poll-interval:PT5M}"
     )
     void processIncremental() {
+        long startedAt = System.nanoTime();
         int selected = 0;
         int processed = 0;
         int failed = 0;
@@ -52,8 +53,12 @@ class StoryEmbeddingJob {
             }
         }
         if (selected > 0) {
-            LOGGER.info("Story embedding incremental run completed: selected={}, processed={}, failed={}",
-                    selected, processed, failed);
+            LOGGER.info("Story embedding incremental run completed: selected={}, processed={}, failed={}, durationMs={}",
+                    selected, processed, failed, elapsedMillis(startedAt));
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 }

@@ -45,6 +45,7 @@ class GdeltPollingImporter {
             fixedDelayString = "${gdelt.ingestion.poll-interval:PT5M}"
     )
     void importLatestCompleteWindows() {
+        long startedAt = System.nanoTime();
         int imported = 0;
         long importedFiles = 0;
         long importedRows = 0;
@@ -67,14 +68,16 @@ class GdeltPollingImporter {
                 }
             } catch (RuntimeException exception) {
                 failed++;
-                LOGGER.warn("Failed to import GDELT window {}: {}", window, exception.getMessage());
+                LOGGER.warn("Failed to import GDELT window {}", window, exception);
             }
         }
 
-        LOGGER.info(
-                "GDELT polling completed: discoveredWindows={}, firstWindow={}, lastWindow={}, importedWindows={}, importedFiles={}, importedRows={}, skippedFiles={}, failedWindows={}",
-                windows.size(), firstTimestamp(windows), lastTimestamp(windows), imported, importedFiles, importedRows,
-                skippedFiles, failed);
+        if (!windows.isEmpty()) {
+            LOGGER.info(
+                    "GDELT polling completed: discoveredWindows={}, firstWindow={}, lastWindow={}, importedWindows={}, importedFiles={}, importedRows={}, skippedFiles={}, failedWindows={}, durationMs={}",
+                    windows.size(), firstTimestamp(windows), lastTimestamp(windows), imported, importedFiles,
+                    importedRows, skippedFiles, failed, elapsedMillis(startedAt));
+        }
     }
 
     private List<Instant> windowsToImport() {
@@ -91,5 +94,9 @@ class GdeltPollingImporter {
 
     private Instant lastTimestamp(List<Instant> windows) {
         return windows.isEmpty() ? null : windows.getLast();
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 }

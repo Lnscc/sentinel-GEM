@@ -30,12 +30,17 @@ class StorySnapshotJob {
             fixedDelayString = "${stories.snapshots.incremental.poll-interval:PT5M}"
     )
     void processIncremental() {
+        long startedAt = System.nanoTime();
         StorySnapshotService.ProcessingResult result =
                 service.processIncremental(maxVersionsPerRun);
         if (result.selectedVersions() > 0) {
-            LOGGER.info("Story snapshot run completed: selected={}, succeeded={}, reused={}, failed={}",
+            LOGGER.info("Story snapshot run completed: selected={}, succeeded={}, reused={}, failed={}, durationMs={}",
                     result.selectedVersions(), result.succeededVersions(),
-                    result.reusedVersions(), result.failedVersions());
+                    result.reusedVersions(), result.failedVersions(), elapsedMillis(startedAt));
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 }

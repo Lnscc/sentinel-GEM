@@ -32,6 +32,7 @@ class ArticleExtractorJob {
             fixedDelayString = "${articles.poll-interval:PT1M}"
     )
     void extractArticles() {
+        long startedAt = System.nanoTime();
         ArticleExtractionResult total = new ArticleExtractionResult(0, 0, 0);
         for (int batch = 0; batch < maxBatchesPerRun; batch++) {
             ArticleExtractionResult current = extractorService.extractArticles(batchSize);
@@ -43,8 +44,13 @@ class ArticleExtractorJob {
 
         if (total.totalProcessed() > 0) {
             LOGGER.info(
-                    "Article extraction completed: articlesCreated={}, signalsCreated={}, errorsCreated={}",
-                    total.articlesCreated(), total.signalsCreated(), total.errorsCreated());
+                    "Article extraction completed: articlesCreated={}, signalsCreated={}, errorsCreated={}, durationMs={}",
+                    total.articlesCreated(), total.signalsCreated(), total.errorsCreated(),
+                    elapsedMillis(startedAt));
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 }

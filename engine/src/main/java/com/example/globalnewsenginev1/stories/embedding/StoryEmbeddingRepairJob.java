@@ -31,8 +31,15 @@ class StoryEmbeddingRepairJob {
     @Scheduled(cron = "${stories.embeddings.repair.cron:0 15 3 * * *}",
             zone = "${stories.embeddings.repair.zone:UTC}")
     void repair() {
+        long startedAt = System.nanoTime();
         StoryEmbeddingService.ProcessingResult result = service.repair(visibleVersion, batchSize);
-        LOGGER.info("Story embedding repair run completed: selected={}, processed={}, failed={}",
-                result.selected(), result.processed(), result.failed());
+        if (result.selected() > 0) {
+            LOGGER.info("Story embedding repair run completed: selected={}, processed={}, failed={}, durationMs={}",
+                    result.selected(), result.processed(), result.failed(), elapsedMillis(startedAt));
+        }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 }

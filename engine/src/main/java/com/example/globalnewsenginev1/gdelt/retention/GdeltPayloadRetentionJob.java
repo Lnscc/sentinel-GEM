@@ -42,6 +42,7 @@ class GdeltPayloadRetentionJob {
             fixedDelayString = "${gdelt.retention.poll-interval:PT1H}"
     )
     void cleanupPayloads() {
+        long startedAt = System.nanoTime();
         Instant cutoff = Instant.now().minus(retentionPeriod);
         GdeltPayloadRetentionResult total = new GdeltPayloadRetentionResult(0, 0, 0);
         for (int batch = 0; batch < maxBatchesPerRun; batch++) {
@@ -52,8 +53,15 @@ class GdeltPayloadRetentionJob {
             }
         }
 
-        LOGGER.info(
-                "GDELT payload retention completed: eventsDeleted={}, mentionsDeleted={}, gkgDeleted={}, cutoff={}",
-                total.eventsDeleted(), total.mentionsDeleted(), total.gkgDeleted(), cutoff);
+        if (total.totalDeleted() > 0) {
+            LOGGER.info(
+                    "GDELT payload retention completed: eventsDeleted={}, mentionsDeleted={}, gkgDeleted={}, cutoff={}, durationMs={}",
+                    total.eventsDeleted(), total.mentionsDeleted(), total.gkgDeleted(), cutoff,
+                    elapsedMillis(startedAt));
+        }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 }
