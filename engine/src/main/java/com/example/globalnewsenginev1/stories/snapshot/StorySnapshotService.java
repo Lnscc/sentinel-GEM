@@ -37,6 +37,9 @@ public class StorySnapshotService {
     private final StorySnapshotMetrics metrics;
     private final StoryPublisher publisher;
 
+    @Autowired(required = false)
+    private StoryHnswShadowService hnswShadow;
+
     @Autowired
     StorySnapshotService(
             StorySnapshotRepository repository,
@@ -189,9 +192,14 @@ public class StorySnapshotService {
         try {
             List<StorySnapshotRepository.SnapshotInput> frozenInputs =
                     repository.loadSnapshotInputs(work.snapshot().id());
-            PairSearchResult search = search(version, frozenInputs);
+            StoryPartitionService.SnapshotRules rules =
+                    repository.loadPartitionRules(work.snapshot().id());
+            PairSearchResult search = hnswShadow == null
+                    ? search(version, frozenInputs)
+                    : hnswShadow.run(version, work.snapshot(), work.claim(), frozenInputs, rules,
+                            () -> search(version, frozenInputs));
             var partition = StoryPartitionService.partitionForPublication(
-                    repository.loadPartitionRules(work.snapshot().id()), frozenInputs, search.decisions());
+                    rules, frozenInputs, search.decisions());
             StoryPublisher.Plan plan = publisher.prepare(work.snapshot(), partition);
             StoryPublisher.Result published = transaction.execute(status -> {
                 Instant completedAt =
