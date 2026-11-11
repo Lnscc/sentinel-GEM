@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
@@ -212,6 +213,46 @@ class StorySnapshotServicePostgresIT {
                 JOIN story_article_inputs input ON input.id = member.article_input_id
                 WHERE input.input_disposition = 'EXCLUDE'
                 """, Integer.class)).isZero();
+    }
+
+    @Test
+    void hnswShadowKeepsOnlyTheCurrentWindowAndLeavesExactResultsAuthoritative() {
+        insertReadyInput(VERSION_24, "x", vector(1, 0),
+                watermark.minus(Duration.ofHours(24)).minusSeconds(1), null);
+        insertReadyInput(VERSION_24, "a", vector(1, 0), watermark.minus(Duration.ofHours(1)), null);
+        insertReadyInput(VERSION_24, "b", vector(0.8f, 0.6f), watermark, null);
+        StorySnapshotService service = serviceWithHnsw();
+
+        StorySnapshotService.ProcessingResult result = service.processBackfill(watermark, 1);
+
+        assertThat(result.succeededVersions()).isOne();
+        assertThat(jdbc.queryForList("""
+                SELECT article_ref FROM story_hnsw_shadow_embeddings ORDER BY article_ref
+                """, String.class)).containsExactly(ref("a"), ref("b"));
+        assertThat(jdbc.queryForObject("""
+                SELECT status FROM story_hnsw_shadow_runs
+                """, String.class)).isEqualTo("SUCCEEDED");
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_pair_decisions WHERE result = 'SAME_STORY'
+                """, Integer.class)).isEqualTo(2);
+    }
+
+    @Test
+    void hnswFailureIsRecordedSeparatelyAndDoesNotFailExactProcessing() {
+        insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24, "b", vector(0.8f, 0.6f), effectiveAt, null);
+        jdbc.execute("DROP TABLE story_hnsw_shadow_embeddings");
+
+        StorySnapshotService.ProcessingResult result = serviceWithHnsw().processBackfill(watermark, 1);
+
+        assertThat(result.succeededVersions()).isOne();
+        assertThat(jdbc.queryForObject("""
+                SELECT exact_error IS NULL AND hnsw_error IS NOT NULL
+                FROM story_hnsw_shadow_runs
+                """, Boolean.class)).isTrue();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_pair_decisions
+                """, Integer.class)).isOne();
     }
 
     @Test
@@ -655,6 +696,14 @@ class StorySnapshotServicePostgresIT {
                 new StorySnapshotMetrics(new SimpleMeterRegistry()),
                 new StoryPublisher(jdbc, repository, new DataSourceTransactionManager(dataSource),
                         new SimpleMeterRegistry()));
+    }
+
+    private StorySnapshotService serviceWithHnsw() {
+        StorySnapshotService service = service();
+        DataSourceTransactionManager transactionManager = new DataSourceTransactionManager(dataSource);
+        ReflectionTestUtils.setField(service, "hnswShadow",
+                new StoryHnswShadowService(jdbc, transactionManager, clock));
+        return service;
     }
 
     private void awaitAndRun(

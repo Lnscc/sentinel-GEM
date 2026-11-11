@@ -9,6 +9,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -40,16 +42,18 @@ class StoryHnswShadowService {
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final TransactionTemplate transaction;
 
     @Autowired
-    StoryHnswShadowService(JdbcTemplate jdbc) {
-        this(jdbc, Clock.systemUTC());
+    StoryHnswShadowService(JdbcTemplate jdbc, PlatformTransactionManager transactionManager) {
+        this(jdbc, transactionManager, Clock.systemUTC());
     }
 
-    StoryHnswShadowService(JdbcTemplate jdbc, Clock clock) {
+    StoryHnswShadowService(JdbcTemplate jdbc, PlatformTransactionManager transactionManager, Clock clock) {
         this.jdbc = jdbc;
         this.objectMapper = new ObjectMapper();
         this.clock = clock;
+        this.transaction = new TransactionTemplate(transactionManager);
     }
 
     StorySnapshotService.PairSearchResult run(
@@ -63,50 +67,68 @@ class StoryHnswShadowService {
         if (version.dimension() != 1536 || version.windowHours() != 24) {
             return exactSearch.get();
         }
+        List<StorySnapshotRepository.SnapshotInput> windowInputs = currentWindowInputs(
+                snapshot.watermark(), inputs, version.windowHours());
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            CompletableFuture<TimedExact> exact = CompletableFuture.supplyAsync(() -> {
-                long started = System.nanoTime();
-                return new TimedExact(exactSearch.get(), elapsedMillis(started));
-            }, executor);
-            long hnswStarted = System.nanoTime();
+            CompletableFuture<Attempt<StorySnapshotService.PairSearchResult>> exact =
+                    CompletableFuture.supplyAsync(() -> attempt(exactSearch), executor);
+            Attempt<ShadowSearch> hnsw = attempt(() -> {
+                sync(version.id(), snapshot.id(), windowInputs);
+                return search(version, windowInputs);
+            });
+            Attempt<StorySnapshotService.PairSearchResult> exactResult = exact.join();
+            if (exactResult.error() != null) {
+                save(run.id(), snapshot.id(), "FAILED", exactResult.millis(), hnsw.millis(),
+                        0, 0, 0, Map.of(), exactResult.error().getMessage(),
+                        hnsw.errorMessage(), false);
+                throw exactResult.error();
+            }
+            if (hnsw.error() != null) {
+                save(run.id(), snapshot.id(), "FAILED", exactResult.millis(), hnsw.millis(),
+                        0, 0, 0, Map.of(), null, hnsw.errorMessage(), false);
+                LOGGER.warn("HNSW shadow failed for snapshot={}", snapshot.id(), hnsw.error());
+                return exactResult.result();
+            }
             try {
-                sync(version.id(), snapshot.id(), inputs);
-                ShadowSearch shadow = search(version, inputs);
-                long hnswMillis = elapsedMillis(hnswStarted);
-                TimedExact timedExact = exact.join();
-                StorySnapshotService.PairSearchResult exactResult = timedExact.result();
+                Set<String> windowRefs = windowInputs.stream()
+                        .map(StorySnapshotRepository.SnapshotInput::articleRef)
+                        .collect(java.util.stream.Collectors.toSet());
+                List<StorySnapshotService.PairDecision> exactWindowDecisions = exactResult.result().decisions().stream()
+                        .filter(decision -> windowRefs.contains(decision.left().articleRef())
+                                && windowRefs.contains(decision.right().articleRef()))
+                        .toList();
                 StoryPartitionService.Partition exactPartition = StoryPartitionService
-                        .partitionForPublication(rules, inputs, exactResult.decisions());
+                        .partitionForPublication(rules, windowInputs, exactWindowDecisions);
                 StoryPartitionService.Partition shadowPartition = StoryPartitionService
-                        .partitionForPublication(rules, inputs, shadow.decisions());
+                        .partitionForPublication(rules, windowInputs, hnsw.result().decisions());
                 Map<String, Object> difference = difference(exactPartition, shadowPartition);
                 boolean samePartition = difference.isEmpty();
-                double recall = shadow.expected() == 0 ? 1d
-                        : (double) shadow.recalled() / shadow.expected();
+                double recall = hnsw.result().expected() == 0 ? 1d
+                        : (double) hnsw.result().recalled() / hnsw.result().expected();
                 boolean activationSuggested = recall >= RECALL_TARGET && samePartition
-                        && hnswMillis <= INTERVAL_MILLIS;
-                save(run.id(), snapshot.id(), "SUCCEEDED", timedExact.millis(), hnswMillis,
-                        shadow.expected(), shadow.recalled(), shadow.underfilled(), difference,
-                        null, activationSuggested);
-                return exactResult;
+                        && hnsw.millis() <= INTERVAL_MILLIS;
+                save(run.id(), snapshot.id(), "SUCCEEDED", exactResult.millis(), hnsw.millis(),
+                        hnsw.result().expected(), hnsw.result().recalled(), hnsw.result().underfilled(), difference,
+                        null, null, activationSuggested);
+                return exactResult.result();
             } catch (RuntimeException exception) {
-                TimedExact timedExact = exact.join();
-                StorySnapshotService.PairSearchResult exactResult = timedExact.result();
-                save(run.id(), snapshot.id(), "FAILED", timedExact.millis(), null,
-                        0, 0, 0, Map.of(), exception.getMessage(), false);
+                save(run.id(), snapshot.id(), "FAILED", exactResult.millis(), hnsw.millis(),
+                        0, 0, 0, Map.of(), null, exception.getMessage(), false);
                 LOGGER.warn("HNSW shadow failed for snapshot={}", snapshot.id(), exception);
-                return exactResult;
+                return exactResult.result();
             }
         }
     }
 
     private void sync(long versionId, long snapshotId,
                       List<StorySnapshotRepository.SnapshotInput> inputs) {
-        jdbc.update("DELETE FROM story_hnsw_shadow_embeddings WHERE clustering_version_id = ? AND snapshot_id <> ?",
-                versionId, snapshotId);
-        for (var input : inputs) {
-            float[] vector = ExactCosine.decode(input.vectorBytes(), 1536, input.vectorHash());
-            jdbc.update("""
+        List<float[]> vectors = inputs.stream()
+                .map(input -> ExactCosine.decode(input.vectorBytes(), 1536, input.vectorHash()))
+                .toList();
+        transaction.executeWithoutResult(status -> {
+            for (int i = 0; i < inputs.size(); i++) {
+                var input = inputs.get(i);
+                jdbc.update("""
                     INSERT INTO story_hnsw_shadow_embeddings (
                         clustering_version_id, article_ref, snapshot_id, effective_at, vector_hash, embedding
                     ) VALUES (?, ?, ?, ?, ?, ?::public.vector)
@@ -116,17 +138,17 @@ class StoryHnswShadowService {
                         vector_hash = EXCLUDED.vector_hash,
                         embedding = EXCLUDED.embedding
                     """, versionId, input.articleRef(), snapshotId, Timestamp.from(input.effectiveAt()),
-                    input.vectorHash(), vectorLiteral(vector));
-        }
-        if (inputs.isEmpty()) {
-            jdbc.update("DELETE FROM story_hnsw_shadow_embeddings WHERE clustering_version_id = ?", versionId);
-        }
-        Integer count = jdbc.queryForObject(
-                "SELECT count(*) FROM story_hnsw_shadow_embeddings WHERE clustering_version_id = ? AND snapshot_id = ?",
-                Integer.class, versionId, snapshotId);
-        if (count == null || count != inputs.size()) {
-            throw new IllegalStateException("Incomplete HNSW shadow index");
-        }
+                        input.vectorHash(), vectorLiteral(vectors.get(i)));
+            }
+            jdbc.update("DELETE FROM story_hnsw_shadow_embeddings WHERE clustering_version_id = ? AND snapshot_id <> ?",
+                    versionId, snapshotId);
+            Integer count = jdbc.queryForObject(
+                    "SELECT count(*) FROM story_hnsw_shadow_embeddings WHERE clustering_version_id = ? AND snapshot_id = ?",
+                    Integer.class, versionId, snapshotId);
+            if (count == null || count != inputs.size()) {
+                throw new IllegalStateException("Incomplete HNSW shadow index");
+            }
+        });
         jdbc.execute("ANALYZE story_hnsw_shadow_embeddings");
     }
 
@@ -144,11 +166,13 @@ class StoryHnswShadowService {
         Map<PairKey, StorySnapshotService.PairDecision> decisions = new HashMap<>();
         long underfilled = 0;
         for (var query : inputs) {
-            List<Scored> exact = rerank(query, inputs, vectors, TOP_K);
+            List<StorySnapshotRepository.SnapshotInput> windowInputs =
+                    candidatesInWindow(query, inputs, version.windowHours());
+            List<Scored> exact = rerank(query, windowInputs, vectors, TOP_K);
             exact.forEach(candidate -> exactPairs.add(PairKey.of(query.articleRef(), candidate.input().articleRef())));
             List<StorySnapshotRepository.SnapshotInput> candidates = hnswCandidates(
-                    version.id(), query, byRef, vectors.get(query.articleRef()));
-            if (candidates.size() < Math.min(ANN_K, inputs.size() - 1)) underfilled++;
+                    version.id(), version.windowHours(), query, byRef, vectors.get(query.articleRef()));
+            if (candidates.size() < Math.min(ANN_K, windowInputs.size() - 1)) underfilled++;
             List<Scored> reranked = rerank(query, candidates, vectors, TOP_K);
             for (Scored candidate : reranked) {
                 PairKey key = PairKey.of(query.articleRef(), candidate.input().articleRef());
@@ -178,7 +202,7 @@ class StoryHnswShadowService {
     }
 
     private List<StorySnapshotRepository.SnapshotInput> hnswCandidates(
-            long versionId, StorySnapshotRepository.SnapshotInput query,
+            long versionId, int windowHours, StorySnapshotRepository.SnapshotInput query,
             Map<String, StorySnapshotRepository.SnapshotInput> byRef, float[] vector) {
         return jdbc.execute((ConnectionCallback<List<StorySnapshotRepository.SnapshotInput>>) connection -> {
             try (var setting = connection.createStatement()) {
@@ -187,13 +211,16 @@ class StoryHnswShadowService {
             try (var statement = connection.prepareStatement("""
                     SELECT article_ref FROM story_hnsw_shadow_embeddings
                     WHERE clustering_version_id = ? AND article_ref <> ?
-                    ORDER BY embedding <=> ?::public.vector
+                      AND effective_at BETWEEN ? AND ?
+                    ORDER BY embedding OPERATOR(public.<=>) ?::public.vector
                     LIMIT ?
                     """)) {
                 statement.setLong(1, versionId);
                 statement.setString(2, query.articleRef());
-                statement.setString(3, vectorLiteral(vector));
-                statement.setInt(4, ANN_K);
+                statement.setTimestamp(3, Timestamp.from(query.effectiveAt().minus(Duration.ofHours(windowHours))));
+                statement.setTimestamp(4, Timestamp.from(query.effectiveAt().plus(Duration.ofHours(windowHours))));
+                statement.setString(5, vectorLiteral(vector));
+                statement.setInt(6, ANN_K);
                 try (var resultSet = statement.executeQuery()) {
                     List<StorySnapshotRepository.SnapshotInput> result = new ArrayList<>();
                     while (resultSet.next()) result.add(byRef.get(resultSet.getString(1)));
@@ -201,6 +228,47 @@ class StoryHnswShadowService {
                 }
             }
         });
+    }
+
+    static List<StorySnapshotRepository.SnapshotInput> candidatesInWindow(
+            StorySnapshotRepository.SnapshotInput query,
+            List<StorySnapshotRepository.SnapshotInput> inputs,
+            int windowHours) {
+        Duration window = Duration.ofHours(windowHours);
+        Instant start = query.effectiveAt().minus(window);
+        Instant end = query.effectiveAt().plus(window);
+        int from = 0;
+        int to = inputs.size();
+        while (from < to) {
+            int middle = (from + to) >>> 1;
+            if (inputs.get(middle).effectiveAt().isBefore(start)) from = middle + 1;
+            else to = middle;
+        }
+        int until = from;
+        to = inputs.size();
+        while (until < to) {
+            int middle = (until + to) >>> 1;
+            if (inputs.get(middle).effectiveAt().isAfter(end)) to = middle;
+            else until = middle + 1;
+        }
+        return inputs.subList(from, until);
+    }
+
+    static List<StorySnapshotRepository.SnapshotInput> currentWindowInputs(
+            Instant watermark,
+            List<StorySnapshotRepository.SnapshotInput> inputs,
+            int windowHours) {
+        Instant start = watermark.minus(Duration.ofHours(windowHours));
+        int from = 0;
+        int to = inputs.size();
+        while (from < to) {
+            int middle = (from + to) >>> 1;
+            if (inputs.get(middle).effectiveAt().isBefore(start)) from = middle + 1;
+            else to = middle;
+        }
+        int until = from;
+        while (until < inputs.size() && !inputs.get(until).effectiveAt().isAfter(watermark)) until++;
+        return inputs.subList(from, until);
     }
 
     private static List<Scored> rerank(StorySnapshotRepository.SnapshotInput query,
@@ -244,14 +312,16 @@ class StoryHnswShadowService {
 
     private void save(long runId, long snapshotId, String status, long exactMillis,
                       Long hnswMillis, long expected, long recalled, long underfilled,
-                      Map<String, Object> difference, String error, boolean activationSuggested) {
+                      Map<String, Object> difference, String exactError, String hnswError,
+                      boolean activationSuggested) {
         try {
             jdbc.update("""
                     INSERT INTO story_hnsw_shadow_runs (
                         story_run_id, snapshot_id, status, exact_milliseconds, hnsw_milliseconds,
                         expected_candidates, recalled_candidates, underfilled_articles,
-                        partition_difference, error, activation_suggested, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)
+                        partition_difference, error, exact_error, hnsw_error,
+                        activation_suggested, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
                     ON CONFLICT (story_run_id) DO UPDATE SET
                         status = EXCLUDED.status,
                         exact_milliseconds = EXCLUDED.exact_milliseconds,
@@ -261,10 +331,13 @@ class StoryHnswShadowService {
                         underfilled_articles = EXCLUDED.underfilled_articles,
                         partition_difference = EXCLUDED.partition_difference,
                         error = EXCLUDED.error,
+                        exact_error = EXCLUDED.exact_error,
+                        hnsw_error = EXCLUDED.hnsw_error,
                         activation_suggested = EXCLUDED.activation_suggested,
                         created_at = EXCLUDED.created_at
                     """, runId, snapshotId, status, exactMillis, hnswMillis, expected, recalled,
-                    underfilled, objectMapper.writeValueAsString(difference), error,
+                    underfilled, objectMapper.writeValueAsString(difference),
+                    exactError != null ? exactError : hnswError, exactError, hnswError,
                     activationSuggested, Timestamp.from(clock.instant()));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Cannot serialize HNSW shadow result", exception);
@@ -284,6 +357,15 @@ class StoryHnswShadowService {
         return (System.nanoTime() - started) / 1_000_000;
     }
 
+    private static <T> Attempt<T> attempt(Supplier<T> operation) {
+        long started = System.nanoTime();
+        try {
+            return new Attempt<>(operation.get(), elapsedMillis(started), null);
+        } catch (RuntimeException error) {
+            return new Attempt<>(null, elapsedMillis(started), error);
+        }
+    }
+
     private record Scored(StorySnapshotRepository.SnapshotInput input, ExactCosine.Score score) { }
     private record PairKey(String left, String right) {
         static PairKey of(String first, String second) {
@@ -292,5 +374,9 @@ class StoryHnswShadowService {
     }
     private record ShadowSearch(List<StorySnapshotService.PairDecision> decisions,
                                 long expected, long recalled, long underfilled) { }
-    private record TimedExact(StorySnapshotService.PairSearchResult result, long millis) { }
+    private record Attempt<T>(T result, long millis, RuntimeException error) {
+        String errorMessage() {
+            return error == null ? null : error.getMessage();
+        }
+    }
 }
