@@ -216,6 +216,47 @@ class StorySnapshotServicePostgresIT {
     }
 
     @Test
+    void incrementalRunOnlyComparesChangedArticlesAndKeepsOtherAssignmentsStable() {
+        jdbc.update("""
+                UPDATE story_clustering_versions SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+                WHERE version_key = ?
+                """, VERSION_24_ELIGIBILITY);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "c", vector(0, 1), effectiveAt, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "e", vector(1, 0), effectiveAt, null);
+        jdbc.update("UPDATE story_article_inputs SET embedding_status = 'PENDING' WHERE id = ?",
+                currentInput(VERSION_24_ELIGIBILITY, "e"));
+        StorySnapshotService service = serviceWithHnsw();
+
+        assertThat(service.processIncremental(1).succeededVersions()).isOne();
+        UUID firstStory = story("a");
+        UUID unrelatedStory = story("c");
+        assertThat(story("b")).isEqualTo(firstStory);
+
+        advance(Duration.ofMinutes(1));
+        insertReadyInput(VERSION_24_ELIGIBILITY, "d", vector(1, 0), effectiveAt, null);
+        assertThat(service.processIncremental(1).succeededVersions()).isOne();
+
+        assertThat(story("a")).isEqualTo(firstStory);
+        assertThat(story("b")).isEqualTo(firstStory);
+        assertThat(story("c")).isEqualTo(unrelatedStory);
+        assertThat(story("d")).isEqualTo(firstStory);
+        assertThat(jdbc.queryForObject("""
+                SELECT candidate_count FROM story_processing_runs ORDER BY id DESC LIMIT 1
+                """, Long.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_hnsw_shadow_runs",
+                Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_assignment_decisions WHERE article_ref = ?
+                """, Integer.class, ref("e"))).isZero();
+        assertThat(service.processIncremental(1).reusedVersions()).isOne();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_memberships WHERE current_marker = 1
+                """, Integer.class)).isEqualTo(4);
+    }
+
+    @Test
     void hnswShadowKeepsOnlyTheCurrentWindowAndLeavesExactResultsAuthoritative() {
         insertReadyInput(VERSION_24, "x", vector(1, 0),
                 watermark.minus(Duration.ofHours(24)).minusSeconds(1), null);

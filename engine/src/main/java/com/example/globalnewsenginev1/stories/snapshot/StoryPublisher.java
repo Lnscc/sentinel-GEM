@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /** Publishes inside the caller's transaction, including its pair decisions and run completion. */
@@ -41,6 +42,12 @@ class StoryPublisher {
 
     Plan prepare(StorySnapshotRepository.Snapshot snapshot,
                  StoryPartitionService.Partition partition) {
+        return prepare(snapshot, partition, null);
+    }
+
+    Plan prepare(StorySnapshotRepository.Snapshot snapshot,
+                 StoryPartitionService.Partition partition,
+                 Set<String> processedArticleRefs) {
         // Read the identity basis consistently; expensive clustering does not hold the publisher lock.
         Basis basis = transaction.execute(status -> {
             repository.lockVersion(snapshot.versionId());
@@ -58,7 +65,10 @@ class StoryPublisher {
                 rs.getString("article_ref"), rs.getString("article_input_fingerprint"),
                 rs.getTimestamp("effective_at").toInstant(), rs.getTimestamp("created_at").toInstant(),
                 rs.getString("title_usability")), snapshot.id());
-        return new Plan(snapshot, basis, inputs, partition);
+        Set<String> processed = processedArticleRefs == null
+                ? inputs.stream().map(Input::ref).collect(java.util.stream.Collectors.toSet())
+                : Set.copyOf(processedArticleRefs);
+        return new Plan(snapshot, basis, inputs, partition, processed);
     }
 
     Result publish(Plan plan, StorySnapshotRepository.RunClaim run, Instant now, Duration lease) {
@@ -69,7 +79,7 @@ class StoryPublisher {
                 SELECT EXISTS (SELECT 1 FROM story_publish_commits
                     WHERE clustering_version_id = ? AND snapshot_id = ?)
                 """, Boolean.class, snapshot.versionId(), snapshot.id()))) {
-            return new Result("REUSED", 0, plan.inputs().size(), Map.of());
+            return new Result("REUSED", 0, plan.processedArticleRefs().size(), Map.of());
         }
         boolean stale = Boolean.TRUE.equals(jdbc.queryForObject("""
                 SELECT EXISTS (
@@ -81,7 +91,7 @@ class StoryPublisher {
                 """, Boolean.class, snapshot.versionId(), ts(snapshot.watermark()),
                 ts(snapshot.watermark()), snapshot.id()));
         if (stale) {
-            return new Result("DISCARDED", 0, plan.inputs().size(), Map.of());
+            return new Result("DISCARDED", 0, plan.processedArticleRefs().size(), Map.of());
         }
         if (latestCommit(snapshot.versionId()) != plan.basis().commitId()
                 || !stories(snapshot.versionId()).equals(plan.basis().stories())
@@ -167,6 +177,7 @@ class StoryPublisher {
 
         int changed = 0;
         for (Input input : plan.inputs()) {
+            if (!plan.processedArticleRefs().contains(input.ref())) continue;
             UUID target = assignments.get(input.ref());
             Membership old = previous.get(input.ref());
             boolean same = old != null && old.storyId().equals(target)
@@ -217,7 +228,8 @@ class StoryPublisher {
                 """, hash(snapshot.versionId() + ":" + snapshot.inputHash()), snapshot.versionId(),
                 snapshot.id(), run.id(), run.fencingToken(), ts(now));
         counts.put("memberships", (long) assignments.size());
-        return new Result("PUBLISHED", changed, Math.max(0, inputs.size() - changed), counts);
+        return new Result("PUBLISHED", changed,
+                Math.max(0, plan.processedArticleRefs().size() - changed), counts);
     }
 
     void assertLease(long versionId, StorySnapshotRepository.RunClaim run, Instant now, Duration lease) {
@@ -292,6 +304,6 @@ class StoryPublisher {
                  Instant createdAt, String usability) { }
     record Basis(List<Story> stories, List<Membership> memberships, long commitId) { }
     record Plan(StorySnapshotRepository.Snapshot snapshot, Basis basis, List<Input> inputs,
-                StoryPartitionService.Partition partition) { }
+                StoryPartitionService.Partition partition, Set<String> processedArticleRefs) { }
     record Result(String outcome, int changed, int skipped, Map<String, Long> counts) { }
 }

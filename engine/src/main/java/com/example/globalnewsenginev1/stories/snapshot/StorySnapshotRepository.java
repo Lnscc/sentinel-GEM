@@ -9,6 +9,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 class StorySnapshotRepository {
@@ -338,6 +341,37 @@ class StorySnapshotRepository {
                 resultSet.getInt("embedding_dimension")), snapshotId);
     }
 
+    Set<String> findChangedArticleRefs(long snapshotId) {
+        return jdbcTemplate.queryForList("""
+                SELECT member.article_ref
+                FROM story_snapshot_members member
+                LEFT JOIN story_memberships membership
+                  ON membership.clustering_version_id = member.clustering_version_id
+                 AND membership.article_ref = member.article_ref
+                 AND membership.current_marker = 1
+                WHERE member.snapshot_id = ?
+                  AND member.embedding_artifact_id IS NOT NULL
+                  AND (membership.id IS NULL
+                    OR membership.article_input_fingerprint <> member.article_input_fingerprint)
+                """, String.class, snapshotId).stream().collect(Collectors.toSet());
+    }
+
+    List<ExistingAssignment> findExistingAssignments(long versionId) {
+        return jdbcTemplate.query("""
+                SELECT membership.article_ref, membership.story_id,
+                       story.representative_article_ref
+                FROM story_memberships membership
+                JOIN stories story ON story.id = membership.story_id
+                WHERE membership.clustering_version_id = ?
+                  AND membership.current_marker = 1
+                  AND story.state <> 'SUPERSEDED'
+                ORDER BY membership.article_ref
+                """, (resultSet, rowNum) -> new ExistingAssignment(
+                resultSet.getString("article_ref"),
+                resultSet.getObject("story_id", UUID.class),
+                resultSet.getString("representative_article_ref")), versionId);
+    }
+
     void insertDecision(
             ClusteringVersion version,
             Snapshot snapshot,
@@ -445,6 +479,8 @@ class StorySnapshotRepository {
             int embeddingDimension
     ) {
     }
+
+    record ExistingAssignment(String articleRef, UUID storyId, String representativeArticleRef) { }
 
     record Snapshot(
             long id,

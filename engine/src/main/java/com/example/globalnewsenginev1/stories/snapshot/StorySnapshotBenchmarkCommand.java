@@ -32,12 +32,15 @@ class StorySnapshotBenchmarkCommand implements ApplicationRunner {
     public void run(ApplicationArguments arguments) {
         Instant started = Instant.now();
         try {
+            String mode = environment.getProperty("stories.snapshots.benchmark.mode", "reprocessing");
             Instant watermark = Instant.parse(environment.getRequiredProperty(
                     "stories.snapshots.benchmark.watermark"));
-            StorySnapshotService.ProcessingResult result = service.reprocess(watermark, 1);
-            LOGGER.info("Story snapshot benchmark completed: watermark={}, elapsed={}, selected={}, "
+            StorySnapshotService.ProcessingResult result = "incremental".equals(mode)
+                    ? service.processIncremental(1)
+                    : service.reprocess(watermark, 1);
+            LOGGER.info("Story snapshot benchmark completed: mode={}, watermark={}, elapsed={}, selected={}, "
                             + "succeeded={}, reused={}, failed={}",
-                    watermark, Duration.between(started, Instant.now()), result.selectedVersions(),
+                    mode, watermark, Duration.between(started, Instant.now()), result.selectedVersions(),
                     result.succeededVersions(), result.reusedVersions(), result.failedVersions());
         } finally {
             context.close();

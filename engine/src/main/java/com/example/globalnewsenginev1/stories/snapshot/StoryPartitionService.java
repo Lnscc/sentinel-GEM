@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class StoryPartitionService {
@@ -60,6 +61,76 @@ public class StoryPartitionService {
         components.sort(Comparator
                 .comparing((Component c) -> inputs.get(indexes.get(c.members().getFirst().articleRef())).effectiveAt())
                 .thenComparing(c -> c.members().getFirst().articleRef()));
+        return new Partition(rules, List.copyOf(components), List.of());
+    }
+
+    static Partition incrementalPartition(
+            SnapshotRules rules,
+            List<StorySnapshotRepository.SnapshotInput> inputs,
+            List<StorySnapshotService.PairDecision> pairs,
+            Set<String> changedArticleRefs,
+            List<StorySnapshotRepository.ExistingAssignment> existingAssignments
+    ) {
+        Map<String, StorySnapshotRepository.SnapshotInput> inputByRef = new HashMap<>();
+        inputs.forEach(input -> inputByRef.put(input.articleRef(), input));
+        Map<String, Object> groupByRef = new HashMap<>();
+        Map<UUID, String> representativeByStory = new HashMap<>();
+        for (var assignment : existingAssignments) {
+            representativeByStory.put(assignment.storyId(), assignment.representativeArticleRef());
+            if (!changedArticleRefs.contains(assignment.articleRef())
+                    && inputByRef.containsKey(assignment.articleRef())) {
+                groupByRef.put(assignment.articleRef(), assignment.storyId());
+            }
+        }
+
+        List<StorySnapshotRepository.SnapshotInput> changedInputs = inputs.stream()
+                .filter(input -> changedArticleRefs.contains(input.articleRef()))
+                .sorted(Comparator.comparing(StorySnapshotRepository.SnapshotInput::effectiveAt)
+                        .thenComparing(StorySnapshotRepository.SnapshotInput::articleRef))
+                .toList();
+        for (var input : changedInputs) {
+            Object target = null;
+            for (var pair : pairs) {
+                if (!"SAME_STORY".equals(pair.result())) continue;
+                String other = pair.left().articleRef().equals(input.articleRef())
+                        ? pair.right().articleRef()
+                        : pair.right().articleRef().equals(input.articleRef())
+                                ? pair.left().articleRef() : null;
+                if (other != null && groupByRef.containsKey(other)) {
+                    target = groupByRef.get(other);
+                    break;
+                }
+            }
+            groupByRef.put(input.articleRef(), target == null ? input.articleRef() : target);
+        }
+
+        Map<Object, List<StorySnapshotRepository.SnapshotInput>> groups = new LinkedHashMap<>();
+        for (var input : inputs) {
+            Object group = groupByRef.computeIfAbsent(input.articleRef(), ignored -> input.articleRef());
+            groups.computeIfAbsent(group, ignored -> new ArrayList<>()).add(input);
+        }
+        List<Component> components = new ArrayList<>();
+        for (var entry : groups.entrySet()) {
+            List<StorySnapshotRepository.SnapshotInput> members = entry.getValue();
+            String representativeRef = entry.getKey() instanceof UUID storyId
+                    ? representativeByStory.get(storyId) : null;
+            StorySnapshotRepository.SnapshotInput representative = inputByRef.get(representativeRef);
+            if (representative == null || !members.contains(representative)) {
+                representative = members.getFirst();
+            }
+            float[] representativeVector = ExactCosine.decode(representative.vectorBytes(),
+                    rules.dimension(), representative.vectorHash());
+            List<MemberEvidence> evidence = new ArrayList<>();
+            for (var member : members) {
+                BigDecimal similarity = member == representative ? BigDecimal.ONE.setScale(6)
+                        : ExactCosine.score(representativeVector, ExactCosine.decode(
+                                member.vectorBytes(), rules.dimension(), member.vectorHash())).quantized();
+                evidence.add(new MemberEvidence(member.articleRef(), member.articleInputFingerprint(),
+                        member.embeddingArtifactId(), member.vectorHash(), similarity,
+                        Duration.between(member.effectiveAt(), representative.effectiveAt()).abs()));
+            }
+            components.add(new Component(representative.articleRef(), List.copyOf(evidence)));
+        }
         return new Partition(rules, List.copyOf(components), List.of());
     }
 

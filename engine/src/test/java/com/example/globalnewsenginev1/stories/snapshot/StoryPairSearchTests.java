@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,6 +37,28 @@ class StoryPairSearchTests {
         assertThat(result.examinedPairs()).isEqualTo(4);
         assertThat(result.decisions()).hasSize(1);
         assertThat(result.decisions().getFirst().result()).isEqualTo("SAME_STORY");
+    }
+
+    @Test
+    void incrementalSearchComparesOnlyPairsContainingChangedArticles() {
+        byte[] vector = ByteBuffer.allocate(2 * Float.BYTES).putFloat(1).putFloat(0).array();
+        String hash = StorySnapshotCanonicalizer.sha256(vector);
+        Instant start = Instant.parse("2026-07-25T00:00:00Z");
+        var version = new StorySnapshotRepository.ClusteringVersion(
+                1, "version", 2, 24, new BigDecimal("0.700000"),
+                "exact-cosine-radius-v1", "cosine-070-time24-v1");
+        var inputs = List.of(input(1, "a", start, vector, hash),
+                input(2, "b", start, vector, hash),
+                input(3, "c", start, vector, hash));
+
+        var result = StorySnapshotService.search(version, inputs,
+                Set.of("c".repeat(64)));
+
+        assertThat(result.examinedPairs()).isEqualTo(2);
+        assertThat(result.comparedPairs()).isEqualTo(2);
+        assertThat(result.decisions()).extracting(decision ->
+                List.of(decision.left().articleRef(), decision.right().articleRef()))
+                .containsExactly(List.of("a".repeat(64), "c".repeat(64)));
     }
 
     private StorySnapshotRepository.SnapshotInput input(
