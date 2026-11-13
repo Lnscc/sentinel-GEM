@@ -47,9 +47,12 @@ class StoryPairSearchTests {
         var version = new StorySnapshotRepository.ClusteringVersion(
                 1, "version", 2, 24, new BigDecimal("0.700000"),
                 "exact-cosine-radius-v1", "cosine-070-time24-v1");
-        var inputs = List.of(input(1, "a", start, vector, hash),
-                input(2, "b", start, vector, hash),
-                input(3, "c", start, vector, hash));
+        var inputs = List.of(
+                input(1, "a", start.minusSeconds(48 * 3600L), vector, hash),
+                input(2, "b", start.minusSeconds(24 * 3600L), vector, hash),
+                input(3, "c", start, vector, hash),
+                input(4, "d", start.plusSeconds(24 * 3600L), vector, hash),
+                input(5, "e", start.plusSeconds(48 * 3600L), vector, hash));
 
         var result = StorySnapshotService.search(version, inputs,
                 Set.of("c".repeat(64)));
@@ -58,7 +61,7 @@ class StoryPairSearchTests {
         assertThat(result.comparedPairs()).isEqualTo(2);
         assertThat(result.decisions()).extracting(decision ->
                 List.of(decision.left().articleRef(), decision.right().articleRef()))
-                .containsExactly(List.of("a".repeat(64), "c".repeat(64)));
+                .containsExactly(List.of("b".repeat(64), "c".repeat(64)));
     }
 
     private StorySnapshotRepository.SnapshotInput input(

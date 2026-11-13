@@ -213,11 +213,12 @@ public class StorySnapshotService {
                     ? publisher.prepare(work.snapshot(), partition, changedArticleRefs)
                     : publisher.prepare(work.snapshot(), partition);
             StoryPublisher.Result published = transaction.execute(status -> {
-                Instant completedAt =
+                Instant publishedAt =
                         StorySnapshotCanonicalizer.normalizeWatermark(clock.instant());
-                StoryPublisher.Result result = publisher.publish(plan, work.claim(), completedAt, claimTimeout);
+                StoryPublisher.Result result = publisher.publish(plan, work.claim(), publishedAt, claimTimeout);
                 if ("DISCARDED".equals(result.outcome())) {
-                    repository.discardRun(work.claim(), completedAt);
+                    repository.discardRun(work.claim(),
+                            StorySnapshotCanonicalizer.normalizeWatermark(clock.instant()));
                     return result;
                 }
                 for (PairDecision decision : search.decisions()) {
@@ -225,9 +226,11 @@ public class StorySnapshotService {
                             work.snapshot(), decision.left(), decision.right(),
                             decision, version.pairRuleVersion());
                     repository.insertDecision(version, work.snapshot(), work.claim(),
-                            decision, decisionHash, completedAt);
+                            decision, decisionHash, publishedAt);
                 }
                 publisher.assertLease(version.id(), work.claim(), clock.instant(), claimTimeout);
+                Instant completedAt =
+                        StorySnapshotCanonicalizer.normalizeWatermark(clock.instant());
                 repository.completeRun(work.claim(), work.memberCount(),
                         result.changed(), result.skipped(),
                         search.comparedPairs(), completedAt);
@@ -296,11 +299,16 @@ public class StorySnapshotService {
             }
         } else {
             Map<PairKey, PairDecision> bestPositivePairs = new HashMap<>();
-            for (var changed : inputs) {
+            for (int changedIndex = 0; changedIndex < inputs.size(); changedIndex++) {
+                var changed = inputs.get(changedIndex);
                 if (!changedArticleRefs.contains(changed.articleRef())) continue;
                 PairDecision bestPositive = null;
-                for (var candidate : inputs) {
-                    if (changed == candidate) continue;
+                int firstCandidate = lowerBound(inputs, changed.effectiveAt().minus(window));
+                int afterLastCandidate = upperBound(inputs, changed.effectiveAt().plus(window));
+                for (int candidateIndex = firstCandidate;
+                     candidateIndex < afterLastCandidate; candidateIndex++) {
+                    if (changedIndex == candidateIndex) continue;
+                    var candidate = inputs.get(candidateIndex);
                     examinedPairs++;
                     Duration distance = Duration.between(
                             changed.effectiveAt(), candidate.effectiveAt()).abs();
@@ -370,6 +378,40 @@ public class StorySnapshotService {
         }
         return new PairSearchResult(List.copyOf(decisions), examinedPairs, comparedPairs,
                 changedArticles.size());
+    }
+
+    private static int lowerBound(
+            List<StorySnapshotRepository.SnapshotInput> inputs,
+            Instant effectiveAt
+    ) {
+        int low = 0;
+        int high = inputs.size();
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (inputs.get(middle).effectiveAt().isBefore(effectiveAt)) {
+                low = middle + 1;
+            } else {
+                high = middle;
+            }
+        }
+        return low;
+    }
+
+    private static int upperBound(
+            List<StorySnapshotRepository.SnapshotInput> inputs,
+            Instant effectiveAt
+    ) {
+        int low = 0;
+        int high = inputs.size();
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (inputs.get(middle).effectiveAt().isAfter(effectiveAt)) {
+                high = middle;
+            } else {
+                low = middle + 1;
+            }
+        }
+        return low;
     }
 
     private static void updateBest(
