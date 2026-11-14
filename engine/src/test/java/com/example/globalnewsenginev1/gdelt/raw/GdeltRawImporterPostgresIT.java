@@ -92,7 +92,10 @@ class GdeltRawImporterPostgresIT {
         assertThat(countRows("gdelt_mention_payloads")).isEqualTo(2);
         assertThat(countRows("gdelt_gkg_payloads")).isEqualTo(2);
         assertThat(countRows("gdelt_import_files")).isEqualTo(3);
-        assertThat(countRows("flyway_schema_history")).isEqualTo(32);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM flyway_schema_history
+                WHERE version = '33' AND success
+                """, Integer.class)).isOne();
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM gdelt_import_files
                 WHERE status = 'COMPLETED' AND checksum_sha256 IS NOT NULL

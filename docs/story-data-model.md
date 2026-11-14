@@ -41,7 +41,7 @@ Tabellen, ohne das Schema oder den Versionsstatus zu aendern.
 | `story_snapshots` | Benannter, eingefrorener Eingabestand | n:1 zur Version |
 | `story_snapshot_members` | Materialisierte Inputs und Embedding-Hashes eines Snapshots | n:1 zu Snapshot und Artikel-Input |
 | `story_processing_runs` | Inkrementeller, Backfill- oder Reprocessing-Lauf | n:1 zu Version und Snapshot; optionaler Retry-Bezug |
-| `stories` | Stabile Story-Identitaet, Zustand, Anker und Medoid | n:1 zur Version; n:1 zu erzeugendem und letztem Run |
+| `stories` | Stabile Story-Identitaet, Zustand, Anker, Medoid und materialisierte Listenwerte | n:1 zur Version; n:1 zu erzeugendem und letztem Run |
 | `story_pair_decisions` | Reproduzierbare Kandidaten- und Pair-Entscheidung | n:1 zu Run, Snapshot, Inputs und Embeddings |
 | `story_assignment_decisions` | Wirksame Zuordnung oder `UNASSIGNED` | n:1 zu Run, Snapshot und Artikel-Input |
 | `story_memberships` | Gueltigkeitsintervall einer Artikelzuordnung | n:1 zu Story, Artikel und Zuordnungsentscheidung |
@@ -52,6 +52,11 @@ Tabellen, ohne das Schema oder den Versionsstatus zu aendern.
 Alle Tabellen, die versionierte Fachdaten verbinden, verwenden zusammengesetzte Fremdschluessel
 mit `clustering_version_id`. Ein Snapshot oder Run kann dadurch keine Inputs oder Stories einer
 anderen Version referenzieren.
+
+Der Publisher aktualisiert Artikelanzahl und repraesentative Artikelmetadaten zusammen mit
+Stories und Mitgliedschaften in derselben Transaktion. Listenabfragen lesen diese Projektion
+direkt; historische Mitgliedschaften und GKG-Zeilen werden dafuer nicht je Story erneut
+aggregiert.
 
 ## Persistenzentscheidungen
 

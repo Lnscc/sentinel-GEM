@@ -36,11 +36,20 @@ public class StoryQueryService {
              ORDER BY g.source_timestamp, g.id LIMIT 1) AS main_image_url
             """;
 
+    private static final String STORY_ARTICLE_COLUMNS = """
+            story.representative_article_id AS article_id,
+            story.representative_canonical_url AS canonical_url,
+            story.representative_domain AS domain,
+            story.representative_first_seen_at AS first_seen_at,
+            story.representative_title AS title,
+            story.representative_published_at AS published_at,
+            story.representative_main_image_url AS main_image_url
+            """;
+
     private static final String VISIBLE_STORY = """
             FROM stories story
             JOIN story_clustering_versions version
               ON version.id = story.clustering_version_id AND version.version_key = ?
-            JOIN articles article ON article.url_hash = story.representative_article_ref
             LEFT JOIN story_locations primary_location
               ON primary_location.story_id = story.id AND primary_location.rank = 1
             WHERE story.state <> 'SUPERSEDED'
@@ -53,11 +62,8 @@ public class StoryQueryService {
                    primary_location.latitude, primary_location.longitude,
                    primary_location.source, primary_location.confidence,
                    primary_location.supporting_articles, primary_location.supporting_domains,
-            """ + ARTICLE_COLUMNS + """
-            , (SELECT COUNT(*) FROM story_memberships member
-               WHERE member.story_id = story.id
-                 AND member.clustering_version_id = story.clustering_version_id
-                 AND member.current_marker = 1) AS member_count
+            """ + STORY_ARTICLE_COLUMNS + """
+            , story.member_count
             """ + VISIBLE_STORY;
 
     private static final String MEMBER_SELECT = """
@@ -95,7 +101,7 @@ public class StoryQueryService {
         validateCriteria(criteria);
         String sortColumn = switch (sort) {
             case "time" -> "story.effective_to";
-            case "articleCount" -> "member_count";
+            case "articleCount" -> "story.member_count";
             default -> throw new IllegalArgumentException("sort must be time or articleCount");
         };
         String sortDirection = switch (direction) {

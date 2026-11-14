@@ -2,7 +2,8 @@
 
 `StoryApiPerformanceBudgetIT` measures the read paths used by the Lagebild against a deterministic
 PostgreSQL fixture with 2,000 stories, three current articles per story, 40 domains and distributed
-country and region codes. The fixture is recreated for every run.
+country and region codes. The fixture is recreated for every run. Its list-plan assertion also
+verifies that the page query contains no `story_memberships`, `gdelt_gkg` or correlated subplan.
 
 Run the benchmark with PostgreSQL from `compose.yaml` available:
 
@@ -32,9 +33,9 @@ Reference measurement on 2026-11-14 (local Docker PostgreSQL 17, Java 21):
 
 | Path | Cold response | Warm response p50/p95 | Warm database p50/p95 | Response |
 | --- | ---: | ---: | ---: | ---: |
-| Story list | 171 ms | 38 / 41 ms | 17 / 17 ms | 24,428 B |
-| Region filter | 1,142 ms | 797 / 809 ms | 772 / 779 ms | 122,278 B |
-| Story detail | 38 ms | 24 / 26 ms | 8 / 8 ms | 2,156 B |
+| Story list | 156 ms | 31 / 35 ms | 8 / 8 ms | 17,071 B |
+| Region filter | 30 ms | 26 / 28 ms | 6 / 6 ms | 8,587 B |
+| Story detail | 43 ms | 28 / 29 ms | 8 / 8 ms | 1,786 B |
 
 For the browser, the initial Lagebild should become usable within 2,000 ms after navigation on a
 warm local stack. A pan or zoom should render the resulting marker set within 100 ms, and selecting

@@ -225,6 +225,7 @@ class StoryPublisher {
                 throw conflict("Snapshot omits a current member; create a fresh snapshot");
             }
         }
+        refreshListValues(snapshot.versionId(), surviving.size());
         locationMaterializer.refresh(snapshot.versionId());
         jdbc.update("""
                 INSERT INTO story_publish_commits (publish_key, clustering_version_id, snapshot_id,
@@ -256,6 +257,49 @@ class StoryPublisher {
     private IllegalStateException conflict(String message) {
         metrics.counter("stories.publish.conflicts").increment();
         return new IllegalStateException(message);
+    }
+
+    private void refreshListValues(long versionId, int expectedStories) {
+        int refreshed = jdbc.update("""
+                UPDATE stories story
+                SET representative_article_id = projection.article_id,
+                    representative_canonical_url = projection.canonical_url,
+                    representative_domain = projection.domain,
+                    representative_first_seen_at = projection.first_seen_at,
+                    representative_title = projection.title,
+                    representative_published_at = projection.published_at,
+                    representative_main_image_url = projection.main_image_url,
+                    member_count = projection.member_count
+                FROM (
+                    SELECT candidate.id AS story_id, article.id AS article_id,
+                           article.canonical_url, article.domain, article.first_seen_at,
+                           (SELECT g.page_title FROM gdelt_gkg g
+                            WHERE g.article_id = article.id AND g.page_title IS NOT NULL
+                              AND TRIM(g.page_title) <> ''
+                            ORDER BY g.source_timestamp, g.id LIMIT 1) AS title,
+                           (SELECT g.page_precise_pub_timestamp FROM gdelt_gkg g
+                            WHERE g.article_id = article.id
+                              AND g.page_precise_pub_timestamp IS NOT NULL
+                            ORDER BY g.source_timestamp, g.id LIMIT 1) AS published_at,
+                           (SELECT g.main_image_url FROM gdelt_gkg g
+                            WHERE g.article_id = article.id AND g.main_image_url IS NOT NULL
+                            ORDER BY g.source_timestamp, g.id LIMIT 1) AS main_image_url,
+                           members.member_count
+                    FROM stories candidate
+                    JOIN articles article ON article.url_hash = candidate.representative_article_ref
+                    JOIN (
+                        SELECT story_id, COUNT(*)::INTEGER AS member_count
+                        FROM story_memberships
+                        WHERE clustering_version_id = ? AND current_marker = 1
+                        GROUP BY story_id
+                    ) members ON members.story_id = candidate.id
+                    WHERE candidate.clustering_version_id = ? AND candidate.state <> 'SUPERSEDED'
+                ) projection
+                WHERE story.id = projection.story_id
+                """, versionId, versionId);
+        if (refreshed != expectedStories) {
+            throw conflict("Story list projection is incomplete");
+        }
     }
 
     private void updateStory(Story old, String representative, String state, Instant from, Instant to,

@@ -166,18 +166,12 @@ Die Abfragen verwenden wie die REST API nur die konfigurierte Version und oeffen
 
 ```sql
 SELECT s.public_id, s.state, s.effective_from, s.effective_to,
-       s.representative_article_ref, COUNT(m.id) AS member_count
+       s.representative_title, s.representative_domain, s.member_count
 FROM stories s
 JOIN story_clustering_versions v
   ON v.id = s.clustering_version_id
  AND v.version_key = 'story-mvp-title-embedding-24h-v1.1.0'
-LEFT JOIN story_memberships m
-  ON m.story_id = s.id
- AND m.clustering_version_id = s.clustering_version_id
- AND m.current_marker = 1
 WHERE s.state <> 'SUPERSEDED'
-GROUP BY s.id, s.public_id, s.state, s.effective_from, s.effective_to,
-         s.representative_article_ref
 ORDER BY s.effective_to DESC, s.public_id
 LIMIT 50;
 ```

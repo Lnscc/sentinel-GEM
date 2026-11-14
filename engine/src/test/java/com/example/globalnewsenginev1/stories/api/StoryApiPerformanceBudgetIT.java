@@ -97,6 +97,24 @@ class StoryApiPerformanceBudgetIT {
         assertThat(regionOnlyPlan).contains("idx_story_locations_primary_region");
     }
 
+    @Test
+    void storyListUsesMaterializedValues() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres(schema));
+        String plan = jdbc.queryForObject("""
+                EXPLAIN (ANALYZE, FORMAT JSON)
+                SELECT story.public_id, story.representative_title, story.member_count
+                FROM stories story
+                JOIN story_clustering_versions version
+                  ON version.id = story.clustering_version_id AND version.version_key = 'budget-v1'
+                WHERE story.state <> 'SUPERSEDED'
+                ORDER BY story.effective_to DESC, story.public_id
+                LIMIT 20
+                """, (resultSet, rowNum) -> resultSet.getString(1));
+
+        assertThat(plan).contains("\"Relation Name\": \"stories\"")
+                .doesNotContain("story_memberships", "gdelt_gkg", "SubPlan");
+    }
+
     private void measure(String name, String path, long responseP95BudgetMs, long databaseP95BudgetMs,
                          int responseBytesBudget) throws Exception {
         Sample cold = request(path);
@@ -140,11 +158,13 @@ class StoryApiPerformanceBudgetIT {
         jdbc.execute("CREATE TABLE gdelt_gkg (id BIGINT PRIMARY KEY, article_id BIGINT, source_timestamp TIMESTAMPTZ, page_title TEXT, page_precise_pub_timestamp TIMESTAMPTZ, main_image_url TEXT)");
         jdbc.execute("CREATE TABLE gdelt_events (id BIGINT PRIMARY KEY, article_id BIGINT, global_event_id BIGINT, source_url TEXT, action_geo_type INTEGER, action_geo_name TEXT, action_geo_country_code VARCHAR(16), action_geo_adm1_code VARCHAR(32), action_geo_latitude DOUBLE PRECISION, action_geo_longitude DOUBLE PRECISION, action_geo_feature_id VARCHAR(255))");
         jdbc.execute("CREATE TABLE gdelt_mentions (id BIGINT PRIMARY KEY, global_event_id BIGINT, mention_identifier TEXT, confidence INTEGER)");
-        jdbc.execute("CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT, representative_article_ref VARCHAR(64), state VARCHAR(16), effective_from TIMESTAMPTZ, effective_to TIMESTAMPTZ)");
+        jdbc.execute("CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT, representative_article_ref VARCHAR(64), state VARCHAR(16), effective_from TIMESTAMPTZ, effective_to TIMESTAMPTZ, representative_article_id BIGINT, representative_canonical_url TEXT, representative_domain TEXT, representative_first_seen_at TIMESTAMPTZ, representative_title TEXT, representative_published_at TIMESTAMPTZ, representative_main_image_url TEXT, member_count INTEGER)");
         jdbc.execute("CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT, article_id BIGINT, current_marker SMALLINT, assignment_reason TEXT)");
         jdbc.execute("CREATE TABLE story_locations (story_id UUID, rank INTEGER, name TEXT, country_code VARCHAR(16), region_code VARCHAR(32), latitude DOUBLE PRECISION, longitude DOUBLE PRECISION, source VARCHAR(64), confidence INTEGER, supporting_articles INTEGER, supporting_domains INTEGER)");
         jdbc.execute("CREATE INDEX idx_story_locations_primary_country_region ON story_locations (country_code, region_code, rank, story_id)");
         jdbc.execute("CREATE INDEX idx_story_locations_primary_region ON story_locations (region_code, rank, story_id)");
+        jdbc.execute("CREATE INDEX idx_stories_list_time ON stories (clustering_version_id, effective_to DESC, public_id)");
+        jdbc.execute("CREATE INDEX idx_stories_list_member_count ON stories (clustering_version_id, member_count DESC, public_id)");
         jdbc.execute("CREATE INDEX ON story_memberships (story_id, clustering_version_id, current_marker)");
         jdbc.execute("CREATE INDEX ON gdelt_events (article_id)");
         jdbc.execute("CREATE INDEX ON gdelt_mentions (global_event_id, mention_identifier)");
@@ -169,7 +189,11 @@ class StoryApiPerformanceBudgetIT {
                 SELECT ('10000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid,
                        ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid,
                        1, md5(i::text), 'ACTIVE', now() - (i || ' minutes')::interval,
-                       now() - (i || ' minutes')::interval
+                       now() - (i || ' minutes')::interval,
+                       i, 'https://news.example/story-' || i,
+                       'source-' || (i % 40) || '.example', now() - (i || ' minutes')::interval,
+                       'Representative story title ' || i, now() - (i || ' minutes')::interval,
+                       'https://images.example/' || i || '.jpg', 3
                 FROM generate_series(1, ?) i
                 """, STORY_COUNT);
         jdbc.update("""

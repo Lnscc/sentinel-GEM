@@ -48,7 +48,11 @@ class StoryQueryServicePostgresIT {
         jdbc.execute("""
                 CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT,
                     representative_article_ref VARCHAR(64), state VARCHAR(16),
-                    effective_from TIMESTAMP WITH TIME ZONE, effective_to TIMESTAMP WITH TIME ZONE)
+                    effective_from TIMESTAMP WITH TIME ZONE, effective_to TIMESTAMP WITH TIME ZONE,
+                    representative_article_id BIGINT, representative_canonical_url TEXT,
+                    representative_domain TEXT, representative_first_seen_at TIMESTAMP WITH TIME ZONE,
+                    representative_title TEXT, representative_published_at TIMESTAMP WITH TIME ZONE,
+                    representative_main_image_url TEXT, member_count INTEGER DEFAULT 0)
                 """);
         jdbc.execute("""
                 CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT,
@@ -85,7 +89,9 @@ class StoryQueryServicePostgresIT {
                   (2, 'https://example.org/current', 'current', 'example.org', ?)
                 """, time("2026-09-01T10:00:00Z"), time("2026-09-02T10:00:00Z"));
         jdbc.update("""
-                INSERT INTO stories VALUES
+                INSERT INTO stories (
+                  id, public_id, clustering_version_id, representative_article_ref, state,
+                  effective_from, effective_to) VALUES
                   (?, ?, 1, 'old', 'ACTIVE', ?, ?),
                   (?, ?, 2, 'current', 'ACTIVE', ?, ?),
                   (?, ?, 2, 'old', 'SUPERSEDED', ?, ?),
@@ -99,6 +105,16 @@ class StoryQueryServicePostgresIT {
                 "SELECT id FROM stories WHERE clustering_version_id = 2 AND public_id = ?", UUID.class, reused);
         jdbc.update("INSERT INTO story_memberships VALUES (?, 2, 1, NULL, 'OLD')", internal);
         jdbc.update("INSERT INTO story_memberships VALUES (?, 2, 2, 1, 'MATCHED_COMPONENT')", internal);
+        jdbc.update("""
+                UPDATE stories story
+                SET representative_article_id = article.id,
+                    representative_canonical_url = article.canonical_url,
+                    representative_domain = article.domain,
+                    representative_first_seen_at = article.first_seen_at,
+                    member_count = CASE WHEN story.id = ? THEN 1 ELSE 0 END
+                FROM articles article
+                WHERE article.url_hash = story.representative_article_ref
+                """, internal);
 
         StoryQueryService service = new StoryQueryService(jdbc, "visible-version");
 

@@ -49,7 +49,11 @@ class StoryQueryServiceTests {
         jdbc.execute("""
                 CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT,
                     representative_article_ref VARCHAR(64), state VARCHAR(16),
-                    effective_from TIMESTAMP WITH TIME ZONE, effective_to TIMESTAMP WITH TIME ZONE)
+                    effective_from TIMESTAMP WITH TIME ZONE, effective_to TIMESTAMP WITH TIME ZONE,
+                    representative_article_id BIGINT, representative_canonical_url TEXT,
+                    representative_domain TEXT, representative_first_seen_at TIMESTAMP WITH TIME ZONE,
+                    representative_title TEXT, representative_published_at TIMESTAMP WITH TIME ZONE,
+                    representative_main_image_url TEXT, member_count INTEGER DEFAULT 0)
                 """);
         jdbc.execute("""
                 CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT,
@@ -84,6 +88,34 @@ class StoryQueryServiceTests {
         assertThat(first.stories()).extracting(StorySummary::id).containsExactly(newer);
         assertThat(first.stories().getFirst().memberCount()).isOne();
         assertThat(second.stories()).extracting(StorySummary::id).containsExactly(older);
+    }
+
+    @Test
+    void readsRepresentativeMetadataAndCountFromThePublishedProjection() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "a", "publisher.example", "2026-09-01T10:00:00Z");
+        seedArticle(2, "b", "member.example", "2026-09-01T11:00:00Z");
+        UUID storyId = seedStory(1, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z");
+        seedMember(1, 1, 1, 1, "NEW_COMPONENT");
+        jdbc.update("""
+                UPDATE stories
+                SET representative_title = 'Published title',
+                    representative_published_at = ?,
+                    representative_main_image_url = 'https://publisher.example/image.jpg'
+                WHERE public_id = ?
+                """, utc("2026-09-01T09:00:00Z"), storyId);
+        jdbc.update("INSERT INTO story_memberships VALUES (?, 1, 2, 1, 'MATCHED_COMPONENT')",
+                new UUID(0, 1));
+
+        StorySummary story = service.stories(0, 20, "articleCount", "desc").stories().getFirst();
+
+        assertThat(story.memberCount()).isOne();
+        assertThat(story.representativeArticle().title()).isEqualTo("Published title");
+        assertThat(story.representativeArticle().publishedAt())
+                .isEqualTo(Instant.parse("2026-09-01T09:00:00Z"));
+        assertThat(story.representativeArticle().mainImageUrl())
+                .isEqualTo("https://publisher.example/image.jpg");
+        assertThat(story.representativeArticle().domain()).isEqualTo("publisher.example");
     }
 
     @Test
@@ -296,14 +328,27 @@ class StoryQueryServiceTests {
                            String effectiveFrom, String effectiveTo) {
         UUID internalId = new UUID(0, seed);
         UUID publicId = new UUID(1, seed);
-        jdbc.update("INSERT INTO stories VALUES (?, ?, ?, ?, ?, ?, ?)", internalId, publicId, version,
-                representative, state, utc(effectiveFrom), utc(effectiveTo));
+        jdbc.update("""
+                INSERT INTO stories (
+                    id, public_id, clustering_version_id, representative_article_ref, state,
+                    effective_from, effective_to, representative_article_id,
+                    representative_canonical_url, representative_domain,
+                    representative_first_seen_at, member_count)
+                SELECT ?, ?, ?, ?, ?, ?, ?, article.id, article.canonical_url, article.domain,
+                       article.first_seen_at, 0
+                FROM articles article WHERE article.url_hash = ?
+                """, internalId, publicId, version, representative, state,
+                utc(effectiveFrom), utc(effectiveTo), representative);
         return publicId;
     }
 
     private void seedMember(long storySeed, long version, long article, Integer current, String reason) {
         jdbc.update("INSERT INTO story_memberships VALUES (?, ?, ?, ?, ?)",
                 new UUID(0, storySeed), version, article, current, reason);
+        if (Integer.valueOf(1).equals(current)) {
+            jdbc.update("UPDATE stories SET member_count = member_count + 1 WHERE id = ?",
+                    new UUID(0, storySeed));
+        }
     }
 
     private void seedEvent(long id, long articleId, int type, String name, String countryCode,

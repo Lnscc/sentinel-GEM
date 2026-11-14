@@ -445,6 +445,10 @@ class StorySnapshotServicePostgresIT {
         insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
         publish();
         UUID id = story("a");
+        assertThat(jdbc.queryForObject("SELECT member_count FROM stories WHERE id = ?", Integer.class, id))
+                .isOne();
+        assertThat(jdbc.queryForObject("SELECT representative_domain FROM stories WHERE id = ?", String.class, id))
+                .isEqualTo("example.org");
         long membership = jdbc.queryForObject("SELECT id FROM story_memberships", Long.class);
         advance(Duration.ofMinutes(1));
         publish();
@@ -456,6 +460,8 @@ class StorySnapshotServicePostgresIT {
         advance(Duration.ofMinutes(1));
         publish();
         assertThat(story("b")).isEqualTo(id);
+        assertThat(jdbc.queryForObject("SELECT member_count FROM stories WHERE id = ?", Integer.class, id))
+                .isEqualTo(2);
         assertThat(jdbc.queryForObject("SELECT identity_anchor_article_ref FROM stories", String.class))
                 .isEqualTo(ref("a"));
         advance(Duration.ofHours(73));
