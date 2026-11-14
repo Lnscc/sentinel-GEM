@@ -53,6 +53,9 @@ On macOS or Linux, use:
 
 The API is available at `http://localhost:8080`. Flyway applies the database migrations at startup. Spring Boot uses the PostgreSQL service defined in [`../compose.yaml`](../compose.yaml) (`gne`/`gne` on `localhost:5432`).
 
+Story API and Lagebild performance budgets and their repeatable PostgreSQL benchmark are documented
+in [`../docs/performance-budgets.md`](../docs/performance-budgets.md).
+
 GDELT ingestion is enabled by default. After startup, the service begins downloading current GDELT data and continues polling in the background. Internet access is therefore required for live ingestion.
 
 Stop the database with:
