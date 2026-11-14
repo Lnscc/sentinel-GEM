@@ -59,7 +59,7 @@ class StoryDomainModelMigrationPostgresIT {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM articles WHERE id = ?", Integer.class, existingArticleId)).isOne();
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM story_clustering_versions", Integer.class)).isEqualTo(4);
+                "SELECT COUNT(*) FROM story_clustering_versions", Integer.class)).isEqualTo(5);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM story_clustering_versions WHERE status = 'ACTIVE'", Integer.class))
                 .isOne();
@@ -73,13 +73,17 @@ class StoryDomainModelMigrationPostgresIT {
                 SELECT candidate_window_hours
                 FROM story_clustering_versions
                 ORDER BY candidate_window_hours
-                """, Integer.class)).containsExactly(24, 24, 48, 72);
+                """, Integer.class)).containsExactly(24, 24, 24, 48, 72);
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM story_clustering_version_status_history", Integer.class)).isEqualTo(8);
+                "SELECT COUNT(*) FROM story_clustering_version_status_history", Integer.class)).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT input_eligibility_rule_version FROM story_clustering_versions
                 WHERE version_key = 'story-mvp-title-embedding-24h-v1.1.0'
                 """, String.class)).isEqualTo("navigation-service-exact-path-title-v1");
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT input_eligibility_rule_version FROM story_clustering_versions
+                WHERE version_key = 'story-mvp-title-embedding-24h-v1.2.0' AND status = 'SHADOW'
+                """, String.class)).isEqualTo("non-event-content-v1");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT to_regclass('story_memberships')", String.class)).isEqualTo("story_memberships");
         assertThat(jdbcTemplate.queryForObject(

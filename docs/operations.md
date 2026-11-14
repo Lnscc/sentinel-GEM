@@ -329,9 +329,12 @@ var outcome = promotion.promote(review, holdout, approval);
 
 Der Holdout enthaelt eine eigene Version, Herkunft, verantwortlichen Labelgeber, eine
 Unabhaengigkeitserklaerung und begruendete Artikelpaare (`left`, `right`, `sameStory`, `rationale`).
+Bei geaenderten Eingangsregeln enthaelt er zusaetzlich unabhaengige `inputQualityCases` mit
+`articleRef`, `expectedDisposition`, optionalem `expectedExclusionReason` und `rationale`.
 Die Artikelreferenzen sind vollstaendige URL-Hashes, pro Paar lexikalisch aufsteigend sortiert.
-Nur eindeutige Labels verwenden; unsichere Paare vorher ausnehmen. Alle Holdout-Artikel muessen
-im veroeffentlichten Kandidaten enthalten sein. Herkunft und Erklaerung muessen belegen, dass
+Nur eindeutige Labels verwenden; unsichere Paare vorher ausnehmen. Alle als `INCLUDE` erwarteten
+Holdout-Artikel muessen im veroeffentlichten Kandidaten enthalten sein; `EXCLUDE`-Faelle duerfen
+keine Story-Mitgliedschaft besitzen. Herkunft und Erklaerung muessen belegen, dass
 weder diese Labels noch dieselben Ereignisse zur Schwellenwahl verwendet wurden. Dies ist
 fachlich zu pruefen; das Programm kann eine falsche Unabhaengigkeitserklaerung nicht erkennen.
 
@@ -342,6 +345,8 @@ eine neue Gate-Version und einen weiteren unabhaengigen Holdout. URL- und Titel-
 ART-032 werden durch `engine/src/main/resources/stories/art032-excluded-hashes.txt` ausgeschlossen;
 ein Test gleicht dieses Manifest mit dem gesamten Korpus ab. Die Metriken werden aus den
 veroeffentlichten Mitgliedschaften berechnet, nicht als fertige Erfolgswerte entgegengenommen.
+Enthaelt der Holdout `inputQualityCases`, verwendet die Auswertung `story-release-gates-v2` und
+verlangt zusaetzlich null Abweichungen bei Disposition, Ausschlussgrund und Story-Mitgliedschaft.
 
 `review` prueft den erfolgreichen Publish-Run, aktuelle vollstaendige Inputs, Modellvertrag,
 Embedding-Dimension und Vektorintegritaet sowie die Uebereinstimmung mit der rekonstruierten

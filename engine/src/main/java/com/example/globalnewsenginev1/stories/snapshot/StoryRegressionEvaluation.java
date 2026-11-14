@@ -20,7 +20,6 @@ public class StoryRegressionEvaluation {
     }
 
     Result evaluate(long versionId, JsonNode corpus) {
-        String corpusVersion = required(corpus, "corpusVersion");
         Map<String, UUID> assignments = new HashMap<>();
         jdbc.query("""
                 SELECT member.article_ref, member.story_id
@@ -29,14 +28,21 @@ public class StoryRegressionEvaluation {
                 """, (resultSet, rowNum) -> Map.entry(
                 resultSet.getString(1), resultSet.getObject(2, UUID.class)), versionId)
                 .forEach(entry -> assignments.put(entry.getKey(), entry.getValue()));
-        Map<String, String> dispositions = new HashMap<>();
+        Map<String, StoryReleaseEvaluation.InputDecision> dispositions = new HashMap<>();
         jdbc.query("""
-                SELECT article_ref, input_disposition FROM story_article_inputs
+                SELECT article_ref, input_disposition, exclusion_reason FROM story_article_inputs
                 WHERE clustering_version_id = ? AND current_marker = 1
                 """, (resultSet, rowNum) -> Map.entry(
-                resultSet.getString(1), resultSet.getString(2)), versionId)
+                resultSet.getString(1), new StoryReleaseEvaluation.InputDecision(
+                        resultSet.getString(2), resultSet.getString(3))), versionId)
                 .forEach(entry -> dispositions.put(entry.getKey(), entry.getValue()));
 
+        return evaluate(corpus, assignments, dispositions);
+    }
+
+    static Result evaluate(JsonNode corpus, Map<String, UUID> assignments,
+                           Map<String, StoryReleaseEvaluation.InputDecision> dispositions) {
+        String corpusVersion = required(corpus, "corpusVersion");
         List<String> relationshipDeviations = new ArrayList<>();
         int relationships = 0;
         int uncertain = 0;
@@ -59,8 +65,13 @@ public class StoryRegressionEvaluation {
         int inputCases = 0;
         for (JsonNode testCase : corpus.path("inputQualityCases")) {
             inputCases++;
-            if (!Objects.equals(required(testCase, "expectedDisposition"),
-                    dispositions.get(required(testCase, "articleRef")))) {
+            String expectedDisposition = required(testCase, "expectedDisposition");
+            String articleRef = required(testCase, "articleRef");
+            String expectedReason = testCase.path("expectedExclusionReason").asText(null);
+            StoryReleaseEvaluation.InputDecision actual = dispositions.get(articleRef);
+            if (actual == null || !Objects.equals(expectedDisposition, actual.disposition())
+                    || expectedReason != null && !Objects.equals(expectedReason, actual.exclusionReason())
+                    || "EXCLUDE".equals(expectedDisposition) && assignments.containsKey(articleRef)) {
                 inputDeviations.add(required(testCase, "id"));
             }
         }
@@ -70,7 +81,7 @@ public class StoryRegressionEvaluation {
                 relationshipDeviations.size() + inputDeviations.size());
     }
 
-    private String required(JsonNode node, String field) {
+    private static String required(JsonNode node, String field) {
         String value = node.path(field).asText();
         if (value.isBlank()) throw new IllegalArgumentException("Regression corpus is missing " + field);
         return value;

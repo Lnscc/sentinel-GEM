@@ -252,7 +252,20 @@ public class StoryPromotionService {
                 (int) match.nominees().values().stream().filter(list -> list.size() > 1).count(), match.splits());
         Map<String, String> titleHashes = new HashMap<>();
         frozen.forEach(input -> titleHashes.put(input.articleRef(), input.titleInputHash()));
-        var evaluation = StoryReleaseEvaluation.evaluate(holdout, publicAssignments, titleHashes);
+        Map<String, StoryReleaseEvaluation.InputDecision> inputDecisions = new HashMap<>();
+        jdbc.query("""
+                SELECT article_ref, title_input_hash, input_disposition, exclusion_reason
+                FROM story_article_inputs
+                WHERE clustering_version_id = ? AND current_marker = 1
+                """, (rs, row) -> {
+                    titleHashes.put(rs.getString("article_ref"), rs.getString("title_input_hash"));
+                    return Map.entry(rs.getString("article_ref"),
+                            new StoryReleaseEvaluation.InputDecision(
+                                    rs.getString("input_disposition"), rs.getString("exclusion_reason")));
+                }, target)
+                .forEach(entry -> inputDecisions.put(entry.getKey(), entry.getValue()));
+        var evaluation = StoryReleaseEvaluation.evaluate(
+                holdout, publicAssignments, titleHashes, inputDecisions);
         String basis = StoryReleaseEvaluation.hash(target + ":" + previous + ":" + commit + ":"
                 + (previous == null ? 0 : publisher.latestCommit(previous)) + ":" + snapshot.inputHash()
                 + ":" + old + ":" + oldMembers + ":" + current + ":" + currentMembers);

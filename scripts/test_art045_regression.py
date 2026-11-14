@@ -29,6 +29,12 @@ class RegressionTests(unittest.TestCase):
         regression_refs = {article["ref"] for article in self.corpus["articles"]}
         self.assertTrue(regression_refs.isdisjoint(holdout_refs))
 
+    def test_non_event_categories_are_supported(self):
+        for category in ("COMPANY_NOTICE", "GUIDE_LISTICLE", "POLL", "GENERIC_TOPIC"):
+            corpus = copy.deepcopy(self.corpus)
+            corpus["inputQualityCases"][0]["targetCategory"] = category
+            self.assertEqual([], validate(corpus, self.baseline))
+
 
 if __name__ == "__main__":
     unittest.main()

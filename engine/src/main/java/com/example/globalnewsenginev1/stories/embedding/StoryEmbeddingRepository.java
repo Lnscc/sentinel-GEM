@@ -54,6 +54,8 @@ class StoryEmbeddingRepository {
                        article.id AS article_id, article.url_hash AS article_ref,
                        article.canonical_url,
                        article.first_seen_at,
+                       EXISTS (SELECT 1 FROM gdelt_events event
+                               WHERE event.article_id = article.id) AS has_event_signal,
                        (SELECT g.page_title FROM gdelt_gkg g
                         WHERE g.article_id = article.id
                           AND g.page_title IS NOT NULL AND TRIM(g.page_title) <> ''
@@ -95,6 +97,7 @@ class StoryEmbeddingRepository {
                 resultSet.getString("article_ref"),
                 resultSet.getString("canonical_url"),
                 resultSet.getTimestamp("first_seen_at").toInstant(),
+                resultSet.getBoolean("has_event_signal"),
                 resultSet.getString("title"),
                 nullableInstant(resultSet.getTimestamp("published_at"))),
                 parameters(versionId, versionKey, watermark, limit));
@@ -347,6 +350,7 @@ class StoryEmbeddingRepository {
             String articleRef,
             String canonicalUrl,
             Instant firstSeenAt,
+            boolean hasEventSignal,
             String title,
             Instant publishedAt
     ) {

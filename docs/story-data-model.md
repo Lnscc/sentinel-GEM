@@ -18,6 +18,9 @@ Verfahrenswechsel darf technisch neue Zeilen erzeugen, aber nicht alle Story-IDs
 Die vorhandenen 48-/72-h-Versionen erfordern keinen dauerhaften Parallelbetrieb.
 V27 ergaenzt die versionierte Eingangsregel sowie Disposition und Ausschlussgrund am Artikel-Input
 und legt `story-mvp-title-embedding-24h-v1.1.0` als neue `SHADOW`-Version an.
+V35 legt `story-mvp-title-embedding-24h-v1.2.0` mit der Eingangsregel
+`non-event-content-v1` als weitere `SHADOW`-Version an. Die aktive Version bleibt unveraendert,
+bis Regression und unabhaengiger Holdout die neue Regel bestaetigen.
 
 Migration `V22__create_story_domain_model.sql` bildet den fachlichen Verarbeitungsvertrag aus
 `story-processing-contract.md` als persistierbares PostgreSQL-Schema ab. Migration

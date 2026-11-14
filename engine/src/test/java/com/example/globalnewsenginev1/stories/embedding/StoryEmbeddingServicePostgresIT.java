@@ -12,6 +12,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
+import java.net.URI;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -83,15 +84,15 @@ class StoryEmbeddingServicePostgresIT {
                 "SELECT COUNT(*) FROM story_embedding_attempts WHERE status = 'READY'", Integer.class)).isOne();
         assertThat(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM story_article_inputs WHERE current_marker = 1", Integer.class))
-                .isEqualTo(16);
+                .isEqualTo(20);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE title_usability = 'TITLE_MISSING' AND embedding_status = 'NOT_REQUIRED'
-                """, Integer.class)).isEqualTo(4);
+                """, Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE title_usability = 'TITLE_GENERIC' AND embedding_status = 'NOT_REQUIRED'
-                """, Integer.class)).isEqualTo(4);
+                """, Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(DISTINCT embedding_artifact_id) FROM story_article_inputs
                 WHERE title_usability = 'USABLE'
@@ -99,11 +100,11 @@ class StoryEmbeddingServicePostgresIT {
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE article_id = ? AND effective_at_source = 'PUBLISHED_AT'
-                """, Integer.class, first)).isEqualTo(4);
+                """, Integer.class, first)).isEqualTo(5);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE article_id = ? AND effective_at_source = 'FIRST_SEEN_AT'
-                """, Integer.class, second)).isEqualTo(4);
+                """, Integer.class, second)).isEqualTo(5);
         assertThat(service.processIncremental(100).selected()).isZero();
         assertThat(client.calls()).isOne();
 
@@ -134,11 +135,11 @@ class StoryEmbeddingServicePostgresIT {
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE article_id = ? AND current_marker IS NULL AND superseded_at IS NOT NULL
-                """, Integer.class, first)).isEqualTo(4);
+                """, Integer.class, first)).isEqualTo(5);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE article_id = ? AND current_marker = 1
-                """, Integer.class, first)).isEqualTo(4);
+                """, Integer.class, first)).isEqualTo(5);
     }
 
     @Test
@@ -218,7 +219,7 @@ class StoryEmbeddingServicePostgresIT {
                 "SELECT COUNT(*) FROM story_embedding_artifacts", Integer.class)).isOne();
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs WHERE current_marker = 1
-                """, Integer.class)).isEqualTo(4);
+                """, Integer.class)).isEqualTo(5);
     }
 
     @Test
@@ -255,11 +256,13 @@ class StoryEmbeddingServicePostgresIT {
             insertGkg(articleId, 400 + index, articles[index][1], null);
         }
 
-        StoryEmbeddingService.ProcessingResult result = service.processIncremental(articles.length);
+        StoryEmbeddingService.ProcessingResult result = service.processIncremental(
+                "story-mvp-title-embedding-24h-v1.1.0", false, articles.length);
 
         assertThat(result.failed()).isZero();
         assertThat(client.calls()).isOne();
-        assertThat(service.processIncremental(articles.length).selected()).isZero();
+        assertThat(service.processIncremental(
+                "story-mvp-title-embedding-24h-v1.1.0", false, articles.length).selected()).isZero();
         assertThat(client.calls()).isOne();
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs input
@@ -277,6 +280,59 @@ class StoryEmbeddingServicePostgresIT {
                   AND input.input_disposition = 'INCLUDE'
                   AND input.embedding_status = 'READY'
                 """, Integer.class)).isOne();
+    }
+
+    @Test
+    void excludesClearNonEventInputsWithoutEmbeddingForVersionOneTwo() {
+        String[][] articles = {
+                {"https://www.brantfordexpositor.ca/press-releases/globe-newswire/transaction-in-own-shares-30",
+                        "Transaction in Own Shares"},
+                {"https://economictimes.indiatimes.com/news/how-to/how-to-access-your-emails-if-microsoft-outlook-is-down-try-these-alternative-ways-to-stay-connected/articleshow/135810357.cms",
+                        "How to access your emails if Microsoft Outlook is down? Try these alternative ways to stay connected"},
+                {"https://www.insidermonkey.com/news/10-best-aerospace-dividend-stocks-to-buy-2-1854396",
+                        "10 Best Aerospace Dividend Stocks to Buy"},
+                {"https://cnycentral.com/news/local/poll-what-is-the-biggest-issue-facing-voters-in-the-midterm-election",
+                        "POLL: What is the biggest issue facing voters in the midterm election?"},
+                {"https://euobserver.com/eu-political/question", "VOTE: Should the EU expand?"},
+                {"https://euobserver.com/topic/protests", "Protests – EUobserver"},
+                {"https://markets.example.com/news-releases/research-centre",
+                        "Lactalis opens new research and development centre"},
+                {"https://cnycentral.com/news/local/fire-closes-main-street",
+                        "Fire closes Main Street after overnight blaze"},
+                {"https://euobserver.com/eu-political/158001",
+                        "EU leaders approve new sanctions package"},
+                {"https://culture.example.com/film/anniversary",
+                        "10 Things I Hate About You cast reunites for anniversary"}
+        };
+        for (int index = 0; index < articles.length; index++) {
+            long articleId = insertArticleUrl(articles[index][0]);
+            insertGkg(articleId, 700 + index, articles[index][1], null);
+        }
+
+        StoryEmbeddingService.ProcessingResult result = service.processIncremental(
+                "story-mvp-title-embedding-24h-v1.2.0", false, articles.length);
+
+        assertThat(result.failed()).isZero();
+        assertThat(client.calls()).isOne();
+        assertThat(client.lastBatchSize()).isEqualTo(4);
+        assertThat(jdbc.queryForList("""
+                SELECT input.exclusion_reason FROM story_article_inputs input
+                JOIN story_clustering_versions version ON version.id = input.clustering_version_id
+                WHERE version.version_key = 'story-mvp-title-embedding-24h-v1.2.0'
+                  AND input.input_disposition = 'EXCLUDE'
+                  AND input.embedding_status = 'NOT_REQUIRED'
+                  AND input.embedding_artifact_id IS NULL
+                ORDER BY input.exclusion_reason
+                """, String.class)).containsExactly(
+                        "ADVICE", "CORPORATE_RELEASE", "GUIDE_LISTICLE",
+                        "POLL_VOTE", "POLL_VOTE", "TOPIC_LANDING");
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_article_inputs input
+                JOIN story_clustering_versions version ON version.id = input.clustering_version_id
+                WHERE version.version_key = 'story-mvp-title-embedding-24h-v1.2.0'
+                  AND input.input_disposition = 'INCLUDE'
+                  AND input.embedding_status = 'READY'
+                """, Integer.class)).isEqualTo(4);
     }
 
     @Test
@@ -330,8 +386,9 @@ class StoryEmbeddingServicePostgresIT {
                 canonicalUrl.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         jdbc.update("""
                 INSERT INTO articles (canonical_url, url_hash, domain, first_seen_at, created_at, updated_at)
-                VALUES (?, ?, 'fasterskier.com', ?, ?, ?)
-                """, canonicalUrl, articleRef, timestamp, timestamp, timestamp);
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, canonicalUrl, articleRef, URI.create(canonicalUrl).getHost(),
+                timestamp, timestamp, timestamp);
         return jdbc.queryForObject("SELECT id FROM articles WHERE url_hash = ?",
                 Long.class, articleRef);
     }

@@ -122,7 +122,7 @@ public class StoryEmbeddingService {
             TitleInput title = normalizer.normalize(candidate.title());
             StoryInputEligibilityRule.Decision eligibility = StoryInputEligibilityRule.evaluate(
                     candidate.inputEligibilityRuleVersion(), candidate.canonicalUrl(),
-                    title.normalizedTitle());
+                    title.normalizedTitle(), candidate.hasEventSignal());
             Instant effectiveAt = candidate.publishedAt() != null
                     ? candidate.publishedAt() : candidate.firstSeenAt();
             String effectiveAtSource = candidate.publishedAt() != null

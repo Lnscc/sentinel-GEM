@@ -220,6 +220,20 @@ Artikelpfad oder nur im Titel reicht nicht aus. Ausgeschlossene Inputs speichern
 Die bisherige Version behaelt unveraendert `all-articles-v1`; die neue Version startet als
 `SHADOW` und benoetigt vor einer Aktivierung den bestehenden Freigabeprozess.
 
+### Eindeutig nicht ereignisartige Inhalte
+
+`story-mvp-title-embedding-24h-v1.2.0` verwendet `non-event-content-v1`. Die Regel uebernimmt den
+Navigations-/Serviceausschluss und erkennt zusaetzlich nur enge, erklaerbare Signale: eine
+Unternehmensmitteilung mit dem beobachteten generischen Titel `Transaction in Own Shares`, Titel
+beginnend mit `How to`, eindeutige nummerierte Listicles, Titel beginnend mit `POLL:` oder `VOTE:`
+und reine `/topic/<slug>`- beziehungsweise `/topics/<slug>`-Landingpages. Ein vorhandener
+GDELT-Event-Link verhindert diese neuen Ausschluesse. Die Gruende `CORPORATE_RELEASE`, `ADVICE`,
+`GUIDE_LISTICLE`, `POLL_VOTE` und `TOPIC_LANDING` werden am Input gespeichert. Breite Domain- oder
+Press-Release-Sperren sind ausdruecklich nicht Teil der Regel.
+
+Die Version bleibt `SHADOW`, bis bekannte Regressionen und ein davon unabhaengiger Holdout sowohl
+die Ausschluesse als auch normale Ereignisberichte derselben Domains bestaetigen.
+
 ### Artikel-Input-Fingerprint
 
 Der Fingerprint wird deterministisch ueber kanonisch serialisierte Werte gebildet:
@@ -233,9 +247,11 @@ Embedding-Artefaktschluessel und Vektor-Hash
 zugehoerige Titel- und Modellversionen
 ```
 
-Personen, Organisationen, Orte, Themes, Event-IDs, Event-Codes, Domain und lexikalische
-Titelmerkmale sind nicht Teil des Entscheidungs-Fingerprints. Sie duerfen fuer Diagnose und Audit
-als getrennte Evidenz-Snapshots gespeichert werden, loesen in dieser Version aber keine
+Personen, Organisationen, Orte, Themes, konkrete Event-IDs, Event-Codes, Domain und lexikalische
+Titelmerkmale sind nicht Teil des Entscheidungs-Fingerprints. `non-event-content-v1` verwendet
+lediglich, ob ein Artikel mit mindestens einem GDELT-Event verknuepft ist; die resultierende
+Disposition und der Grund sind Bestandteil des Fingerprints. Die uebrigen Signale duerfen fuer
+Diagnose und Audit als getrennte Evidenz-Snapshots gespeichert werden, loesen aber keine
 Neuzuordnung aus und beeinflussen weder Kandidaten noch Pair-Entscheidung.
 
 ## Eintritt und Neubewertung
@@ -245,7 +261,7 @@ Ein Artikel wird fuer eine Clustering-Version vorgemerkt bei:
 - erstmaliger Anlage,
 - erstmalig verwendbarem oder korrigiertem Titel,
 - hinzugekommenem oder geaendertem `publishedAt`,
-- einem Signal, das Titel oder `publishedAt` des Artikels tatsaechlich aendert,
+- einem Signal, das Titel, `publishedAt` oder die GDELT-Event-Verknuepfung des Artikels aendert,
 - faelligem Revisit nach 24 oder 72 Stunden,
 - erfolgreicher Behebung eines Embedding-Fehlers,
 - einem expliziten Backfill oder Reprocessing.

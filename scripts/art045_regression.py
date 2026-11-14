@@ -13,7 +13,14 @@ from typing import Any
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 RELATIONSHIPS = {"SAME_STORY", "DIFFERENT_STORY", "UNCERTAIN"}
 DISPOSITIONS = {"INCLUDE", "EXCLUDE"}
-CATEGORIES = {"NAVIGATION_SERVICE", "NORMAL_EVENT_ARTICLE"}
+CATEGORIES = {
+    "NAVIGATION_SERVICE",
+    "COMPANY_NOTICE",
+    "GUIDE_LISTICLE",
+    "POLL",
+    "GENERIC_TOPIC",
+    "NORMAL_EVENT_ARTICLE",
+}
 
 
 def validate(corpus: dict[str, Any], baseline: dict[str, Any]) -> list[str]:
