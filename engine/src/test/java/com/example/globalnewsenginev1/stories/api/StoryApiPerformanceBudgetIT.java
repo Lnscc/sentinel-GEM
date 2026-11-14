@@ -66,6 +66,37 @@ class StoryApiPerformanceBudgetIT {
         measure("detail", "/stories/" + DETAIL_ID, 200, 180, 12_000);
     }
 
+    @Test
+    void regionQueryUsesTheMaterializedLocationIndex() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres(schema));
+        String plan = jdbc.queryForObject("""
+                EXPLAIN (ANALYZE, FORMAT JSON)
+                SELECT story.id
+                FROM story_locations location
+                JOIN stories story ON story.id = location.story_id
+                WHERE location.country_code = 'C1'
+                  AND location.region_code = 'R1'
+                  AND location.rank = 1
+                ORDER BY story.effective_to DESC
+                LIMIT 100
+                """, (resultSet, rowNum) -> resultSet.getString(1));
+
+        assertThat(plan).contains("idx_story_locations_primary_country_region");
+
+        String regionOnlyPlan = jdbc.queryForObject("""
+                EXPLAIN (ANALYZE, FORMAT JSON)
+                SELECT story.id
+                FROM story_locations location
+                JOIN stories story ON story.id = location.story_id
+                WHERE location.region_code = 'R1'
+                  AND location.rank = 1
+                ORDER BY story.effective_to DESC
+                LIMIT 100
+                """, (resultSet, rowNum) -> resultSet.getString(1));
+
+        assertThat(regionOnlyPlan).contains("idx_story_locations_primary_region");
+    }
+
     private void measure(String name, String path, long responseP95BudgetMs, long databaseP95BudgetMs,
                          int responseBytesBudget) throws Exception {
         Sample cold = request(path);
@@ -111,6 +142,9 @@ class StoryApiPerformanceBudgetIT {
         jdbc.execute("CREATE TABLE gdelt_mentions (id BIGINT PRIMARY KEY, global_event_id BIGINT, mention_identifier TEXT, confidence INTEGER)");
         jdbc.execute("CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT, representative_article_ref VARCHAR(64), state VARCHAR(16), effective_from TIMESTAMPTZ, effective_to TIMESTAMPTZ)");
         jdbc.execute("CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT, article_id BIGINT, current_marker SMALLINT, assignment_reason TEXT)");
+        jdbc.execute("CREATE TABLE story_locations (story_id UUID, rank INTEGER, name TEXT, country_code VARCHAR(16), region_code VARCHAR(32), latitude DOUBLE PRECISION, longitude DOUBLE PRECISION, source VARCHAR(64), confidence INTEGER, supporting_articles INTEGER, supporting_domains INTEGER)");
+        jdbc.execute("CREATE INDEX idx_story_locations_primary_country_region ON story_locations (country_code, region_code, rank, story_id)");
+        jdbc.execute("CREATE INDEX idx_story_locations_primary_region ON story_locations (region_code, rank, story_id)");
         jdbc.execute("CREATE INDEX ON story_memberships (story_id, clustering_version_id, current_marker)");
         jdbc.execute("CREATE INDEX ON gdelt_events (article_id)");
         jdbc.execute("CREATE INDEX ON gdelt_mentions (global_event_id, mention_identifier)");
@@ -155,6 +189,14 @@ class StoryApiPerformanceBudgetIT {
                 SELECT i, i, 'https://news.example/story-' || i, 80
                 FROM generate_series(1, ?) i
                 """, STORY_COUNT * 3);
+        jdbc.update("""
+                INSERT INTO story_locations
+                SELECT story.id, 1, 'Location ' || (i % 120), 'C' || (i % 12), 'R' || (i % 200),
+                       (i % 120) - 60, (i % 300) - 150, 'GDELT_EVENT_ACTION', 80, 3, 3
+                FROM stories story
+                JOIN generate_series(1, ?) i ON story.public_id =
+                    ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid
+                """, STORY_COUNT);
         jdbc.execute("ANALYZE");
     }
 

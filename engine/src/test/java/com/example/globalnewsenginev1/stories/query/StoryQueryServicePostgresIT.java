@@ -54,6 +54,12 @@ class StoryQueryServicePostgresIT {
                 CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT,
                     article_id BIGINT, current_marker SMALLINT, assignment_reason TEXT)
                 """);
+        jdbc.execute("""
+                CREATE TABLE story_locations (story_id UUID, rank INTEGER, name TEXT,
+                    country_code VARCHAR(16), region_code VARCHAR(32), latitude DOUBLE PRECISION,
+                    longitude DOUBLE PRECISION, source VARCHAR(64), confidence INTEGER,
+                    supporting_articles INTEGER, supporting_domains INTEGER)
+                """);
     }
 
     @AfterEach

@@ -9,14 +9,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class StoryQueryService {
@@ -44,11 +41,18 @@ public class StoryQueryService {
             JOIN story_clustering_versions version
               ON version.id = story.clustering_version_id AND version.version_key = ?
             JOIN articles article ON article.url_hash = story.representative_article_ref
+            LEFT JOIN story_locations primary_location
+              ON primary_location.story_id = story.id AND primary_location.rank = 1
             WHERE story.state <> 'SUPERSEDED'
             """;
 
     private static final String STORY_SELECT = """
             SELECT story.public_id, story.state, story.effective_from, story.effective_to,
+                   primary_location.name AS location_name,
+                   primary_location.country_code, primary_location.region_code,
+                   primary_location.latitude, primary_location.longitude,
+                   primary_location.source, primary_location.confidence,
+                   primary_location.supporting_articles, primary_location.supporting_domains,
             """ + ARTICLE_COLUMNS + """
             , (SELECT COUNT(*) FROM story_memberships member
                WHERE member.story_id = story.id
@@ -103,16 +107,6 @@ public class StoryQueryService {
         List<Object> filterParameters = new ArrayList<>();
         filterParameters.add(visibleVersion);
         String filters = filterClause(criteria, filterParameters);
-        if (criteria.country() != null || criteria.region() != null) {
-            // ponytail: Reuse the canonical Java location selection; persist primary locations if this scan becomes costly.
-            List<StorySummary> filtered = withLocations(jdbcTemplate.query(STORY_SELECT + filters + order,
-                            (resultSet, rowNum) -> summary(resultSet), filterParameters.toArray())).stream()
-                    .filter(story -> matchesLocation(story.location(), criteria))
-                    .toList();
-            int fromIndex = Math.min(offset, filtered.size());
-            int toIndex = Math.min(fromIndex + limit, filtered.size());
-            return new StoryPage(filtered.subList(fromIndex, toIndex), offset, limit, filtered.size());
-        }
         List<Object> pageParameters = new ArrayList<>(filterParameters);
         pageParameters.add(limit);
         pageParameters.add(offset);
@@ -131,12 +125,6 @@ public class StoryQueryService {
                 locations.getOrDefault(story.id(), StoryLocations.EMPTY).primary(),
                 locations.getOrDefault(story.id(), StoryLocations.EMPTY).all(),
                 story.representativeArticle(), story.memberCount())).toList();
-    }
-
-    private boolean matchesLocation(StoryLocation location, StorySearchCriteria criteria) {
-        return location != null
-                && (criteria.country() == null || criteria.country().equals(location.countryCode()))
-                && (criteria.region() == null || criteria.region().equals(location.regionCode()));
     }
 
     private String filterClause(StorySearchCriteria criteria, List<Object> parameters) {
@@ -161,6 +149,14 @@ public class StoryQueryService {
                          AND filtered_article.domain = ?)
                     """);
             parameters.add(criteria.domain().trim());
+        }
+        if (criteria.country() != null) {
+            filters.append(" AND primary_location.country_code = ?");
+            parameters.add(criteria.country());
+        }
+        if (criteria.region() != null) {
+            filters.append(" AND primary_location.region_code = ?");
+            parameters.add(criteria.region());
         }
         return filters.toString();
     }
@@ -202,7 +198,7 @@ public class StoryQueryService {
                 resultSet.getString("state"),
                 instant(resultSet, "effective_from"),
                 instant(resultSet, "effective_to"),
-                null,
+                location(resultSet),
                 List.of(),
                 article(resultSet),
                 resultSet.getLong("member_count"));
@@ -212,143 +208,41 @@ public class StoryQueryService {
         if (storyIds.isEmpty()) return Map.of();
         String placeholders = String.join(", ", java.util.Collections.nCopies(storyIds.size(), "?"));
         String sql = """
-                WITH visible_members AS (
-                    SELECT story.public_id, member.article_id, article.domain
-                    FROM stories story
-                    JOIN story_clustering_versions version
-                      ON version.id = story.clustering_version_id AND version.version_key = ?
-                    JOIN story_memberships member
-                      ON member.story_id = story.id
-                     AND member.clustering_version_id = story.clustering_version_id
-                     AND member.current_marker = 1
-                    JOIN articles article ON article.id = member.article_id
-                    WHERE story.state <> 'SUPERSEDED' AND story.public_id IN (%s)
-                )
-                SELECT member.public_id, member.article_id, member.domain,
-                       event.action_geo_type AS location_type, event.action_geo_name AS location_name,
-                       event.action_geo_country_code AS country_code,
-                       event.action_geo_adm1_code AS region_code,
-                       event.action_geo_latitude AS latitude, event.action_geo_longitude AS longitude,
-                       event.action_geo_feature_id AS feature_id,
-                       (SELECT MAX(mention.confidence) FROM gdelt_mentions mention
-                        WHERE mention.global_event_id = event.global_event_id
-                          AND mention.mention_identifier = event.source_url) AS event_confidence
-                FROM visible_members member
-                JOIN gdelt_events event ON event.article_id = member.article_id
+                SELECT story.public_id, location.name AS location_name,
+                       location.country_code, location.region_code, location.latitude,
+                       location.longitude, location.source, location.confidence,
+                       location.supporting_articles, location.supporting_domains
+                FROM stories story
+                JOIN story_clustering_versions version
+                  ON version.id = story.clustering_version_id AND version.version_key = ?
+                JOIN story_locations location ON location.story_id = story.id
+                WHERE story.state <> 'SUPERSEDED' AND story.public_id IN (%s)
+                ORDER BY story.public_id, location.rank
                 """.formatted(placeholders);
-        List<Object> parameters = new ArrayList<>();
-        parameters.add(visibleVersion);
+        List<Object> parameters = new ArrayList<>(List.of(visibleVersion));
         parameters.addAll(storyIds);
-        Map<UUID, List<LocationCandidate>> candidates = new HashMap<>();
+        Map<UUID, List<StoryLocation>> locations = new HashMap<>();
         jdbcTemplate.query(sql, resultSet -> {
             UUID storyId = resultSet.getObject("public_id", UUID.class);
-            List<LocationCandidate> storyCandidates = candidates.computeIfAbsent(storyId,
-                    ignored -> new ArrayList<>());
-            storyCandidates.add(new LocationCandidate(
-                    nullableInteger(resultSet, "location_type"), resultSet.getString("location_name"),
-                    resultSet.getString("country_code"), resultSet.getString("region_code"),
-                    nullableDouble(resultSet, "latitude"), nullableDouble(resultSet, "longitude"),
-                    resultSet.getString("feature_id"), resultSet.getLong("article_id"),
-                    resultSet.getString("domain"), nullableInteger(resultSet, "event_confidence")));
+            locations.computeIfAbsent(storyId, ignored -> new ArrayList<>()).add(location(resultSet));
         }, parameters.toArray());
         Map<UUID, StoryLocations> selected = new HashMap<>();
-        candidates.forEach((storyId, storyCandidates) -> selected.put(storyId, selectLocations(storyCandidates)));
+        locations.forEach((storyId, values) -> selected.put(storyId, new StoryLocations(values.getFirst(), values)));
         return selected;
     }
 
-    private StoryLocations selectLocations(List<LocationCandidate> candidates) {
-        List<RankedLocation> ranked = candidates.stream()
-                .filter(LocationCandidate::valid)
-                .collect(Collectors.groupingBy(candidate -> new Coordinates(candidate.latitude(), candidate.longitude())))
-                .values().stream()
-                .map(this::rank)
-                .sorted(Comparator.comparingInt(RankedLocation::confidence).reversed()
-                        .thenComparing(Comparator.comparingInt(RankedLocation::articleCount).reversed())
-                        .thenComparing(Comparator.comparingInt(RankedLocation::domainCount).reversed())
-                        .thenComparing(RankedLocation::candidate, LOCATION_ORDER))
-                .toList();
-        List<StoryLocation> locations = ranked.stream().map(this::location).toList();
-        StoryLocation primary = locations.isEmpty() ? null : locations.getFirst();
-        return new StoryLocations(primary, locations);
-    }
-
-    private RankedLocation rank(List<LocationCandidate> candidates) {
-        Map<Long, LocationCandidate> byArticle = candidates.stream().collect(Collectors.toMap(
-                LocationCandidate::articleId, candidate -> candidate,
-                (left, right) -> LOCATION_ORDER.compare(left, right) <= 0 ? left : right));
-        Set<String> domains = byArticle.values().stream().map(LocationCandidate::domain).collect(Collectors.toSet());
-        int confidence = candidates.stream().mapToInt(LocationCandidate::confidence).max().orElseThrow();
-        LocationCandidate representative = candidates.stream()
-                .filter(candidate -> candidate.confidence() == confidence)
-                .min(LOCATION_ORDER).orElseThrow();
-        return new RankedLocation(confidence, byArticle.size(), domains.size(), representative);
-    }
-
-    private StoryLocation location(RankedLocation ranked) {
-        LocationCandidate candidate = ranked.candidate();
-        return new StoryLocation(candidate.name(), candidate.countryCode(), candidate.regionCode(),
-                candidate.latitude(), candidate.longitude(), "GDELT_EVENT_ACTION", ranked.confidence(),
-                ranked.articleCount(), ranked.domainCount());
-    }
-
-    private Integer nullableInteger(ResultSet resultSet, String column) throws SQLException {
-        int value = resultSet.getInt(column);
-        return resultSet.wasNull() ? null : value;
+    private StoryLocation location(ResultSet resultSet) throws SQLException {
+        Double latitude = nullableDouble(resultSet, "latitude");
+        if (latitude == null) return null;
+        return new StoryLocation(resultSet.getString("location_name"), resultSet.getString("country_code"),
+                resultSet.getString("region_code"), latitude, resultSet.getDouble("longitude"),
+                resultSet.getString("source"), resultSet.getInt("confidence"),
+                resultSet.getInt("supporting_articles"), resultSet.getInt("supporting_domains"));
     }
 
     private Double nullableDouble(ResultSet resultSet, String column) throws SQLException {
         double value = resultSet.getDouble(column);
         return resultSet.wasNull() ? null : value;
-    }
-
-    private static final Comparator<LocationCandidate> LOCATION_ORDER =
-            Comparator.comparingInt(LocationCandidate::specificity).reversed()
-                    .thenComparing(LocationCandidate::countryCode,
-                            Comparator.nullsLast(Comparator.naturalOrder()))
-                    .thenComparing(LocationCandidate::regionCode,
-                            Comparator.nullsLast(Comparator.naturalOrder()))
-                    .thenComparing(LocationCandidate::name,
-                            Comparator.nullsLast(Comparator.naturalOrder()))
-                    .thenComparing(LocationCandidate::latitude)
-                    .thenComparing(LocationCandidate::longitude)
-                    .thenComparing(LocationCandidate::featureId,
-                            Comparator.nullsLast(Comparator.naturalOrder()));
-
-    private record LocationCandidate(
-            Integer type,
-            String name,
-            String countryCode,
-            String regionCode,
-            Double latitude,
-            Double longitude,
-            String featureId,
-            long articleId,
-            String domain,
-            Integer confidence
-    ) {
-        boolean valid() {
-            return latitude != null && longitude != null
-                    && confidence != null && confidence >= 0 && confidence <= 100
-                    && Double.isFinite(latitude) && Double.isFinite(longitude)
-                    && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
-        }
-
-        int specificity() {
-            if (type == null) return 0;
-            return switch (type) {
-                case 3, 4 -> 3;
-                case 2, 5 -> 2;
-                case 1 -> 1;
-                default -> 0;
-            };
-        }
-    }
-
-    private record Coordinates(double latitude, double longitude) {
-    }
-
-    private record RankedLocation(int confidence, int articleCount, int domainCount,
-                                  LocationCandidate candidate) {
     }
 
     private record StoryLocations(StoryLocation primary, List<StoryLocation> all) {

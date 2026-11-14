@@ -290,7 +290,8 @@ class StoryPromotionPostgresIT {
         var repository = new StorySnapshotRepository(jdbc);
         var manager = new DataSourceTransactionManager(dataSource);
         return new StoryPromotionService(jdbc, repository,
-                new StoryPublisher(jdbc, repository, manager, new SimpleMeterRegistry()), manager);
+                new StoryPublisher(jdbc, repository, manager, new SimpleMeterRegistry(),
+                        new StoryLocationMaterializer(jdbc)), manager);
     }
 
     private void seed(String version, boolean changed) {
@@ -349,7 +350,7 @@ class StoryPromotionPostgresIT {
                 Duration.ofMinutes(30),
                 new StorySnapshotMetrics(new SimpleMeterRegistry()),
                 new StoryPublisher(jdbc, repository, new DataSourceTransactionManager(dataSource),
-                        new SimpleMeterRegistry()));
+                        new SimpleMeterRegistry(), new StoryLocationMaterializer(jdbc)));
     }
 
     private void insertReadyInput(

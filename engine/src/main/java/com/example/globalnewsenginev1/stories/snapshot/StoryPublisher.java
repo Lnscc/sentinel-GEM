@@ -26,13 +26,16 @@ class StoryPublisher {
     private final StorySnapshotRepository repository;
     private final TransactionTemplate transaction;
     private final MeterRegistry metrics;
+    private final StoryLocationMaterializer locationMaterializer;
 
     StoryPublisher(JdbcTemplate jdbc, StorySnapshotRepository repository,
-                   PlatformTransactionManager manager, MeterRegistry metrics) {
+                   PlatformTransactionManager manager, MeterRegistry metrics,
+                   StoryLocationMaterializer locationMaterializer) {
         this.jdbc = jdbc;
         this.repository = repository;
         this.transaction = new TransactionTemplate(manager);
         this.metrics = metrics;
+        this.locationMaterializer = locationMaterializer;
     }
 
     Plan prepare(StorySnapshotRepository.Snapshot snapshot) {
@@ -222,6 +225,7 @@ class StoryPublisher {
                 throw conflict("Snapshot omits a current member; create a fresh snapshot");
             }
         }
+        locationMaterializer.refresh(snapshot.versionId());
         jdbc.update("""
                 INSERT INTO story_publish_commits (publish_key, clustering_version_id, snapshot_id,
                     run_id, fencing_token, published_at) VALUES (?, ?, ?, ?, ?, ?)

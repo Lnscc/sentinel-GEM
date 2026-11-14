@@ -55,6 +55,12 @@ class StoryQueryServiceTests {
                 CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT,
                     article_id BIGINT, current_marker SMALLINT, assignment_reason TEXT)
                 """);
+        jdbc.execute("""
+                CREATE TABLE story_locations (story_id UUID, rank INTEGER, name TEXT,
+                    country_code VARCHAR(16), region_code VARCHAR(32), latitude DOUBLE PRECISION,
+                    longitude DOUBLE PRECISION, source VARCHAR(64), confidence INTEGER,
+                    supporting_articles INTEGER, supporting_domains INTEGER)
+                """);
         service = new StoryQueryService(jdbc, "visible-version");
     }
 
@@ -155,6 +161,9 @@ class StoryQueryServiceTests {
         seedEvidence(4, 5, "Incident confirmed in Potsdam");
         seedEvidence(5, 3, "London incident");
         seedEvidence(6, 6, "Incident confirmed in London");
+        seedLocation(1, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, 100, 2, 2);
+        seedLocation(2, "Potsdam, Germany", "GM", "GM16", 52.39, 13.06, 100, 2, 2);
+        seedLocation(3, "London, United Kingdom", "UK", "UKI", 51.5, -0.12, 100, 2, 2);
 
         StoryPage page = service.stories(1, 1, "time", "asc",
                 new StorySearchCriteria(null, null, null, "GM", "GM16"));
@@ -202,6 +211,7 @@ class StoryQueryServiceTests {
                 """);
         seedEvent(1, 1, 4, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "-1746443");
         seedEvent(2, 2, 4, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "-1746443");
+        seedLocation(1, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, 100, 2, 2);
 
         StoryPage page = service.stories(0, 20, "time", "desc");
         StoryLocation listLocation = page.stories().stream()
@@ -234,6 +244,9 @@ class StoryQueryServiceTests {
         seedMention(1, 50);
         seedMention(2, 100);
         seedMention(3, 90);
+        seedLocation(1, "United Kingdom", "UK", null, 54, -4, 50, 1, 1);
+        seedLocation(2, "Kharkiv, Ukraine", "UP", "UP07", 49.9808, 36.2527, 100, 1, 1);
+        seedLocation(2, 2, "Moscow, Russia", "RS", "RS48", 55.7522, 37.6156, 90, 1, 1);
 
         StoryDetail outlookDetail = service.story(outlook).orElseThrow();
         assertThat(outlookDetail.location().name()).isEqualTo("United Kingdom");
@@ -308,6 +321,18 @@ class StoryQueryServiceTests {
     private void seedEvidence(long eventId, long articleId, String title) {
         seedGkg(eventId, articleId, title, "[]");
         seedMention(eventId, 100);
+    }
+
+    private void seedLocation(long storySeed, String name, String country, String region,
+                              double latitude, double longitude, int confidence, int articles, int domains) {
+        seedLocation(storySeed, 1, name, country, region, latitude, longitude, confidence, articles, domains);
+    }
+
+    private void seedLocation(long storySeed, int rank, String name, String country, String region,
+                              double latitude, double longitude, int confidence, int articles, int domains) {
+        jdbc.update("INSERT INTO story_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                new UUID(0, storySeed), rank, name, country, region, latitude, longitude,
+                "GDELT_EVENT_ACTION", confidence, articles, domains);
     }
 
     private void seedMention(long eventId, int confidence) {

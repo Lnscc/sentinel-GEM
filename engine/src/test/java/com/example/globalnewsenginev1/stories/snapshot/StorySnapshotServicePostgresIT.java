@@ -23,6 +23,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -599,6 +602,7 @@ class StorySnapshotServicePostgresIT {
     @Test
     void expiredAndSupersededFencingTokensCannotPublishAndExpiryRollsBackAllWrites() {
         insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
+        seedLocation("a", "Berlin", "GM", "GM16", 52.52, 13.405, 100);
         Work work = prepareWork();
         StoryPublisher publisher = publisher();
         StoryPublisher.Plan plan = publisher.prepare(work.snapshot());
@@ -615,6 +619,7 @@ class StorySnapshotServicePostgresIT {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_assignment_decisions", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_memberships", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_publish_commits", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_locations", Integer.class)).isZero();
         jdbc.update("UPDATE story_processing_runs SET fencing_token = fencing_token + 1 WHERE id = ?", work.run().id());
         assertThatThrownBy(() -> tx.executeWithoutResult(status ->
                 publisher.publish(plan, work.run(), clock.instant(), Duration.ofMinutes(30))))
@@ -646,6 +651,87 @@ class StorySnapshotServicePostgresIT {
         assertThat(service().reprocess(watermark, 1).succeededVersions()).isOne();
         assertThat(story("a")).isNotNull();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_processing_runs", Integer.class)).isOne();
+    }
+
+    @Test
+    void materializesLocationsOnPublishRetryAndRestartBackfill() throws Exception {
+        insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
+        seedLocation("a", "Berlin", "GM", "GM16", 52.52, 13.405, 100);
+
+        publish();
+        assertThat(jdbc.queryForObject("SELECT name FROM story_locations", String.class)).isEqualTo("Berlin");
+
+        assertThat(service().processBackfill(watermark, 1).reusedVersions()).isOne();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_locations", Integer.class)).isOne();
+
+        jdbc.update("DELETE FROM story_locations");
+        new StoryLocationBackfill(jdbc, new StorySnapshotRepository(jdbc),
+                new StoryLocationMaterializer(jdbc),
+                new DataSourceTransactionManager(dataSource)).run(null);
+
+        assertThat(jdbc.queryForObject("SELECT name FROM story_locations", String.class)).isEqualTo("Berlin");
+    }
+
+    @Test
+    void startupBackfillCannotOverwriteLocationsFromAParallelPublish() throws Exception {
+        insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
+        seedLocation("a", "Berlin", "GM", "GM16", 52.52, 13.405, 100);
+        publish();
+        UUID storyId = story("a");
+        long versionId = versionId(VERSION_24);
+
+        replace("a", vector(1, 0), "changed");
+        jdbc.update("""
+                UPDATE gdelt_events SET action_geo_name = 'Hamburg', action_geo_adm1_code = 'GM04',
+                    action_geo_latitude = 53.55, action_geo_longitude = 10.0
+                WHERE article_id = (SELECT id FROM articles WHERE url_hash = ?)
+                """, ref("a"));
+        advance(Duration.ofMinutes(1));
+
+        CountDownLatch backfillHasLock = new CountDownLatch(1);
+        CountDownLatch continueBackfill = new CountDownLatch(1);
+        StoryLocationMaterializer staleBackfill = new StoryLocationMaterializer(jdbc) {
+            @Override
+            void refresh(long refreshedVersionId) {
+                if (refreshedVersionId != versionId) {
+                    super.refresh(refreshedVersionId);
+                    return;
+                }
+                backfillHasLock.countDown();
+                try {
+                    continueBackfill.await();
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(exception);
+                }
+                jdbc.update("DELETE FROM story_locations WHERE story_id = ?", storyId);
+                jdbc.update("""
+                        INSERT INTO story_locations VALUES
+                          (?, 1, 'Berlin', 'GM', 'GM16', 52.52, 13.405,
+                           'GDELT_EVENT_ACTION', 100, 1, 1)
+                        """, storyId);
+            }
+        };
+        StoryLocationBackfill backfill = new StoryLocationBackfill(jdbc,
+                new StorySnapshotRepository(jdbc), staleBackfill,
+                new DataSourceTransactionManager(dataSource));
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var backfillFuture = executor.submit(() -> backfill.run(null));
+            assertThat(backfillHasLock.await(5, TimeUnit.SECONDS)).isTrue();
+            var publishFuture = executor.submit(() -> service().processBackfill(watermark, 1));
+
+            assertThatThrownBy(() -> publishFuture.get(200, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
+            continueBackfill.countDown();
+            backfillFuture.get(5, TimeUnit.SECONDS);
+            assertThat(publishFuture.get(10, TimeUnit.SECONDS).succeededVersions()).isOne();
+        } finally {
+            continueBackfill.countDown();
+            executor.shutdownNow();
+        }
+
+        assertThat(jdbc.queryForObject("SELECT name FROM story_locations", String.class)).isEqualTo("Hamburg");
     }
 
     @Test
@@ -701,7 +787,8 @@ class StorySnapshotServicePostgresIT {
 
     private StoryPublisher publisher() {
         return new StoryPublisher(jdbc, new StorySnapshotRepository(jdbc),
-                new DataSourceTransactionManager(dataSource), new SimpleMeterRegistry());
+                new DataSourceTransactionManager(dataSource), new SimpleMeterRegistry(),
+                new StoryLocationMaterializer(jdbc));
     }
 
     private Work prepareWork() {
@@ -736,7 +823,7 @@ class StorySnapshotServicePostgresIT {
                 Duration.ofMinutes(30),
                 new StorySnapshotMetrics(new SimpleMeterRegistry()),
                 new StoryPublisher(jdbc, repository, new DataSourceTransactionManager(dataSource),
-                        new SimpleMeterRegistry()));
+                        new SimpleMeterRegistry(), new StoryLocationMaterializer(jdbc)));
     }
 
     private StorySnapshotService serviceWithHnsw() {
@@ -825,6 +912,41 @@ class StorySnapshotServicePostgresIT {
                 OffsetDateTime.ofInstant(inputEffectiveAt, ZoneOffset.UTC),
                 "Title " + suffix, titleHash, fingerprint, artifactId,
                 OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
+    }
+
+    private void seedLocation(String suffix, String name, String country, String region,
+                              double latitude, double longitude, int confidence) {
+        long articleId = jdbc.queryForObject("SELECT id FROM articles WHERE url_hash = ?", Long.class, ref(suffix));
+        long eventId = articleId + 10_000;
+        String source = "https://source/" + eventId;
+        OffsetDateTime timestamp = OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+        jdbc.update("""
+                INSERT INTO gdelt_import_files (dataset_type, source_file, source_url, source_timestamp,
+                    status, started_at, completed_at)
+                VALUES ('EVENTS', ?, ?, ?, 'COMPLETED', ?, ?),
+                       ('MENTIONS', ?, ?, ?, 'COMPLETED', ?, ?)
+                """, "event-" + eventId, source, timestamp, timestamp, timestamp,
+                "mention-" + eventId, source, timestamp, timestamp, timestamp);
+        long eventImport = jdbc.queryForObject(
+                "SELECT id FROM gdelt_import_files WHERE dataset_type = 'EVENTS' AND source_file = ?",
+                Long.class, "event-" + eventId);
+        long mentionImport = jdbc.queryForObject(
+                "SELECT id FROM gdelt_import_files WHERE dataset_type = 'MENTIONS' AND source_file = ?",
+                Long.class, "mention-" + eventId);
+        jdbc.update("""
+                INSERT INTO gdelt_events (id, import_file_id, source_file, source_timestamp, row_number,
+                    ingested_at, parsed_at, global_event_id, source_url, article_id, action_geo_type,
+                    action_geo_name, action_geo_country_code, action_geo_adm1_code,
+                    action_geo_latitude, action_geo_longitude, action_geo_feature_id)
+                VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, 4, ?, ?, ?, ?, ?, ?)
+                """, eventId, eventImport, "event-" + eventId, timestamp, timestamp, timestamp,
+                eventId, source, articleId, name, country, region, latitude, longitude, Long.toString(eventId));
+        jdbc.update("""
+                INSERT INTO gdelt_mentions (id, import_file_id, source_file, source_timestamp, row_number,
+                    ingested_at, parsed_at, global_event_id, mention_identifier, confidence)
+                VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
+                """, eventId, mentionImport, "mention-" + eventId, timestamp, timestamp, timestamp,
+                eventId, source, confidence);
     }
 
     private void insertExcludedInput(String versionKey, String suffix) {
