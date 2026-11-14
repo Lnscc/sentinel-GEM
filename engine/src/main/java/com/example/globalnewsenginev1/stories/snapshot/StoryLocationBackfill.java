@@ -26,7 +26,13 @@ class StoryLocationBackfill implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         transaction.executeWithoutResult(status -> jdbc.queryForList(
-                        "SELECT DISTINCT clustering_version_id FROM stories ORDER BY clustering_version_id",
+                        """
+                        SELECT DISTINCT story.clustering_version_id
+                        FROM stories story
+                        JOIN story_clustering_versions version ON version.id = story.clustering_version_id
+                        WHERE version.status IN ('SHADOW', 'ACTIVE')
+                        ORDER BY story.clustering_version_id
+                        """,
                         Long.class)
                 .forEach(versionId -> {
                     repository.lockVersion(versionId);

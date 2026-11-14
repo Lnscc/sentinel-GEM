@@ -673,6 +673,21 @@ class StorySnapshotServicePostgresIT {
     }
 
     @Test
+    void startupBackfillIgnoresRetiredVersions() {
+        insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
+        seedLocation("a", "Berlin", "GM", "GM16", 52.52, 13.405, 100);
+        publish();
+        jdbc.update("UPDATE story_clustering_versions SET status = 'RETIRED' WHERE version_key = ?", VERSION_24);
+        jdbc.update("DELETE FROM story_locations");
+
+        new StoryLocationBackfill(jdbc, new StorySnapshotRepository(jdbc),
+                new StoryLocationMaterializer(jdbc),
+                new DataSourceTransactionManager(dataSource)).run(null);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_locations", Integer.class)).isZero();
+    }
+
+    @Test
     void startupBackfillCannotOverwriteLocationsFromAParallelPublish() throws Exception {
         insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
         seedLocation("a", "Berlin", "GM", "GM16", 52.52, 13.405, 100);
