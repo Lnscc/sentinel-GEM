@@ -3,6 +3,7 @@ export type Story = {
   effectiveFrom: string;
   effectiveTo: string;
   location: StoryLocation | null;
+  locations: StoryLocation[];
   representativeArticle: { domain: string; title: string; mainImageUrl: string | null };
   memberCount: number;
 };
@@ -14,8 +15,7 @@ export type StoryLocation = {
   latitude: number;
   longitude: number;
   source: string;
-  confidence: "HIGH";
-  evidence: "MULTI_ARTICLE_TITLE_CONFIRMED";
+  confidence: number;
   supportingArticles: number;
   supportingDomains: number;
 };
@@ -36,6 +36,7 @@ export type StoryDetail = {
   effectiveFrom: string;
   effectiveTo: string;
   location: StoryLocation | null;
+  locations: StoryLocation[];
   representativeArticle: Article;
   members: { article: Article; assignmentReason: string }[];
 };

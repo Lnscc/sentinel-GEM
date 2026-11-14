@@ -60,11 +60,11 @@ class StoryControllerTests {
                 "Headline", from, "https://example.org/image.jpg");
         StoryLocation location = new StoryLocation(
                 "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "GDELT_EVENT_ACTION",
-                "HIGH", "MULTI_ARTICLE_TITLE_CONFIRMED", 2, 2);
+                100, 2, 2);
         queryService.page = new StoryPage(
-                List.of(new StorySummary(id, "ACTIVE", from, to, location, article, 1)), 0, 1, 1);
+                List.of(new StorySummary(id, "ACTIVE", from, to, location, List.of(location), article, 1)), 0, 1, 1);
         queryService.details.put(id, new StoryDetail(
-                id, "ACTIVE", from, to, location, article,
+                id, "ACTIVE", from, to, location, List.of(location), article,
                 List.of(new StoryMember(article, "NEW_COMPONENT"))));
 
         mockMvc.perform(get("/stories")
@@ -81,10 +81,10 @@ class StoryControllerTests {
                 .andExpect(jsonPath("$.stories[0].state").value("ACTIVE"))
                 .andExpect(jsonPath("$.stories[0].location.name").value("Berlin, Germany"))
                 .andExpect(jsonPath("$.stories[0].location.source").value("GDELT_EVENT_ACTION"))
-                .andExpect(jsonPath("$.stories[0].location.confidence").value("HIGH"))
-                .andExpect(jsonPath("$.stories[0].location.evidence").value("MULTI_ARTICLE_TITLE_CONFIRMED"))
+                .andExpect(jsonPath("$.stories[0].location.confidence").value(100))
                 .andExpect(jsonPath("$.stories[0].location.supportingArticles").value(2))
                 .andExpect(jsonPath("$.stories[0].location.supportingDomains").value(2))
+                .andExpect(jsonPath("$.stories[0].locations[0].name").value("Berlin, Germany"))
                 .andExpect(jsonPath("$.stories[0].representativeArticle.title").value("Headline"))
                 .andExpect(jsonPath("$.stories[0].memberCount").value(1));
         assertThat(queryService.criteria).isEqualTo(new StorySearchCriteria(
@@ -94,6 +94,7 @@ class StoryControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
                 .andExpect(jsonPath("$.location.latitude").value(52.52))
+                .andExpect(jsonPath("$.locations[0].confidence").value(100))
                 .andExpect(jsonPath("$.members[0].article.id").value(7))
                 .andExpect(jsonPath("$.members[0].assignmentReason").value("NEW_COMPONENT"));
     }

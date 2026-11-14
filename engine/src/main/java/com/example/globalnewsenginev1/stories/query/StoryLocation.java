@@ -7,8 +7,7 @@ public record StoryLocation(
         double latitude,
         double longitude,
         String source,
-        String confidence,
-        String evidence,
+        int confidence,
         int supportingArticles,
         int supportingDomains
 ) {

@@ -1,6 +1,7 @@
 package com.example.globalnewsenginev1.stories.query;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record StorySummary(
@@ -9,7 +10,11 @@ public record StorySummary(
         Instant effectiveFrom,
         Instant effectiveTo,
         StoryLocation location,
+        List<StoryLocation> locations,
         StoryArticle representativeArticle,
         long memberCount
 ) {
+    public StorySummary {
+        locations = List.copyOf(locations);
+    }
 }

@@ -10,10 +10,12 @@ public record StoryDetail(
         Instant effectiveFrom,
         Instant effectiveTo,
         StoryLocation location,
+        List<StoryLocation> locations,
         StoryArticle representativeArticle,
         List<StoryMember> members
 ) {
     public StoryDetail {
+        locations = List.copyOf(locations);
         members = List.copyOf(members);
     }
 }

@@ -210,14 +210,15 @@ class StoryQueryServiceTests {
 
         assertThat(listLocation).isEqualTo(new StoryLocation(
                 "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "GDELT_EVENT_ACTION",
-                "HIGH", "MULTI_ARTICLE_TITLE_CONFIRMED", 2, 2));
+                100, 2, 2));
         assertThat(detailLocation).isEqualTo(listLocation);
+        assertThat(service.story(located).orElseThrow().locations()).containsExactly(listLocation);
         assertThat(page.stories().stream()
                 .filter(story -> story.id().equals(unlocated)).findFirst().orElseThrow().location()).isNull();
     }
 
     @Test
-    void rejectsOutlookAndUkraineLocationsWithoutIndependentEvidence() {
+    void keepsAllEventLocationsAndUsesTheHighestConfidenceAsPrimary() {
         seedVersion(1, "visible-version", "ACTIVE");
         seedArticle(1, "outlook", "bbc.co.uk", "2026-09-01T10:00:00Z");
         seedArticle(2, "ukraine", "adn.com", "2026-09-01T11:00:00Z");
@@ -229,13 +230,22 @@ class StoryQueryServiceTests {
         seedGkg(2, 2, "Ukraine launches drones at Russia", "[]");
         seedEvent(1, 1, 1, "United Kingdom", "UK", null, 54, -4, "UK");
         seedEvent(2, 2, 4, "Kharkiv, Ukraine", "UP", "UP07", 49.9808, 36.2527, "-1041944");
-        seedEvent(3, 2, 4, "Kharkiv, Ukraine", "UP", "UP07", 49.9808, 36.2527, "-1041944");
+        seedEvent(3, 2, 4, "Moscow, Russia", "RS", "RS48", 55.7522, 37.6156, "-2960561");
         seedMention(1, 50);
         seedMention(2, 100);
-        seedMention(3, 100);
+        seedMention(3, 90);
 
-        assertThat(service.story(outlook).orElseThrow().location()).isNull();
-        assertThat(service.story(ukraine).orElseThrow().location()).isNull();
+        StoryDetail outlookDetail = service.story(outlook).orElseThrow();
+        assertThat(outlookDetail.location().name()).isEqualTo("United Kingdom");
+        assertThat(outlookDetail.locations()).singleElement().satisfies(location -> {
+            assertThat(location.name()).isEqualTo("United Kingdom");
+            assertThat(location.confidence()).isEqualTo(50);
+        });
+
+        StoryDetail ukraineDetail = service.story(ukraine).orElseThrow();
+        assertThat(ukraineDetail.location().name()).isEqualTo("Kharkiv, Ukraine");
+        assertThat(ukraineDetail.locations()).extracting(StoryLocation::name)
+                .containsExactly("Kharkiv, Ukraine", "Moscow, Russia");
     }
 
     @Test

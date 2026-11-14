@@ -281,11 +281,10 @@ Mitgliedschaften mit Zuordnungsgrund. Unbekannte oder abgeloeste IDs liefern `40
 weiterverwendeten oeffentlichen ID wird der Stand der konfigurierten Version geliefert.
 Andere Versionen sind nicht produktsichtbar.
 
-Beide Endpunkte liefern zusaetzlich den nullable Wert `location` mit `name`, `countryCode`,
-`regionCode`, `latitude`, `longitude`, `source`, `confidence`, `evidence`, `supportingArticles` und
-`supportingDomains`. Ein Ort wird nur aus GDELT-ActionGeo-Daten mit Mention-Confidence ab 80
-veroeffentlicht, wenn mindestens zwei Artikel aus zwei Domains denselben Ort nennen und der
-Ortsname in ihren Titeln vorkommt. Mehrere Eventzeilen desselben Artikels zaehlen einmal; ein
-Gleichstand oder lediglich erwaehnte GKG-Orte ergeben `location: null`. Veroeffentlichte Orte haben
-`source: GDELT_EVENT_ACTION`, `confidence: HIGH` und
-`evidence: MULTI_ARTICLE_TITLE_CONFIRMED`.
+Beide Endpunkte liefern alle deduplizierten GDELT-ActionGeo-Orte als `locations`. Jeder Ort enthaelt
+`name`, `countryCode`, `regionCode`, `latitude`, `longitude`, `source`, die hoechste
+Mention-`confidence` sowie `supportingArticles` und `supportingDomains`. `location` bleibt der
+abwaertskompatible primaere Kartenort und entspricht dem Kandidaten mit der hoechsten Confidence.
+Eine Mindest-Confidence wird vorerst nicht angewendet. Gleichstaende werden stabil nach
+Unterstuetzung und geografischen Feldern aufgeloest; lediglich erwaehnte GKG-Orte werden nicht
+aufgenommen.
