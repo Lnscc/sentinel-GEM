@@ -1,10 +1,5 @@
 package com.example.globalnewsenginev1.stories.query;
 
-import com.example.globalnewsenginev1.articles.normalization.GkgLocation;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,6 +22,8 @@ import java.util.stream.Collectors;
 public class StoryQueryService {
 
     public static final int MAX_PAGE_SIZE = 100;
+    private static final int MIN_EVENT_CONFIDENCE = 80;
+    private static final int MIN_SUPPORTING_ARTICLES = 2;
 
     private static final String ARTICLE_COLUMNS = """
             article.id AS article_id,
@@ -78,7 +76,6 @@ public class StoryQueryService {
 
     private final JdbcTemplate jdbcTemplate;
     private final String visibleVersion;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public StoryQueryService(JdbcTemplate jdbcTemplate,
                              @Value("${stories.visible-version}") String visibleVersion) {
@@ -215,7 +212,11 @@ public class StoryQueryService {
         String placeholders = String.join(", ", java.util.Collections.nCopies(storyIds.size(), "?"));
         String sql = """
                 WITH visible_members AS (
-                    SELECT story.public_id, member.article_id
+                    SELECT story.public_id, member.article_id, article.domain,
+                           (SELECT gkg.page_title FROM gdelt_gkg gkg
+                            WHERE gkg.article_id = article.id
+                              AND gkg.page_title IS NOT NULL AND TRIM(gkg.page_title) <> ''
+                            ORDER BY gkg.source_timestamp, gkg.id LIMIT 1) AS title
                     FROM stories story
                     JOIN story_clustering_versions version
                       ON version.id = story.clustering_version_id AND version.version_key = ?
@@ -223,21 +224,20 @@ public class StoryQueryService {
                       ON member.story_id = story.id
                      AND member.clustering_version_id = story.clustering_version_id
                      AND member.current_marker = 1
+                    JOIN articles article ON article.id = member.article_id
                     WHERE story.state <> 'SUPERSEDED' AND story.public_id IN (%s)
                 )
-                SELECT member.public_id, 'GDELT_EVENT_ACTION' AS location_source,
+                SELECT member.public_id, member.article_id, member.domain, member.title,
                        event.action_geo_type AS location_type, event.action_geo_name AS location_name,
                        event.action_geo_country_code AS country_code,
                        event.action_geo_adm1_code AS region_code,
                        event.action_geo_latitude AS latitude, event.action_geo_longitude AS longitude,
-                       event.action_geo_feature_id AS feature_id, CAST(NULL AS VARCHAR) AS locations_json
+                       event.action_geo_feature_id AS feature_id,
+                       (SELECT MAX(mention.confidence) FROM gdelt_mentions mention
+                        WHERE mention.global_event_id = event.global_event_id
+                          AND mention.mention_identifier = event.source_url) AS event_confidence
                 FROM visible_members member
                 JOIN gdelt_events event ON event.article_id = member.article_id
-                UNION ALL
-                SELECT member.public_id, 'GDELT_GKG_MENTION', NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                       CAST(gkg.locations AS VARCHAR)
-                FROM visible_members member
-                JOIN gdelt_gkg gkg ON gkg.article_id = member.article_id
                 """.formatted(placeholders);
         List<Object> parameters = new ArrayList<>();
         parameters.add(visibleVersion);
@@ -247,20 +247,13 @@ public class StoryQueryService {
             UUID storyId = resultSet.getObject("public_id", UUID.class);
             List<LocationCandidate> storyCandidates = candidates.computeIfAbsent(storyId,
                     ignored -> new ArrayList<>());
-            if ("GDELT_EVENT_ACTION".equals(resultSet.getString("location_source"))) {
-                storyCandidates.add(new LocationCandidate(
-                        nullableInteger(resultSet, "location_type"), resultSet.getString("location_name"),
-                        resultSet.getString("country_code"), resultSet.getString("region_code"),
-                        nullableDouble(resultSet, "latitude"), nullableDouble(resultSet, "longitude"),
-                        resultSet.getString("feature_id"), "GDELT_EVENT_ACTION"));
-            } else {
-                for (GkgLocation location : gkgLocations(resultSet.getString("locations_json"))) {
-                    storyCandidates.add(new LocationCandidate(
-                            location.type(), location.name(), location.countryCode(), location.adm1Code(),
-                            location.latitude(), location.longitude(), location.featureId(),
-                            "GDELT_GKG_MENTION"));
-                }
-            }
+            storyCandidates.add(new LocationCandidate(
+                    nullableInteger(resultSet, "location_type"), resultSet.getString("location_name"),
+                    resultSet.getString("country_code"), resultSet.getString("region_code"),
+                    nullableDouble(resultSet, "latitude"), nullableDouble(resultSet, "longitude"),
+                    resultSet.getString("feature_id"), resultSet.getLong("article_id"),
+                    resultSet.getString("domain"), resultSet.getString("title"),
+                    nullableInteger(resultSet, "event_confidence")));
         }, parameters.toArray());
         Map<UUID, StoryLocation> selected = new HashMap<>();
         candidates.forEach((storyId, storyCandidates) -> {
@@ -271,32 +264,32 @@ public class StoryQueryService {
     }
 
     private StoryLocation selectLocation(List<LocationCandidate> candidates) {
-        List<LocationCandidate> valid = candidates.stream().filter(LocationCandidate::valid).toList();
-        if (valid.isEmpty()) return null;
-        String source = valid.stream().anyMatch(candidate -> candidate.source().equals("GDELT_EVENT_ACTION"))
-                ? "GDELT_EVENT_ACTION" : "GDELT_GKG_MENTION";
-        return valid.stream()
-                .filter(candidate -> candidate.source().equals(source))
+        List<RankedLocation> ranked = candidates.stream()
+                .filter(LocationCandidate::supported)
                 .collect(Collectors.groupingBy(candidate -> new Coordinates(candidate.latitude(), candidate.longitude())))
                 .values().stream()
-                .map(group -> new RankedLocation(group.size(), group.stream().min(LOCATION_ORDER).orElseThrow()))
-                .min(Comparator.comparingInt(RankedLocation::count).reversed()
+                .map(this::rank)
+                .filter(location -> location.articleCount() >= MIN_SUPPORTING_ARTICLES
+                        && location.domainCount() >= MIN_SUPPORTING_ARTICLES)
+                .sorted(Comparator.comparingInt(RankedLocation::articleCount).reversed()
                         .thenComparing(RankedLocation::candidate, LOCATION_ORDER))
-                .map(RankedLocation::candidate)
-                .map(candidate -> new StoryLocation(candidate.name(), candidate.countryCode(),
-                        candidate.regionCode(), candidate.latitude(), candidate.longitude(), candidate.source()))
-                .orElse(null);
+                .toList();
+        if (ranked.isEmpty() || ranked.size() > 1
+                && ranked.get(0).articleCount() == ranked.get(1).articleCount()) return null;
+        RankedLocation selected = ranked.getFirst();
+        LocationCandidate candidate = selected.candidate();
+        return new StoryLocation(candidate.name(), candidate.countryCode(), candidate.regionCode(),
+                candidate.latitude(), candidate.longitude(), "GDELT_EVENT_ACTION", "HIGH",
+                "MULTI_ARTICLE_TITLE_CONFIRMED", selected.articleCount(), selected.domainCount());
     }
 
-    private List<GkgLocation> gkgLocations(String json) {
-        if (json == null || json.isBlank()) return List.of();
-        try {
-            JsonNode node = objectMapper.readTree(json);
-            if (node.isTextual()) node = objectMapper.readTree(node.textValue());
-            return objectMapper.convertValue(node, new TypeReference<>() { });
-        } catch (JsonProcessingException | IllegalArgumentException exception) {
-            throw new IllegalStateException("Stored GKG locations are not valid JSON", exception);
-        }
+    private RankedLocation rank(List<LocationCandidate> candidates) {
+        Map<Long, LocationCandidate> byArticle = candidates.stream().collect(Collectors.toMap(
+                LocationCandidate::articleId, candidate -> candidate,
+                (left, right) -> LOCATION_ORDER.compare(left, right) <= 0 ? left : right));
+        Set<String> domains = byArticle.values().stream().map(LocationCandidate::domain).collect(Collectors.toSet());
+        return new RankedLocation(byArticle.size(), domains.size(),
+                byArticle.values().stream().min(LOCATION_ORDER).orElseThrow());
     }
 
     private Integer nullableInteger(ResultSet resultSet, String column) throws SQLException {
@@ -330,12 +323,23 @@ public class StoryQueryService {
             Double latitude,
             Double longitude,
             String featureId,
-            String source
+            long articleId,
+            String domain,
+            String title,
+            Integer confidence
     ) {
         boolean valid() {
             return latitude != null && longitude != null
                     && Double.isFinite(latitude) && Double.isFinite(longitude)
                     && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+        }
+
+        boolean supported() {
+            if (!valid() || confidence == null || confidence < MIN_EVENT_CONFIDENCE
+                    || name == null || title == null || domain == null) return false;
+            String primaryName = name.split(",", 2)[0].trim();
+            return !primaryName.isEmpty() && title.toLowerCase(java.util.Locale.ROOT)
+                    .contains(primaryName.toLowerCase(java.util.Locale.ROOT));
         }
 
         int specificity() {
@@ -352,7 +356,7 @@ public class StoryQueryService {
     private record Coordinates(double latitude, double longitude) {
     }
 
-    private record RankedLocation(int count, LocationCandidate candidate) {
+    private record RankedLocation(int articleCount, int domainCount, LocationCandidate candidate) {
     }
 
     private StoryArticle article(ResultSet resultSet) throws SQLException {

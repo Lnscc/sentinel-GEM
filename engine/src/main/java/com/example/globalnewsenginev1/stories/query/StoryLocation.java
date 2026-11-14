@@ -6,6 +6,10 @@ public record StoryLocation(
         String regionCode,
         double latitude,
         double longitude,
-        String source
+        String source,
+        String confidence,
+        String evidence,
+        int supportingArticles,
+        int supportingDomains
 ) {
 }

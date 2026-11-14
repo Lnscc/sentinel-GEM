@@ -14,6 +14,10 @@ export type StoryLocation = {
   latitude: number;
   longitude: number;
   source: string;
+  confidence: "HIGH";
+  evidence: "MULTI_ARTICLE_TITLE_CONFIRMED";
+  supportingArticles: number;
+  supportingDomains: number;
 };
 
 export type Article = {

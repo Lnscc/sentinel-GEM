@@ -282,8 +282,10 @@ weiterverwendeten oeffentlichen ID wird der Stand der konfigurierten Version gel
 Andere Versionen sind nicht produktsichtbar.
 
 Beide Endpunkte liefern zusaetzlich den nullable Wert `location` mit `name`, `countryCode`,
-`regionCode`, `latitude`, `longitude` und `source`. Beruecksichtigt werden nur endliche Koordinaten
-innerhalb der gueltigen geografischen Grenzen. Die Auswahl verwendet zuerst ActionGeo-Orte aus
-EVENTS und nur ersatzweise erwaehnte GKG-Orte. Innerhalb dieser Quelle gewinnt die am haeufigsten
-belegte Koordinate; Gleichstaende werden stabil nach geografischer Spezifitaet und Ortsfeldern
-aufgeloest. `source` ist entsprechend `GDELT_EVENT_ACTION` oder `GDELT_GKG_MENTION`.
+`regionCode`, `latitude`, `longitude`, `source`, `confidence`, `evidence`, `supportingArticles` und
+`supportingDomains`. Ein Ort wird nur aus GDELT-ActionGeo-Daten mit Mention-Confidence ab 80
+veroeffentlicht, wenn mindestens zwei Artikel aus zwei Domains denselben Ort nennen und der
+Ortsname in ihren Titeln vorkommt. Mehrere Eventzeilen desselben Artikels zaehlen einmal; ein
+Gleichstand oder lediglich erwaehnte GKG-Orte ergeben `location: null`. Veroeffentlichte Orte haben
+`source: GDELT_EVENT_ACTION`, `confidence: HIGH` und
+`evidence: MULTI_ARTICLE_TITLE_CONFIRMED`.

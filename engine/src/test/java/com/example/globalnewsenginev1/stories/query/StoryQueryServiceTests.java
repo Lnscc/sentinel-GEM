@@ -37,9 +37,14 @@ class StoryQueryServiceTests {
                 """);
         jdbc.execute("""
                 CREATE TABLE gdelt_events (id BIGINT PRIMARY KEY, article_id BIGINT,
+                    global_event_id BIGINT, source_url TEXT,
                     action_geo_type INTEGER, action_geo_name TEXT, action_geo_country_code VARCHAR(16),
                     action_geo_adm1_code VARCHAR(32), action_geo_latitude DOUBLE PRECISION,
                     action_geo_longitude DOUBLE PRECISION, action_geo_feature_id VARCHAR(255))
+                """);
+        jdbc.execute("""
+                CREATE TABLE gdelt_mentions (id BIGINT PRIMARY KEY, global_event_id BIGINT,
+                    mention_identifier TEXT, confidence INTEGER)
                 """);
         jdbc.execute("""
                 CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT,
@@ -123,18 +128,33 @@ class StoryQueryServiceTests {
     @Test
     void filtersByPrimaryLocationBeforePagination() {
         seedVersion(1, "visible-version", "ACTIVE");
-        seedArticle(1, "a", "2026-09-01T10:00:00Z");
-        seedArticle(2, "b", "2026-09-02T10:00:00Z");
-        seedArticle(3, "c", "2026-09-03T10:00:00Z");
+        seedArticle(1, "a", "berlin-one.org", "2026-09-01T10:00:00Z");
+        seedArticle(2, "b", "potsdam-one.org", "2026-09-02T10:00:00Z");
+        seedArticle(3, "c", "london-one.org", "2026-09-03T10:00:00Z");
+        seedArticle(4, "d", "berlin-two.org", "2026-09-01T11:00:00Z");
+        seedArticle(5, "e", "potsdam-two.org", "2026-09-02T11:00:00Z");
+        seedArticle(6, "f", "london-two.org", "2026-09-03T11:00:00Z");
         seedStory(1, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z");
         UUID secondGermanStory = seedStory(2, 1, "b", "ACTIVE", "2026-09-02T10:00:00Z");
         seedStory(3, 1, "c", "ACTIVE", "2026-09-03T10:00:00Z");
         seedMember(1, 1, 1, 1, "NEW_COMPONENT");
+        seedMember(1, 1, 4, 1, "MATCHED_COMPONENT");
         seedMember(2, 1, 2, 1, "NEW_COMPONENT");
+        seedMember(2, 1, 5, 1, "MATCHED_COMPONENT");
         seedMember(3, 1, 3, 1, "NEW_COMPONENT");
+        seedMember(3, 1, 6, 1, "MATCHED_COMPONENT");
         seedEvent(1, 1, 4, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "-1746443");
-        seedEvent(2, 2, 4, "Potsdam, Germany", "GM", "GM16", 52.39, 13.06, "-1743137");
-        seedEvent(3, 3, 4, "London, United Kingdom", "UK", "UKI", 51.5, -0.12, "2643743");
+        seedEvent(2, 4, 4, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "-1746443");
+        seedEvent(3, 2, 4, "Potsdam, Germany", "GM", "GM16", 52.39, 13.06, "-1743137");
+        seedEvent(4, 5, 4, "Potsdam, Germany", "GM", "GM16", 52.39, 13.06, "-1743137");
+        seedEvent(5, 3, 4, "London, United Kingdom", "UK", "UKI", 51.5, -0.12, "2643743");
+        seedEvent(6, 6, 4, "London, United Kingdom", "UK", "UKI", 51.5, -0.12, "2643743");
+        seedEvidence(1, 1, "Berlin incident");
+        seedEvidence(2, 4, "Incident confirmed in Berlin");
+        seedEvidence(3, 2, "Potsdam incident");
+        seedEvidence(4, 5, "Incident confirmed in Potsdam");
+        seedEvidence(5, 3, "London incident");
+        seedEvidence(6, 6, "Incident confirmed in London");
 
         StoryPage page = service.stories(1, 1, "time", "asc",
                 new StorySearchCriteria(null, null, null, "GM", "GM16"));
@@ -166,23 +186,21 @@ class StoryQueryServiceTests {
     @Test
     void selectsTheSameDeterministicPrimaryLocationForListAndDetail() {
         seedVersion(1, "visible-version", "ACTIVE");
-        seedArticle(1, "a", "2026-09-01T10:00:00Z");
-        seedArticle(2, "b", "2026-09-01T11:00:00Z");
+        seedArticle(1, "a", "first.org", "2026-09-01T10:00:00Z");
+        seedArticle(2, "b", "second.org", "2026-09-01T11:00:00Z");
         seedArticle(3, "c", "2026-09-01T12:00:00Z");
         UUID located = seedStory(1, 1, "a", "ACTIVE", "2026-09-01T11:00:00Z");
         UUID unlocated = seedStory(2, 1, "c", "ACTIVE", "2026-09-01T12:00:00Z");
         seedMember(1, 1, 1, 1, "MATCHED_COMPONENT");
         seedMember(1, 1, 2, 1, "MATCHED_COMPONENT");
         seedMember(2, 1, 3, 1, "NEW_COMPONENT");
-        seedGkg(1, 1, """
-                [{"type":4,"name":"London","countryCode":"UK","adm1Code":"UKH9",
-                  "latitude":51.5,"longitude":-0.12,"featureId":"2643743"}]
+        seedEvidence(1, 1, "Fire in Berlin");
+        seedEvidence(2, 2, "Berlin fire confirmed");
+        seedGkg(3, 3, "Outlook outage", """
+                [{"type":1,"name":"Canada","countryCode":"CA","adm1Code":"CA",
+                  "latitude":60.0,"longitude":-96.0,"featureId":"CA"}]
                 """);
-        seedGkg(2, 2, """
-                [{"type":4,"name":"Invalid","countryCode":"UK","adm1Code":"UKH9",
-                  "latitude":95.0,"longitude":-0.12,"featureId":"invalid"}]
-                """);
-        seedEvent(1, 1, 1, "Germany", "GM", null, 51.0, 10.0, null);
+        seedEvent(1, 1, 4, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "-1746443");
         seedEvent(2, 2, 4, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "-1746443");
 
         StoryPage page = service.stories(0, 20, "time", "desc");
@@ -191,10 +209,33 @@ class StoryQueryServiceTests {
         StoryLocation detailLocation = service.story(located).orElseThrow().location();
 
         assertThat(listLocation).isEqualTo(new StoryLocation(
-                "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "GDELT_EVENT_ACTION"));
+                "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "GDELT_EVENT_ACTION",
+                "HIGH", "MULTI_ARTICLE_TITLE_CONFIRMED", 2, 2));
         assertThat(detailLocation).isEqualTo(listLocation);
         assertThat(page.stories().stream()
                 .filter(story -> story.id().equals(unlocated)).findFirst().orElseThrow().location()).isNull();
+    }
+
+    @Test
+    void rejectsOutlookAndUkraineLocationsWithoutIndependentEvidence() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "outlook", "bbc.co.uk", "2026-09-01T10:00:00Z");
+        seedArticle(2, "ukraine", "adn.com", "2026-09-01T11:00:00Z");
+        UUID outlook = seedStory(1, 1, "outlook", "ACTIVE", "2026-09-01T10:00:00Z");
+        UUID ukraine = seedStory(2, 1, "ukraine", "ACTIVE", "2026-09-01T11:00:00Z");
+        seedMember(1, 1, 1, 1, "NEW_COMPONENT");
+        seedMember(2, 1, 2, 1, "NEW_COMPONENT");
+        seedGkg(1, 1, "Microsoft Outlook outage", "[]");
+        seedGkg(2, 2, "Ukraine launches drones at Russia", "[]");
+        seedEvent(1, 1, 1, "United Kingdom", "UK", null, 54, -4, "UK");
+        seedEvent(2, 2, 4, "Kharkiv, Ukraine", "UP", "UP07", 49.9808, 36.2527, "-1041944");
+        seedEvent(3, 2, 4, "Kharkiv, Ukraine", "UP", "UP07", 49.9808, 36.2527, "-1041944");
+        seedMention(1, 50);
+        seedMention(2, 100);
+        seedMention(3, 100);
+
+        assertThat(service.story(outlook).orElseThrow().location()).isNull();
+        assertThat(service.story(ukraine).orElseThrow().location()).isNull();
     }
 
     @Test
@@ -246,17 +287,29 @@ class StoryQueryServiceTests {
                            String regionCode, double latitude, double longitude, String featureId) {
         jdbc.update("""
                 INSERT INTO gdelt_events (
-                    id, article_id, action_geo_type, action_geo_name, action_geo_country_code,
+                    id, article_id, global_event_id, source_url,
+                    action_geo_type, action_geo_name, action_geo_country_code,
                     action_geo_adm1_code, action_geo_latitude, action_geo_longitude, action_geo_feature_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, id, articleId, type, name, countryCode, regionCode, latitude, longitude, featureId);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, id, articleId, id, "https://source/" + id, type, name, countryCode,
+                regionCode, latitude, longitude, featureId);
     }
 
-    private void seedGkg(long id, long articleId, String locations) {
+    private void seedEvidence(long eventId, long articleId, String title) {
+        seedGkg(eventId, articleId, title, "[]");
+        seedMention(eventId, 100);
+    }
+
+    private void seedMention(long eventId, int confidence) {
+        jdbc.update("INSERT INTO gdelt_mentions VALUES (?, ?, ?, ?)", eventId, eventId,
+                "https://source/" + eventId, confidence);
+    }
+
+    private void seedGkg(long id, long articleId, String title, String locations) {
         jdbc.update("""
-                INSERT INTO gdelt_gkg (id, article_id, source_timestamp, locations)
-                VALUES (?, ?, ?, CAST(? AS JSON))
-                """, id, articleId, utc("2026-09-01T10:00:00Z"), locations);
+                INSERT INTO gdelt_gkg (id, article_id, source_timestamp, page_title, locations)
+                VALUES (?, ?, ?, ?, CAST(? AS JSON))
+                """, id, articleId, utc("2026-09-01T10:00:00Z"), title, locations);
     }
 
     private OffsetDateTime utc(String instant) {
