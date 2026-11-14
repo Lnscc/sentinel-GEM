@@ -5,7 +5,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-final class StoryInputEligibilityRule {
+public final class StoryInputEligibilityRule {
 
     static final String INCLUDE_ALL_VERSION = "all-articles-v1";
     static final String NAVIGATION_SERVICE_VERSION = "navigation-service-exact-path-title-v1";
@@ -40,8 +40,8 @@ final class StoryInputEligibilityRule {
         return evaluate(ruleVersion, canonicalUrl, normalizedTitle, false);
     }
 
-    static Decision evaluate(String ruleVersion, String canonicalUrl, String normalizedTitle,
-                             boolean hasEventSignal) {
+    public static Decision evaluate(String ruleVersion, String canonicalUrl, String normalizedTitle,
+                                    boolean hasEventSignal) {
         if (INCLUDE_ALL_VERSION.equals(ruleVersion)) {
             return Decision.INCLUDE;
         }
@@ -85,7 +85,7 @@ final class StoryInputEligibilityRule {
         return Decision.INCLUDE;
     }
 
-    record Decision(String disposition, String reason) {
+    public record Decision(String disposition, String reason) {
         private static final Decision INCLUDE = new Decision("INCLUDE", null);
 
         boolean excluded() {

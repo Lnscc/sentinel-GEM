@@ -119,10 +119,14 @@ public class StoryReleaseWorkflow {
         StoryPromotionService.Review review = promotion.review(after.candidateVersionId(), request.holdout());
         StoryRegressionEvaluation.Result regression =
                 regressions.evaluate(after.candidateVersionId(), request.regressionCorpus());
+        StoryRegressionEvaluation.Result regressionBaseline =
+                regressions.evaluate(before.activeVersionId(), request.regressionCorpus());
         String outcome = "REVIEWED";
         if (request.promote()) {
             if (!review.evaluation().passed()) {
                 outcome = "BLOCKED_GATES";
+            } else if (hasNewRegression(regression, regressionBaseline)) {
+                outcome = "BLOCKED_REGRESSION";
             } else if (!complete(request.approval())) {
                 outcome = "BLOCKED_APPROVAL";
             } else {
@@ -144,6 +148,12 @@ public class StoryReleaseWorkflow {
         write(request.evidenceFile(), request, evidence);
         progress("completed", Map.of("outcome", outcome, "evidence", request.evidenceFile().toString()), started);
         return evidence;
+    }
+
+    private boolean hasNewRegression(StoryRegressionEvaluation.Result candidate,
+                                     StoryRegressionEvaluation.Result baseline) {
+        return !candidate.inputQualityDeviations().isEmpty()
+                || !baseline.relationshipDeviations().containsAll(candidate.relationshipDeviations());
     }
 
     Precheck precheck(String versionKey) {

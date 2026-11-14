@@ -1,5 +1,6 @@
 package com.example.globalnewsenginev1.stories.snapshot;
 
+import com.example.globalnewsenginev1.stories.embedding.StoryInputEligibilityRule;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -36,8 +37,30 @@ public class StoryRegressionEvaluation {
                 resultSet.getString(1), new StoryReleaseEvaluation.InputDecision(
                         resultSet.getString(2), resultSet.getString(3))), versionId)
                 .forEach(entry -> dispositions.put(entry.getKey(), entry.getValue()));
+        fillMissingInputDecisions(versionId, corpus, dispositions);
 
         return evaluate(corpus, assignments, dispositions);
+    }
+
+    private void fillMissingInputDecisions(long versionId, JsonNode corpus,
+                                           Map<String, StoryReleaseEvaluation.InputDecision> dispositions) {
+        Map<String, JsonNode> articles = new HashMap<>();
+        corpus.path("articles").forEach(article -> articles.put(article.path("ref").asText(), article));
+        if (!corpus.path("inputQualityCases").isArray()) return;
+        String ruleVersion = jdbc.queryForObject("""
+                SELECT input_eligibility_rule_version FROM story_clustering_versions WHERE id = ?
+                """, String.class, versionId);
+        for (JsonNode testCase : corpus.path("inputQualityCases")) {
+            String articleRef = required(testCase, "articleRef");
+            if (dispositions.containsKey(articleRef)) continue;
+            JsonNode article = articles.get(articleRef);
+            if (article == null) continue;
+            var decision = StoryInputEligibilityRule.evaluate(ruleVersion,
+                    required(article, "canonicalUrl"), required(article, "title"),
+                    article.path("hasEventSignal").asBoolean(false));
+            dispositions.put(articleRef, new StoryReleaseEvaluation.InputDecision(
+                    decision.disposition(), decision.reason()));
+        }
     }
 
     static Result evaluate(JsonNode corpus, Map<String, UUID> assignments,

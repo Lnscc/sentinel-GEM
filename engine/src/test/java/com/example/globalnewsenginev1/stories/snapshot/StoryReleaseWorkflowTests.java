@@ -93,6 +93,18 @@ class StoryReleaseWorkflowTests {
     }
 
     @Test
+    void newRegressionNeverPromotes() {
+        StoryReleaseWorkflow workflow = workflow(ready(), ready());
+        reviewed(true);
+        when(regressions.evaluate(eq(1L), any())).thenReturn(regression(List.of("new-input")));
+        when(regressions.evaluate(eq(2L), any())).thenReturn(regression(List.of()));
+
+        assertThat(workflow.run(request(true, approval())).outcome())
+                .isEqualTo("BLOCKED_REGRESSION");
+        verify(promotion, never()).promote(any(), any(), any());
+    }
+
+    @Test
     void successfulPromotionVerifiesListAndDetail() {
         StoryReleaseWorkflow workflow = workflow(ready(), ready());
         reviewed(true);
@@ -176,10 +188,13 @@ class StoryReleaseWorkflowTests {
         prechecks.when(workflow).precheck("candidate-v1");
         when(snapshots.processBackfill(1L, WATERMARK))
                 .thenReturn(new StorySnapshotService.ProcessingResult(1, 1, 0, 0));
-        when(regressions.evaluate(eq(1L), any())).thenReturn(
-                new StoryRegressionEvaluation.Result("regression-v1", "regression-hash", 1, 0,
-                        List.of(), 1, List.of(), 0));
+        when(regressions.evaluate(anyLong(), any())).thenReturn(regression(List.of()));
         return workflow;
+    }
+
+    private StoryRegressionEvaluation.Result regression(List<String> inputDeviations) {
+        return new StoryRegressionEvaluation.Result("regression-v1", "regression-hash", 1, 0,
+                List.of(), 1, inputDeviations, inputDeviations.size());
     }
 
     private void reviewed(boolean passed) {
