@@ -53,7 +53,8 @@ class StoryQueryServiceTests {
                     representative_article_id BIGINT, representative_canonical_url TEXT,
                     representative_domain TEXT, representative_first_seen_at TIMESTAMP WITH TIME ZONE,
                     representative_title TEXT, representative_published_at TIMESTAMP WITH TIME ZONE,
-                    representative_main_image_url TEXT, member_count INTEGER DEFAULT 0)
+                    representative_main_image_url TEXT, member_count INTEGER DEFAULT 0,
+                    source_count INTEGER DEFAULT 0, independent_report_count INTEGER DEFAULT 0)
                 """);
         jdbc.execute("""
                 CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT,
@@ -101,7 +102,8 @@ class StoryQueryServiceTests {
                 UPDATE stories
                 SET representative_title = 'Published title',
                     representative_published_at = ?,
-                    representative_main_image_url = 'https://publisher.example/image.jpg'
+                    representative_main_image_url = 'https://publisher.example/image.jpg',
+                    source_count = 1
                 WHERE public_id = ?
                 """, utc("2026-09-01T09:00:00Z"), storyId);
         jdbc.update("INSERT INTO story_memberships VALUES (?, 1, 2, 1, 'MATCHED_COMPONENT')",
@@ -110,6 +112,7 @@ class StoryQueryServiceTests {
         StorySummary story = service.stories(0, 20, "articleCount", "desc").stories().getFirst();
 
         assertThat(story.memberCount()).isOne();
+        assertThat(story.sourceCount()).isOne();
         assertThat(story.representativeArticle().title()).isEqualTo("Published title");
         assertThat(story.representativeArticle().publishedAt())
                 .isEqualTo(Instant.parse("2026-09-01T09:00:00Z"));
@@ -139,6 +142,24 @@ class StoryQueryServiceTests {
                 .extracting(StorySummary::id).containsExactly(last, middle, first);
         assertThat(service.stories(0, 20, "articleCount", "desc").stories())
                 .extracting(StorySummary::id).containsExactly(first, middle, last);
+    }
+
+    @Test
+    void prioritizesIndependentUkraineCoverageOverSyndicatedOutlookCopiesDeterministically() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "outlook", "syndication.example", "2026-09-01T12:00:00Z");
+        seedArticle(2, "ukraine-a", "independent-a.example", "2026-09-01T11:00:00Z");
+        seedArticle(3, "ukraine-b", "independent-b.example", "2026-09-01T11:00:00Z");
+        UUID outlook = seedStory(1, 1, "outlook", "ACTIVE", "2026-09-01T12:00:00Z");
+        UUID firstUkraine = seedStory(2, 1, "ukraine-a", "ACTIVE", "2026-09-01T11:00:00Z");
+        UUID secondUkraine = seedStory(3, 1, "ukraine-b", "ACTIVE", "2026-09-01T11:00:00Z");
+        seedProjectionCounts(1, 12, 12, 1);
+        seedProjectionCounts(2, 3, 3, 3);
+        seedProjectionCounts(3, 3, 3, 3);
+
+        assertThat(service.stories(0, 20, "priority", "desc").stories())
+                .extracting(StorySummary::id)
+                .containsExactly(firstUkraine, secondUkraine, outlook);
     }
 
     @Test
@@ -349,6 +370,14 @@ class StoryQueryServiceTests {
             jdbc.update("UPDATE stories SET member_count = member_count + 1 WHERE id = ?",
                     new UUID(0, storySeed));
         }
+    }
+
+    private void seedProjectionCounts(long storySeed, int members, int sources, int independentReports) {
+        jdbc.update("""
+                UPDATE stories
+                SET member_count = ?, source_count = ?, independent_report_count = ?
+                WHERE id = ?
+                """, members, sources, independentReports, new UUID(0, storySeed));
     }
 
     private void seedEvent(long id, long articleId, int type, String name, String countryCode,

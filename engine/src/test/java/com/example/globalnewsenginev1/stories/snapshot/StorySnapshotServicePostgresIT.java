@@ -478,6 +478,35 @@ class StorySnapshotServicePostgresIT {
     }
 
     @Test
+    void materializesIndependentReportsWithoutCountingSyndicatedTitlesTwice() {
+        insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24, "b", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24, "c", vector(1, 0), effectiveAt, null);
+        jdbc.update("UPDATE articles SET domain = ? WHERE url_hash = ?", "publisher-a.example", ref("a"));
+        jdbc.update("UPDATE articles SET domain = ? WHERE url_hash = ?", "publisher-b.example", ref("b"));
+        jdbc.update("UPDATE articles SET domain = ? WHERE url_hash = ?", "publisher-c.example", ref("c"));
+        jdbc.update("""
+                UPDATE story_article_inputs syndicated
+                SET normalized_title = original.normalized_title,
+                    title_input_hash = original.title_input_hash,
+                    embedding_artifact_id = original.embedding_artifact_id
+                FROM story_article_inputs original
+                WHERE syndicated.id = ? AND original.id = ?
+                """, currentInput(VERSION_24, "b"), currentInput(VERSION_24, "a"));
+
+        publish();
+
+        UUID id = story("a");
+        assertThat(jdbc.queryForObject("SELECT member_count FROM stories WHERE id = ?", Integer.class, id))
+                .isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT source_count FROM stories WHERE id = ?", Integer.class, id))
+                .isEqualTo(3);
+        assertThat(jdbc.queryForObject(
+                "SELECT independent_report_count FROM stories WHERE id = ?", Integer.class, id))
+                .isEqualTo(2);
+    }
+
+    @Test
     void mergesAndSplitsWithUnchangedNeighborFingerprintAndDeterministicSurvivor() {
         insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
         publish();

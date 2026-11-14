@@ -63,7 +63,7 @@ public class StoryQueryService {
                    primary_location.source, primary_location.confidence,
                    primary_location.supporting_articles, primary_location.supporting_domains,
             """ + STORY_ARTICLE_COLUMNS + """
-            , story.member_count
+            , story.member_count, story.source_count
             """ + VISIBLE_STORY;
 
     private static final String MEMBER_SELECT = """
@@ -99,17 +99,18 @@ public class StoryQueryService {
                              StorySearchCriteria criteria) {
         validatePagination(offset, limit);
         validateCriteria(criteria);
-        String sortColumn = switch (sort) {
-            case "time" -> "story.effective_to";
-            case "articleCount" -> "story.member_count";
-            default -> throw new IllegalArgumentException("sort must be time or articleCount");
-        };
         String sortDirection = switch (direction) {
             case "asc" -> "ASC";
             case "desc" -> "DESC";
             default -> throw new IllegalArgumentException("direction must be asc or desc");
         };
-        String order = "\nORDER BY " + sortColumn + " " + sortDirection + ", story.public_id ASC";
+        String order = switch (sort) {
+            case "time" -> "\nORDER BY story.effective_to " + sortDirection + ", story.public_id ASC";
+            case "articleCount" -> "\nORDER BY story.member_count " + sortDirection + ", story.public_id ASC";
+            case "priority" -> "\nORDER BY story.independent_report_count " + sortDirection
+                    + ", story.effective_to " + sortDirection + ", story.public_id ASC";
+            default -> throw new IllegalArgumentException("sort must be time, articleCount or priority");
+        };
         List<Object> filterParameters = new ArrayList<>();
         filterParameters.add(visibleVersion);
         String filters = filterClause(criteria, filterParameters);
@@ -130,7 +131,7 @@ public class StoryQueryService {
                 story.id(), story.state(), story.effectiveFrom(), story.effectiveTo(),
                 locations.getOrDefault(story.id(), StoryLocations.EMPTY).primary(),
                 locations.getOrDefault(story.id(), StoryLocations.EMPTY).all(),
-                story.representativeArticle(), story.memberCount())).toList();
+                story.representativeArticle(), story.memberCount(), story.sourceCount())).toList();
     }
 
     private String filterClause(StorySearchCriteria criteria, List<Object> parameters) {
@@ -207,7 +208,8 @@ public class StoryQueryService {
                 location(resultSet),
                 List.of(),
                 article(resultSet),
-                resultSet.getLong("member_count"));
+                resultSet.getLong("member_count"),
+                resultSet.getLong("source_count"));
     }
 
     private Map<UUID, StoryLocations> locations(List<UUID> storyIds) {

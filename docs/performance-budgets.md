@@ -26,7 +26,7 @@ cross-machine gate.
 | User path | Request | Warm response p95 | Warm database p95 | Maximum response |
 | --- | --- | ---: | ---: | ---: |
 | Story list | `GET /stories?limit=20&sort=time&direction=desc` | 250 ms | 220 ms | 35 kB |
-| Region filter / initial Lagebild | `GET /stories?limit=100&sort=articleCount&direction=desc&region=R1` | 1,200 ms | 1,100 ms | 170 kB |
+| Region filter / initial Lagebild | `GET /stories?limit=100&sort=priority&direction=desc&region=R1` | 1,200 ms | 1,100 ms | 170 kB |
 | Story detail | `GET /stories/{id}` | 200 ms | 180 ms | 12 kB |
 
 Reference measurement on 2026-11-14 (local Docker PostgreSQL 17, Java 21):

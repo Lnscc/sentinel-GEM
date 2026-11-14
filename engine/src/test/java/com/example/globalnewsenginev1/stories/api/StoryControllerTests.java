@@ -62,14 +62,15 @@ class StoryControllerTests {
                 "Berlin, Germany", "GM", "GM16", 52.52, 13.405, "GDELT_EVENT_ACTION",
                 100, 2, 2);
         queryService.page = new StoryPage(
-                List.of(new StorySummary(id, "ACTIVE", from, to, location, List.of(location), article, 1)), 0, 1, 1);
+                List.of(new StorySummary(id, "ACTIVE", from, to, location, List.of(location), article, 1, 1)),
+                0, 1, 1);
         queryService.details.put(id, new StoryDetail(
                 id, "ACTIVE", from, to, location, List.of(location), article,
                 List.of(new StoryMember(article, "NEW_COMPONENT"))));
 
         mockMvc.perform(get("/stories")
                         .param("limit", "1")
-                        .param("sort", "articleCount")
+                        .param("sort", "priority")
                         .param("direction", "asc")
                         .param("from", "2026-09-01T00:00:00Z")
                         .param("to", "2026-09-02T00:00:00Z")
@@ -86,7 +87,8 @@ class StoryControllerTests {
                 .andExpect(jsonPath("$.stories[0].location.supportingDomains").value(2))
                 .andExpect(jsonPath("$.stories[0].locations[0].name").value("Berlin, Germany"))
                 .andExpect(jsonPath("$.stories[0].representativeArticle.title").value("Headline"))
-                .andExpect(jsonPath("$.stories[0].memberCount").value(1));
+                .andExpect(jsonPath("$.stories[0].memberCount").value(1))
+                .andExpect(jsonPath("$.stories[0].sourceCount").value(1));
         assertThat(queryService.criteria).isEqualTo(new StorySearchCriteria(
                 Instant.parse("2026-09-01T00:00:00Z"),
                 Instant.parse("2026-09-02T00:00:00Z"), "example.org", "GM", "GM16"));
@@ -144,7 +146,7 @@ class StoryControllerTests {
         public StoryPage stories(int offset, int limit, String sort, String direction,
                                  StorySearchCriteria criteria) {
             if (offset < 0) throw new IllegalArgumentException("offset must not be negative");
-            if (!List.of("time", "articleCount").contains(sort)) {
+            if (!List.of("time", "articleCount", "priority").contains(sort)) {
                 throw new IllegalArgumentException("invalid sort");
             }
             if (!List.of("asc", "desc").contains(direction)) {

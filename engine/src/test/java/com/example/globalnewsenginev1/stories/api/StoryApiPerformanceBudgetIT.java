@@ -61,7 +61,7 @@ class StoryApiPerformanceBudgetIT {
     @Test
     void storyReadsStayWithinBudgets() throws Exception {
         measure("list", "/stories?offset=0&limit=20&sort=time&direction=desc", 250, 220, 35_000);
-        measure("region", "/stories?offset=0&limit=100&sort=articleCount&direction=desc&region=R1",
+        measure("region", "/stories?offset=0&limit=100&sort=priority&direction=desc&region=R1",
                 1_200, 1_100, 170_000);
         measure("detail", "/stories/" + DETAIL_ID, 200, 180, 12_000);
     }
@@ -102,12 +102,12 @@ class StoryApiPerformanceBudgetIT {
         JdbcTemplate jdbc = new JdbcTemplate(postgres(schema));
         String plan = jdbc.queryForObject("""
                 EXPLAIN (ANALYZE, FORMAT JSON)
-                SELECT story.public_id, story.representative_title, story.member_count
+                SELECT story.public_id, story.representative_title, story.member_count, story.source_count
                 FROM stories story
                 JOIN story_clustering_versions version
                   ON version.id = story.clustering_version_id AND version.version_key = 'budget-v1'
                 WHERE story.state <> 'SUPERSEDED'
-                ORDER BY story.effective_to DESC, story.public_id
+                ORDER BY story.independent_report_count DESC, story.effective_to DESC, story.public_id
                 LIMIT 20
                 """, (resultSet, rowNum) -> resultSet.getString(1));
 
@@ -158,13 +158,14 @@ class StoryApiPerformanceBudgetIT {
         jdbc.execute("CREATE TABLE gdelt_gkg (id BIGINT PRIMARY KEY, article_id BIGINT, source_timestamp TIMESTAMPTZ, page_title TEXT, page_precise_pub_timestamp TIMESTAMPTZ, main_image_url TEXT)");
         jdbc.execute("CREATE TABLE gdelt_events (id BIGINT PRIMARY KEY, article_id BIGINT, global_event_id BIGINT, source_url TEXT, action_geo_type INTEGER, action_geo_name TEXT, action_geo_country_code VARCHAR(16), action_geo_adm1_code VARCHAR(32), action_geo_latitude DOUBLE PRECISION, action_geo_longitude DOUBLE PRECISION, action_geo_feature_id VARCHAR(255))");
         jdbc.execute("CREATE TABLE gdelt_mentions (id BIGINT PRIMARY KEY, global_event_id BIGINT, mention_identifier TEXT, confidence INTEGER)");
-        jdbc.execute("CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT, representative_article_ref VARCHAR(64), state VARCHAR(16), effective_from TIMESTAMPTZ, effective_to TIMESTAMPTZ, representative_article_id BIGINT, representative_canonical_url TEXT, representative_domain TEXT, representative_first_seen_at TIMESTAMPTZ, representative_title TEXT, representative_published_at TIMESTAMPTZ, representative_main_image_url TEXT, member_count INTEGER)");
+        jdbc.execute("CREATE TABLE stories (id UUID PRIMARY KEY, public_id UUID, clustering_version_id BIGINT, representative_article_ref VARCHAR(64), state VARCHAR(16), effective_from TIMESTAMPTZ, effective_to TIMESTAMPTZ, representative_article_id BIGINT, representative_canonical_url TEXT, representative_domain TEXT, representative_first_seen_at TIMESTAMPTZ, representative_title TEXT, representative_published_at TIMESTAMPTZ, representative_main_image_url TEXT, member_count INTEGER, source_count INTEGER, independent_report_count INTEGER)");
         jdbc.execute("CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT, article_id BIGINT, current_marker SMALLINT, assignment_reason TEXT)");
         jdbc.execute("CREATE TABLE story_locations (story_id UUID, rank INTEGER, name TEXT, country_code VARCHAR(16), region_code VARCHAR(32), latitude DOUBLE PRECISION, longitude DOUBLE PRECISION, source VARCHAR(64), confidence INTEGER, supporting_articles INTEGER, supporting_domains INTEGER)");
         jdbc.execute("CREATE INDEX idx_story_locations_primary_country_region ON story_locations (country_code, region_code, rank, story_id)");
         jdbc.execute("CREATE INDEX idx_story_locations_primary_region ON story_locations (region_code, rank, story_id)");
         jdbc.execute("CREATE INDEX idx_stories_list_time ON stories (clustering_version_id, effective_to DESC, public_id)");
         jdbc.execute("CREATE INDEX idx_stories_list_member_count ON stories (clustering_version_id, member_count DESC, public_id)");
+        jdbc.execute("CREATE INDEX idx_stories_list_priority ON stories (clustering_version_id, independent_report_count DESC, effective_to DESC, public_id)");
         jdbc.execute("CREATE INDEX ON story_memberships (story_id, clustering_version_id, current_marker)");
         jdbc.execute("CREATE INDEX ON gdelt_events (article_id)");
         jdbc.execute("CREATE INDEX ON gdelt_mentions (global_event_id, mention_identifier)");
@@ -193,7 +194,7 @@ class StoryApiPerformanceBudgetIT {
                        i, 'https://news.example/story-' || i,
                        'source-' || (i % 40) || '.example', now() - (i || ' minutes')::interval,
                        'Representative story title ' || i, now() - (i || ' minutes')::interval,
-                       'https://images.example/' || i || '.jpg', 3
+                       'https://images.example/' || i || '.jpg', 3, 3, (i % 3) + 1
                 FROM generate_series(1, ?) i
                 """, STORY_COUNT);
         jdbc.update("""

@@ -48,7 +48,7 @@ const story = {
   id: "story-1", effectiveFrom: "2026-10-21T10:00:00Z", effectiveTo: "2026-10-21T11:00:00Z",
   location: { name: "Berlin", countryCode: "GM", regionCode: "GM16", latitude: 52.52, longitude: 13.405, source: "GDELT_EVENT_ACTION", confidence: 100, supportingArticles: 2, supportingDomains: 2 },
   locations: [{ name: "Berlin", countryCode: "GM", regionCode: "GM16", latitude: 52.52, longitude: 13.405, source: "GDELT_EVENT_ACTION", confidence: 100, supportingArticles: 2, supportingDomains: 2 }],
-  representativeArticle: { domain: "example.com", title: "Ein wichtiges Ereignis", mainImageUrl: "https://images.example.com/story.jpg" }, memberCount: 2,
+  representativeArticle: { domain: "example.com", title: "Ein wichtiges Ereignis", mainImageUrl: "https://images.example.com/story.jpg" }, memberCount: 2, sourceCount: 2,
 };
 const otherStory = { ...story, id: "story-2", location: { ...story.location, name: "Paris", regionCode: "FR11", latitude: 48.85, longitude: 2.35 }, representativeArticle: { ...story.representativeArticle, domain: "news.fr", title: "Ein anderes Ereignis", mainImageUrl: null } };
 const detail = { ...story, state: "PUBLISHED", representativeArticle: { ...story.representativeArticle, id: 1, canonicalUrl: "https://example.com/1", firstSeenAt: story.effectiveFrom, publishedAt: null }, members: [{ assignmentReason: "representative", article: { id: 1, canonicalUrl: "https://example.com/1", domain: "example.com", firstSeenAt: story.effectiveFrom, title: "Artikel eins", publishedAt: null, mainImageUrl: null } }] };
@@ -71,10 +71,11 @@ describe("Globales Lagebild", () => {
     expect(mapLibre.addLayer).toHaveBeenCalledWith(expect.objectContaining({ id: "story-point-hit-area", source: "stories" }));
     expect(within(screen.getByRole("region", { name: "Weltkarte" })).getByLabelText("Interaktive Weltkarte der aktuellen Ereignisse")).toBeInTheDocument();
     const url = new URL(fetchMock.mock.calls[0][0] as string, "http://localhost");
-    expect(url.searchParams.get("sort")).toBe("articleCount");
+    expect(url.searchParams.get("sort")).toBe("priority");
     expect(url.searchParams.get("direction")).toBe("desc");
     expect(url.searchParams.get("limit")).toBe("100");
     expect(url.searchParams.get("from")).toBeTruthy();
+    expect(screen.getAllByText(/2 Artikel · 2 Quellen/)).toHaveLength(2);
   });
 
   it("lädt Ereignisse automatisch nach und erhält Karten- und Auswahlzustand", async () => {

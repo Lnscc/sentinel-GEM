@@ -12,7 +12,8 @@ public record StorySummary(
         StoryLocation location,
         List<StoryLocation> locations,
         StoryArticle representativeArticle,
-        long memberCount
+        long memberCount,
+        long sourceCount
 ) {
     public StorySummary {
         locations = List.copyOf(locations);

@@ -52,7 +52,8 @@ class StoryQueryServicePostgresIT {
                     representative_article_id BIGINT, representative_canonical_url TEXT,
                     representative_domain TEXT, representative_first_seen_at TIMESTAMP WITH TIME ZONE,
                     representative_title TEXT, representative_published_at TIMESTAMP WITH TIME ZONE,
-                    representative_main_image_url TEXT, member_count INTEGER DEFAULT 0)
+                    representative_main_image_url TEXT, member_count INTEGER DEFAULT 0,
+                    source_count INTEGER DEFAULT 0, independent_report_count INTEGER DEFAULT 0)
                 """);
         jdbc.execute("""
                 CREATE TABLE story_memberships (story_id UUID, clustering_version_id BIGINT,

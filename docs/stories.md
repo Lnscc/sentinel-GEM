@@ -276,6 +276,12 @@ hier beschriebenen Sammel- und Liveblogfaelle zulaessig.
 `story-mvp-title-embedding-24h-v1.1.0`. Die Sortierung ist `effectiveTo` absteigend und danach
 Story-ID aufsteigend; `offset` muss mindestens 0 und `limit` zwischen 1 und 100 liegen.
 
+`sort=priority` priorisiert unterschiedliche normalisierte Berichtstitel und danach Aktualitaet;
+wortgleiche Syndication erhoeht dieses Signal nur einmal. `sort=time` und `sort=articleCount`
+bleiben verfuegbar. Alle Varianten enden mit der Story-ID als stabilem Tie-Breaker. Die Liste
+liefert `memberCount` und die Anzahl unterschiedlicher Domains als `sourceCount`, unabhaengig
+davon, ob diese Werte fuer die Sortierung verwendet werden.
+
 `GET /stories/{id}` liefert Zustand, effektiven Zeitraum, repraesentativen Artikel und aktuelle
 Mitgliedschaften mit Zuordnungsgrund. Unbekannte oder abgeloeste IDs liefern `404`. Bei einer
 weiterverwendeten oeffentlichen ID wird der Stand der konfigurierten Version geliefert.

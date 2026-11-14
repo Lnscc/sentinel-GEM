@@ -6,6 +6,7 @@ export type Story = {
   locations: StoryLocation[];
   representativeArticle: { domain: string; title: string; mainImageUrl: string | null };
   memberCount: number;
+  sourceCount: number;
 };
 
 export type StoryLocation = {

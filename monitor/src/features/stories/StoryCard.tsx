@@ -20,7 +20,7 @@ export default function StoryCard({ story }: { story: Story }) {
           <Box sx={{ mt: "auto" }}>
             <StoryMetadata>
               <Box><dt>Zeitraum</dt><dd><DateRange from={story.effectiveFrom} to={story.effectiveTo} /></dd></Box>
-              <Box><dt>Artikel</dt><dd>{story.memberCount}</dd></Box>
+              <Box><dt>Artikel · Quellen</dt><dd>{story.memberCount} · {story.sourceCount}</dd></Box>
             </StoryMetadata>
             <Typography sx={{ mt: 2.5, color: "primary.main", fontWeight: 700 }}>
               Story öffnen <span aria-hidden="true">→</span>

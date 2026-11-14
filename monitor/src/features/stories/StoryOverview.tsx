@@ -79,7 +79,7 @@ export default function StoryOverview() {
                     <Box sx={{ minWidth: 0 }}>
                       <Typography color="primary.dark" sx={{ fontSize: "0.75rem", fontWeight: 700 }}>{story.location?.name ?? "Ohne Ortsangabe"}</Typography>
                       <Typography variant="h3" sx={{ my: 0.75, fontSize: "1.05rem" }}>{story.representativeArticle.title}</Typography>
-                      <Typography color="text.secondary" sx={{ fontSize: "0.75rem" }}><FormattedDate value={story.effectiveTo} /> · {story.memberCount} Artikel · {story.representativeArticle.domain}</Typography>
+                      <Typography color="text.secondary" sx={{ fontSize: "0.75rem" }}><FormattedDate value={story.effectiveTo} /> · {story.memberCount} Artikel · {story.sourceCount} Quellen · {story.representativeArticle.domain}</Typography>
                     </Box>
                   </ButtonBase>
                 ))}

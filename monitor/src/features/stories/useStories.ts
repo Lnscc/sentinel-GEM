@@ -21,7 +21,7 @@ export default function useStories(filters: StoryFilterValues) {
   useEffect(() => {
     const controller = new AbortController();
     const from = new Date(Date.now() - Number(filters.hours) * 60 * 60 * 1000).toISOString();
-    const query = new URLSearchParams({ offset: "0", limit: String(PAGE_SIZE), sort: "articleCount", direction: "desc", from });
+    const query = new URLSearchParams({ offset: "0", limit: String(PAGE_SIZE), sort: "priority", direction: "desc", from });
     if (filters.region.trim()) query.set("region", filters.region.trim());
 
     setIsLoading(true);

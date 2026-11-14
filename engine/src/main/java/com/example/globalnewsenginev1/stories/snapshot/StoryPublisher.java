@@ -269,7 +269,9 @@ class StoryPublisher {
                     representative_title = projection.title,
                     representative_published_at = projection.published_at,
                     representative_main_image_url = projection.main_image_url,
-                    member_count = projection.member_count
+                    member_count = projection.member_count,
+                    source_count = projection.source_count,
+                    independent_report_count = projection.independent_report_count
                 FROM (
                     SELECT candidate.id AS story_id, article.id AS article_id,
                            article.canonical_url, article.domain, article.first_seen_at,
@@ -284,14 +286,23 @@ class StoryPublisher {
                            (SELECT g.main_image_url FROM gdelt_gkg g
                             WHERE g.article_id = article.id AND g.main_image_url IS NOT NULL
                             ORDER BY g.source_timestamp, g.id LIMIT 1) AS main_image_url,
-                           members.member_count
+                           members.member_count, members.source_count,
+                           members.independent_report_count
                     FROM stories candidate
                     JOIN articles article ON article.url_hash = candidate.representative_article_ref
                     JOIN (
-                        SELECT story_id, COUNT(*)::INTEGER AS member_count
-                        FROM story_memberships
-                        WHERE clustering_version_id = ? AND current_marker = 1
-                        GROUP BY story_id
+                        SELECT member.story_id, COUNT(*)::INTEGER AS member_count,
+                               COUNT(DISTINCT source.domain)::INTEGER AS source_count,
+                               COUNT(DISTINCT input.title_input_hash)::INTEGER
+                                   AS independent_report_count
+                        FROM story_memberships member
+                        JOIN articles source ON source.id = member.article_id
+                        JOIN story_article_inputs input
+                          ON input.clustering_version_id = member.clustering_version_id
+                         AND input.article_ref = member.article_ref
+                         AND input.article_input_fingerprint = member.article_input_fingerprint
+                        WHERE member.clustering_version_id = ? AND member.current_marker = 1
+                        GROUP BY member.story_id
                     ) members ON members.story_id = candidate.id
                     WHERE candidate.clustering_version_id = ? AND candidate.state <> 'SUPERSEDED'
                 ) projection

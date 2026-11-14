@@ -196,13 +196,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/stories?offset={{offset}}&limit={{pageLimit}}&sort=articleCount&direction=desc&from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z&domain=example.org&country=GM&region=GM16",
+              "raw": "{{baseUrl}}/stories?offset={{offset}}&limit={{pageLimit}}&sort=priority&direction=desc&from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z&domain=example.org&country=GM&region=GM16",
               "host": ["{{baseUrl}}"],
               "path": ["stories"],
               "query": [
                 { "key": "offset", "value": "{{offset}}" },
                 { "key": "limit", "value": "{{pageLimit}}" },
-                { "key": "sort", "value": "articleCount" },
+                { "key": "sort", "value": "priority" },
                 { "key": "direction", "value": "desc" },
                 { "key": "from", "value": "2020-01-01T00:00:00Z" },
                 { "key": "to", "value": "2030-01-01T00:00:00Z" },
@@ -211,7 +211,7 @@
                 { "key": "region", "value": "GM16" }
               ]
             },
-            "description": "Liefert nicht abgeloeste Stories der serverseitig konfigurierten Clustering-Version. from ist inklusiv, to exklusiv; Story-Intervalle muessen den Zeitraum ueberlappen. domain trifft exakt eine Artikeldomain eines aktuellen Story-Mitglieds. country und region treffen exakt die gelieferten Kennungen des primaeren Story-Orts. Filter, Sortierung und Pagination werden kombiniert."
+            "description": "Liefert nicht abgeloeste Stories der serverseitig konfigurierten Clustering-Version. priority sortiert nach unabhaengigen Berichten und Aktualitaet; Artikel- und Quellenanzahl bleiben separat sichtbar. from ist inklusiv, to exklusiv; Story-Intervalle muessen den Zeitraum ueberlappen. domain trifft exakt eine Artikeldomain eines aktuellen Story-Mitglieds. country und region treffen exakt die gelieferten Kennungen des primaeren Story-Orts. Filter, Sortierung und Pagination werden kombiniert."
           },
           "event": [
             {
@@ -227,7 +227,7 @@
                   "  pm.expect(body.limit).to.eql(Number(pm.variables.replaceIn('{{pageLimit}}')));",
                   "  pm.expect(body.total).to.be.a('number').and.at.least(body.stories.length);",
                   "  body.stories.forEach(story => {",
-                  "    pm.expect(story).to.have.all.keys('id', 'state', 'effectiveFrom', 'effectiveTo', 'location', 'locations', 'representativeArticle', 'memberCount');",
+                  "    pm.expect(story).to.have.all.keys('id', 'state', 'effectiveFrom', 'effectiveTo', 'location', 'locations', 'representativeArticle', 'memberCount', 'sourceCount');",
                   "    pm.expect(story.state).to.be.oneOf(['ACTIVE', 'CLOSED']);",
                   "    pm.expect(story.location).to.satisfy(value => value === null || typeof value === 'object');",
                   "    if (story.location !== null) {",
@@ -244,10 +244,11 @@
                   "    pm.expect(story.locations).to.be.an('array');",
                   "    story.locations.forEach(location => pm.expect(location.confidence).to.be.a('number').and.within(0, 100));",
                   "    pm.expect(story.representativeArticle).to.have.all.keys('id', 'canonicalUrl', 'domain', 'firstSeenAt', 'title', 'publishedAt', 'mainImageUrl');",
+                  "    pm.expect(story.memberCount).to.be.a('number').and.at.least(0);",
+                  "    pm.expect(story.sourceCount).to.be.a('number').and.at.least(0).and.at.most(story.memberCount);",
                   "    pm.expect(new Date(story.effectiveTo).getTime()).to.be.at.least(new Date('2020-01-01T00:00:00Z').getTime());",
                   "    pm.expect(new Date(story.effectiveFrom).getTime()).to.be.below(new Date('2030-01-01T00:00:00Z').getTime());",
                   "  });",
-                  "  for (let i = 1; i < body.stories.length; i += 1) pm.expect(body.stories[i - 1].memberCount).to.be.at.least(body.stories[i].memberCount);",
                   "});",
                   "const body = pm.response.json();",
                   "if (body.stories.length > 0) pm.environment.set('storyId', body.stories[0].id);"
