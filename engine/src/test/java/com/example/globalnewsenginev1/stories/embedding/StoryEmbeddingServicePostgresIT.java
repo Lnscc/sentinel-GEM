@@ -65,13 +65,13 @@ class StoryEmbeddingServicePostgresIT {
 
     @Test
     void createsNotRequiredAndSharedReadyInputsIdempotentlyAndHistoriesChanges() {
+        int processingVersionCount = processingVersionCount();
         long first = insertArticle("first");
         long second = insertArticle("second");
-        insertArticle("missing");
-        insertArticle("generic");
+        long missing = insertArticle("missing");
+        long generic = insertArticle("generic");
         insertGkg(first, 101, "News &amp; Analysis", timestamp.plusHours(2));
         insertGkg(second, 102, "News & Analysis", null);
-        long generic = articleId("generic");
         insertGkg(generic, 103, "NPR News", null);
 
         StoryEmbeddingService.ProcessingResult firstRun = service.processIncremental(100);
@@ -84,15 +84,19 @@ class StoryEmbeddingServicePostgresIT {
                 "SELECT COUNT(*) FROM story_embedding_attempts WHERE status = 'READY'", Integer.class)).isOne();
         assertThat(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM story_article_inputs WHERE current_marker = 1", Integer.class))
-                .isEqualTo(20);
+                .isEqualTo(4 * processingVersionCount);
+        assertOneCurrentInputPerProcessingVersion(first, processingVersionCount);
+        assertOneCurrentInputPerProcessingVersion(second, processingVersionCount);
+        assertOneCurrentInputPerProcessingVersion(missing, processingVersionCount);
+        assertOneCurrentInputPerProcessingVersion(generic, processingVersionCount);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE title_usability = 'TITLE_MISSING' AND embedding_status = 'NOT_REQUIRED'
-                """, Integer.class)).isEqualTo(5);
+                """, Integer.class)).isEqualTo(processingVersionCount);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE title_usability = 'TITLE_GENERIC' AND embedding_status = 'NOT_REQUIRED'
-                """, Integer.class)).isEqualTo(5);
+                """, Integer.class)).isEqualTo(processingVersionCount);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(DISTINCT embedding_artifact_id) FROM story_article_inputs
                 WHERE title_usability = 'USABLE'
@@ -100,11 +104,11 @@ class StoryEmbeddingServicePostgresIT {
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE article_id = ? AND effective_at_source = 'PUBLISHED_AT'
-                """, Integer.class, first)).isEqualTo(5);
+                """, Integer.class, first)).isEqualTo(processingVersionCount);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE article_id = ? AND effective_at_source = 'FIRST_SEEN_AT'
-                """, Integer.class, second)).isEqualTo(5);
+                """, Integer.class, second)).isEqualTo(processingVersionCount);
         assertThat(service.processIncremental(100).selected()).isZero();
         assertThat(client.calls()).isOne();
 
@@ -135,11 +139,12 @@ class StoryEmbeddingServicePostgresIT {
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE article_id = ? AND current_marker IS NULL AND superseded_at IS NOT NULL
-                """, Integer.class, first)).isEqualTo(5);
+                """, Integer.class, first)).isEqualTo(processingVersionCount);
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs
                 WHERE article_id = ? AND current_marker = 1
-                """, Integer.class, first)).isEqualTo(5);
+                """, Integer.class, first)).isEqualTo(processingVersionCount);
+        assertOneCurrentInputPerProcessingVersion(first, processingVersionCount);
     }
 
     @Test
@@ -204,6 +209,7 @@ class StoryEmbeddingServicePostgresIT {
 
     @Test
     void concurrentWorkersDoNotDuplicateArtifactsInputsOrModelCalls() throws Exception {
+        int processingVersionCount = processingVersionCount();
         long article = insertArticle("concurrent");
         insertGkg(article, 201, "Concurrent title", null);
         CountDownLatch start = new CountDownLatch(1);
@@ -219,7 +225,8 @@ class StoryEmbeddingServicePostgresIT {
                 "SELECT COUNT(*) FROM story_embedding_artifacts", Integer.class)).isOne();
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_article_inputs WHERE current_marker = 1
-                """, Integer.class)).isEqualTo(5);
+                """, Integer.class)).isEqualTo(processingVersionCount);
+        assertOneCurrentInputPerProcessingVersion(article, processingVersionCount);
     }
 
     @Test
@@ -362,6 +369,32 @@ class StoryEmbeddingServicePostgresIT {
                 WHERE version.version_key <> 'story-mvp-title-embedding-24h-v1.1.0'
                   AND input.article_id = ? AND input.current_marker = 1
                 """, Integer.class, newer)).isOne();
+    }
+
+    private int processingVersionCount() {
+        return jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_clustering_versions
+                WHERE status IN ('SHADOW', 'ACTIVE')
+                """, Integer.class);
+    }
+
+    private void assertOneCurrentInputPerProcessingVersion(long articleId, int processingVersionCount) {
+        List<Integer> inputCounts = jdbc.query("""
+                SELECT COUNT(input.id)::INTEGER
+                FROM story_clustering_versions version
+                LEFT JOIN story_article_inputs input
+                  ON input.clustering_version_id = version.id
+                 AND input.article_id = ?
+                 AND input.current_marker = 1
+                WHERE version.status IN ('SHADOW', 'ACTIVE')
+                GROUP BY version.id
+                ORDER BY version.id
+                """, (resultSet, rowNumber) -> resultSet.getInt(1), articleId);
+
+        assertThat(inputCounts)
+                .as("current inputs per processing version for article %s", articleId)
+                .hasSize(processingVersionCount)
+                .containsOnly(1);
     }
 
     private void awaitAndProcess(CountDownLatch start) {
