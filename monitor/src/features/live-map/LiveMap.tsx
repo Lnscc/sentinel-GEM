@@ -35,6 +35,15 @@ function removeMarkers(markers: RenderedMarker[]) {
 export type MapBounds = { west: number; south: number; east: number; north: number };
 type Props = { stories: Story[]; selectedId?: string; initialBounds?: MapBounds; onSelect: (id: string) => void; onBoundsChange: (bounds: MapBounds) => void };
 
+function normalizeLongitude(value: number) {
+  return ((value + 180) % 360 + 360) % 360 - 180;
+}
+
+function normalizeBounds(bounds: MapBounds): MapBounds {
+  if (bounds.east - bounds.west >= 360) return { ...bounds, west: -180, east: 180 };
+  return { ...bounds, west: normalizeLongitude(bounds.west), east: normalizeLongitude(bounds.east) };
+}
+
 export default function LiveMap({ stories, selectedId, initialBounds, onSelect, onBoundsChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map>(null);
@@ -72,7 +81,7 @@ export default function LiveMap({ stories, selectedId, initialBounds, onSelect, 
     map.getCanvas().setAttribute("aria-label", "Interaktive Weltkarte der aktuellen Ereignisse");
     const reportBounds = () => {
       const bounds = map.getBounds();
-      onBoundsChange({ west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() });
+      onBoundsChange(normalizeBounds({ west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() }));
     };
 
     const renderMarkers = async () => {
@@ -115,6 +124,10 @@ export default function LiveMap({ stories, selectedId, initialBounds, onSelect, 
       markerSignatureRef.current = signature;
     };
 
+    map.on("sourcedata", (event) => {
+      if (event.sourceId === SOURCE && event.sourceDataType === "content") void renderMarkers();
+    });
+
     map.on("load", () => {
       map.addSource(SOURCE, { type: "geojson", cluster: true, clusterMaxZoom: 10, clusterRadius: 64, data: dataRef.current });
       map.addLayer({ id: CLUSTERS, type: "circle", source: SOURCE, filter: ["has", "point_count"], paint: { "circle-opacity": 0, "circle-radius": 1 } });
@@ -137,6 +150,11 @@ export default function LiveMap({ stories, selectedId, initialBounds, onSelect, 
   useEffect(() => {
     markerSignatureRef.current = "";
     (mapRef.current?.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(dataRef.current);
+    if (dataRef.current.features.length === 0) {
+      const staleMarkers = markersRef.current;
+      markersRef.current = [];
+      queueMicrotask(() => removeMarkers(staleMarkers));
+    }
   }, [locatedStories, selectedId]);
 
   return <Box ref={container} sx={{ position: "absolute", inset: 0, "& .maplibregl-map": { fontFamily: "inherit" } }} />;

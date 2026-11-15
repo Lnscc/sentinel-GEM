@@ -127,6 +127,40 @@ class StoryQueryServicePostgresIT {
         assertThat(service.story(replaced)).isEmpty();
     }
 
+    @Test
+    void searchesBeyondTheFirstHundredStoriesBeforePagination() {
+        jdbc.update("INSERT INTO story_clustering_versions VALUES (1, 'visible-version', 'ACTIVE')");
+        jdbc.execute("""
+                INSERT INTO stories (
+                  id, public_id, clustering_version_id, representative_article_ref, state,
+                  effective_from, effective_to, representative_article_id,
+                  representative_canonical_url, representative_domain, representative_first_seen_at,
+                  representative_title, member_count, source_count, independent_report_count)
+                SELECT
+                  ('10000000-0000-0000-0000-' || LPAD(number::text, 12, '0'))::uuid,
+                  ('20000000-0000-0000-0000-' || LPAD(number::text, 12, '0'))::uuid,
+                  1, 'story-' || number, 'ACTIVE',
+                  TIMESTAMPTZ '2026-09-01T10:00:00Z' + number * INTERVAL '1 second',
+                  TIMESTAMPTZ '2026-09-01T11:00:00Z' + number * INTERVAL '1 second',
+                  number, 'https://example.org/' || number, 'example.org',
+                  TIMESTAMPTZ '2026-09-01T10:00:00Z' + number * INTERVAL '1 second',
+                  CASE WHEN number = 121 THEN 'Needle beyond first hundred' ELSE 'Ordinary story ' || number END,
+                  1, 1, 1000 - number
+                FROM generate_series(1, 121) AS number
+                """);
+        UUID expected = UUID.fromString("20000000-0000-0000-0000-000000000121");
+        StoryQueryService service = new StoryQueryService(jdbc, "visible-version");
+
+        assertThat(service.stories(100, 21, "priority", "desc").stories())
+                .extracting(StorySummary::id).endsWith(expected);
+
+        StoryPage filtered = service.stories(0, 20, "priority", "desc", new StorySearchCriteria(
+                null, null, "needle beyond first hundred", null, null, null, null));
+
+        assertThat(filtered.total()).isOne();
+        assertThat(filtered.stories()).extracting(StorySummary::id).containsExactly(expected);
+    }
+
     private OffsetDateTime time(String value) {
         return OffsetDateTime.parse(value);
     }

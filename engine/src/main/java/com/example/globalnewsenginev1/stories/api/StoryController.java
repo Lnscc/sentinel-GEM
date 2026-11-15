@@ -21,7 +21,8 @@ import java.util.UUID;
 public class StoryController {
 
     private static final Set<String> LIST_PARAMETERS = Set.of(
-            "offset", "limit", "sort", "direction", "from", "to", "domain", "country", "region");
+            "offset", "limit", "sort", "direction", "from", "to", "q", "domain", "country", "region",
+            "bounds");
 
     private final StoryQueryService queryService;
 
@@ -37,9 +38,11 @@ public class StoryController {
             @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
+            @RequestParam(required = false, name = "q") String query,
             @RequestParam(required = false) String domain,
             @RequestParam(required = false) String country,
             @RequestParam(required = false) String region,
+            @RequestParam(required = false) String bounds,
             @RequestParam Map<String, String> parameters
     ) {
         parameters.keySet().stream()
@@ -49,8 +52,24 @@ public class StoryController {
                     throw new IllegalArgumentException("unknown parameter: " + parameter);
                 });
         return queryService.stories(offset, limit, sort, direction,
-                new StorySearchCriteria(parseInstant("from", from), parseInstant("to", to), domain,
-                        parseLocationCode("country", country), parseLocationCode("region", region)));
+                new StorySearchCriteria(parseInstant("from", from), parseInstant("to", to), query, domain,
+                        parseLocationCode("country", country), parseLocationCode("region", region),
+                        parseBounds(bounds)));
+    }
+
+    private StorySearchCriteria.Bounds parseBounds(String value) {
+        if (value == null) return null;
+        String[] coordinates = value.split(",", -1);
+        if (coordinates.length != 4) {
+            throw new IllegalArgumentException("bounds must contain west,south,east,north");
+        }
+        try {
+            return new StorySearchCriteria.Bounds(
+                    Double.parseDouble(coordinates[0]), Double.parseDouble(coordinates[1]),
+                    Double.parseDouble(coordinates[2]), Double.parseDouble(coordinates[3]));
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("bounds must contain four numbers");
+        }
     }
 
     private String parseLocationCode(String parameter, String value) {

@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -63,7 +64,7 @@ public class StoryQueryService {
                    primary_location.source, primary_location.confidence,
                    primary_location.supporting_articles, primary_location.supporting_domains,
             """ + STORY_ARTICLE_COLUMNS + """
-            , story.member_count, story.source_count
+            , story.member_count, story.source_count, COUNT(*) OVER() AS filtered_total
             """ + VISIBLE_STORY;
 
     private static final String MEMBER_SELECT = """
@@ -117,11 +118,14 @@ public class StoryQueryService {
         List<Object> pageParameters = new ArrayList<>(filterParameters);
         pageParameters.add(limit);
         pageParameters.add(offset);
-        List<StorySummary> stories = jdbcTemplate.query(STORY_SELECT + filters + order + "\nLIMIT ? OFFSET ?",
-                (resultSet, rowNum) -> summary(resultSet), pageParameters.toArray());
-        stories = withLocations(stories);
-        long total = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) " + VISIBLE_STORY + filters, Long.class, filterParameters.toArray());
+        List<StoryRow> rows = jdbcTemplate.query(STORY_SELECT + filters + order + "\nLIMIT ? OFFSET ?",
+                (resultSet, rowNum) -> new StoryRow(summary(resultSet), resultSet.getLong("filtered_total")),
+                pageParameters.toArray());
+        List<StorySummary> stories = withLocations(rows.stream().map(StoryRow::story).toList());
+        long total = rows.isEmpty()
+                ? jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) " + VISIBLE_STORY + filters, Long.class, filterParameters.toArray())
+                : rows.getFirst().total();
         return new StoryPage(stories, offset, limit, total);
     }
 
@@ -144,6 +148,17 @@ public class StoryQueryService {
             filters.append(" AND story.effective_from < ?");
             parameters.add(Timestamp.from(criteria.to()));
         }
+        if (criteria.query() != null && !criteria.query().isBlank()) {
+            String pattern = "%" + escapeLike(criteria.query().trim().toLowerCase(Locale.ROOT)) + "%";
+            filters.append("""
+                     AND (LOWER(COALESCE(story.representative_title, '')) LIKE ? ESCAPE '\\'
+                       OR LOWER(COALESCE(story.representative_domain, '')) LIKE ? ESCAPE '\\'
+                       OR LOWER(COALESCE(primary_location.name, '')) LIKE ? ESCAPE '\\'
+                       OR LOWER(COALESCE(primary_location.country_code, '')) LIKE ? ESCAPE '\\'
+                       OR LOWER(COALESCE(primary_location.region_code, '')) LIKE ? ESCAPE '\\')
+                    """);
+            parameters.addAll(java.util.Collections.nCopies(5, pattern));
+        }
         if (criteria.domain() != null && !criteria.domain().isBlank()) {
             filters.append("""
                      AND EXISTS (
@@ -165,7 +180,24 @@ public class StoryQueryService {
             filters.append(" AND primary_location.region_code = ?");
             parameters.add(criteria.region());
         }
+        if (criteria.bounds() != null) {
+            StorySearchCriteria.Bounds bounds = criteria.bounds();
+            filters.append(" AND primary_location.latitude >= ? AND primary_location.latitude <= ?");
+            parameters.add(bounds.south());
+            parameters.add(bounds.north());
+            if (bounds.west() < bounds.east()) {
+                filters.append(" AND primary_location.longitude >= ? AND primary_location.longitude <= ?");
+            } else {
+                filters.append(" AND (primary_location.longitude >= ? OR primary_location.longitude <= ?)");
+            }
+            parameters.add(bounds.west());
+            parameters.add(bounds.east());
+        }
         return filters.toString();
+    }
+
+    private String escapeLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private void validateCriteria(StorySearchCriteria criteria) {
@@ -173,8 +205,24 @@ public class StoryQueryService {
         if (criteria.from() != null && criteria.to() != null && !criteria.from().isBefore(criteria.to())) {
             throw new IllegalArgumentException("from must be before to");
         }
+        if (criteria.query() != null && criteria.query().length() > 200) {
+            throw new IllegalArgumentException("q must not exceed 200 characters");
+        }
         validateLocationCode("country", criteria.country());
         validateLocationCode("region", criteria.region());
+        validateBounds(criteria.bounds());
+    }
+
+    private void validateBounds(StorySearchCriteria.Bounds bounds) {
+        if (bounds == null) return;
+        if (!Double.isFinite(bounds.west()) || !Double.isFinite(bounds.south())
+                || !Double.isFinite(bounds.east()) || !Double.isFinite(bounds.north())
+                || bounds.west() < -180 || bounds.west() > 180
+                || bounds.east() < -180 || bounds.east() > 180
+                || bounds.south() < -90 || bounds.north() > 90
+                || bounds.south() >= bounds.north() || bounds.west() == bounds.east()) {
+            throw new IllegalArgumentException("bounds must describe a valid map area");
+        }
     }
 
     private void validateLocationCode(String parameter, String value) {
@@ -237,6 +285,9 @@ public class StoryQueryService {
         Map<UUID, StoryLocations> selected = new HashMap<>();
         locations.forEach((storyId, values) -> selected.put(storyId, new StoryLocations(values.getFirst(), values)));
         return selected;
+    }
+
+    private record StoryRow(StorySummary story, long total) {
     }
 
     private StoryLocation location(ResultSet resultSet) throws SQLException {

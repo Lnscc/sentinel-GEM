@@ -191,27 +191,84 @@
       "name": "Stories",
       "item": [
         {
+          "name": "Lokalisierte Story als Pruefdatensatz laden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories?offset=100&limit=1&sort=priority&direction=desc&from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z&bounds=-180,-90,180,90",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories"],
+              "query": [
+                { "key": "offset", "value": "100" },
+                { "key": "limit", "value": "1" },
+                { "key": "sort", "value": "priority" },
+                { "key": "direction", "value": "desc" },
+                { "key": "from", "value": "2020-01-01T00:00:00Z" },
+                { "key": "to", "value": "2030-01-01T00:00:00Z" },
+                { "key": "bounds", "value": "-180,-90,180,90" }
+              ]
+            },
+            "description": "Laedt eine reale lokalisierte Story ausserhalb der ersten 100 Ergebnisse und leitet daraus Suchbegriff und Kartenausschnitte fuer die folgenden Vertragstests ab."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.unset('storyQuery');",
+                  "pm.collectionVariables.unset('storyBounds');",
+                  "pm.collectionVariables.unset('storyAntimeridianBounds');",
+                  "pm.collectionVariables.unset('storyId');",
+                  "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const story = body.stories[0];",
+                  "pm.test('Ein lokalisierter Pruefdatensatz ausserhalb der ersten 100 Ergebnisse ist vorhanden', () => {",
+                  "  pm.expect(body.total, 'Der Nachweis benoetigt mehr als 100 lokalisierte Stories').to.be.above(100);",
+                  "  pm.expect(body.offset).to.eql(100);",
+                  "  pm.expect(body.stories).to.have.lengthOf(1);",
+                  "  pm.expect(story?.location, 'Die Pruefstory hat keinen primaeren Ort').to.be.ok;",
+                  "  pm.expect(story?.representativeArticle.title || story?.representativeArticle.domain, 'Die Pruefstory hat keinen Suchwert').to.be.ok;",
+                  "});",
+                  "if (story) {",
+                  "  const location = story.location;",
+                  "  const rounded = value => Number(value.toFixed(5));",
+                  "  const bounds = [Math.max(-180, location.longitude - 0.1), Math.max(-90, location.latitude - 0.1), Math.min(180, location.longitude + 0.1), Math.min(90, location.latitude + 0.1)].map(rounded).join(',');",
+                  "  const antimeridianBounds = (location.longitude < 0",
+                  "    ? [170, Math.max(-90, location.latitude - 0.1), Math.min(180, location.longitude + 0.1), Math.min(90, location.latitude + 0.1)]",
+                  "    : [Math.max(-180, location.longitude - 0.1), Math.max(-90, location.latitude - 0.1), -170, Math.min(90, location.latitude + 0.1)]).map(rounded).join(',');",
+                  "  pm.collectionVariables.set('storyQuery', (story.representativeArticle.title || story.representativeArticle.domain).slice(0, 200));",
+                  "  pm.collectionVariables.set('storyBounds', bounds);",
+                  "  pm.collectionVariables.set('storyAntimeridianBounds', antimeridianBounds);",
+                  "  pm.collectionVariables.set('storyId', story.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Stories filtern und auflisten",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/stories?offset={{offset}}&limit={{pageLimit}}&sort=priority&direction=desc&from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z&domain=example.org&country=GM&region=GM16",
+              "raw": "{{baseUrl}}/stories?offset=0&limit={{pageLimit}}&sort=priority&direction=desc&from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z&q={{storyQuery}}&bounds={{storyBounds}}",
               "host": ["{{baseUrl}}"],
               "path": ["stories"],
               "query": [
-                { "key": "offset", "value": "{{offset}}" },
+                { "key": "offset", "value": "0" },
                 { "key": "limit", "value": "{{pageLimit}}" },
                 { "key": "sort", "value": "priority" },
                 { "key": "direction", "value": "desc" },
                 { "key": "from", "value": "2020-01-01T00:00:00Z" },
                 { "key": "to", "value": "2030-01-01T00:00:00Z" },
-                { "key": "domain", "value": "example.org" },
-                { "key": "country", "value": "GM" },
-                { "key": "region", "value": "GM16" }
+                { "key": "q", "value": "{{storyQuery}}" },
+                { "key": "bounds", "value": "{{storyBounds}}" }
               ]
             },
-            "description": "Liefert nicht abgeloeste Stories der serverseitig konfigurierten Clustering-Version. priority sortiert nach unabhaengigen Berichten und Aktualitaet; Artikel- und Quellenanzahl bleiben separat sichtbar. from ist inklusiv, to exklusiv; Story-Intervalle muessen den Zeitraum ueberlappen. domain trifft exakt eine Artikeldomain eines aktuellen Story-Mitglieds. country und region treffen exakt die gelieferten Kennungen des primaeren Story-Orts. Filter, Sortierung und Pagination werden kombiniert."
+            "description": "Liefert nicht abgeloeste Stories der serverseitig konfigurierten Clustering-Version. priority sortiert nach unabhaengigen Berichten und Aktualitaet; Artikel- und Quellenanzahl bleiben separat sichtbar. from ist inklusiv, to exklusiv; Story-Intervalle muessen den Zeitraum ueberlappen. q sucht ohne Beachtung der Grossschreibung in Titel, repraesentativer Domain und primaerem Ort. domain trifft exakt eine Artikeldomain eines aktuellen Story-Mitglieds. country und region treffen exakt die gelieferten Kennungen des primaeren Story-Orts. bounds enthaelt west,south,east,north und unterstuetzt den Datumsmeridian. Alle Filter wirken vor total, Sortierung und Pagination."
           },
           "event": [
             {
@@ -223,9 +280,13 @@
                   "  const body = pm.response.json();",
                   "  pm.expect(body).to.have.all.keys('stories', 'offset', 'limit', 'total');",
                   "  pm.expect(body.stories).to.be.an('array');",
-                  "  pm.expect(body.offset).to.eql(Number(pm.variables.replaceIn('{{offset}}')));",
+                  "  pm.expect(body.offset).to.eql(0);",
                   "  pm.expect(body.limit).to.eql(Number(pm.variables.replaceIn('{{pageLimit}}')));",
                   "  pm.expect(body.total).to.be.a('number').and.at.least(body.stories.length);",
+                  "  pm.expect(body.stories, 'Die vorbereitete Story muss Suche und Bounds treffen').not.to.be.empty;",
+                  "  pm.expect(body.stories.map(story => story.id), 'Die Story aus der tieferen Ergebnisposition wurde nicht gefunden').to.include(pm.collectionVariables.get('storyId'));",
+                  "  const expectedQuery = String(pm.collectionVariables.get('storyQuery')).toLowerCase();",
+                  "  const [west, south, east, north] = pm.collectionVariables.get('storyBounds').split(',').map(Number);",
                   "  body.stories.forEach(story => {",
                   "    pm.expect(story).to.have.all.keys('id', 'state', 'effectiveFrom', 'effectiveTo', 'location', 'locations', 'representativeArticle', 'memberCount', 'sourceCount');",
                   "    pm.expect(story.state).to.be.oneOf(['ACTIVE', 'CLOSED']);",
@@ -238,9 +299,11 @@
                   "      pm.expect(story.location.confidence).to.be.a('number').and.within(0, 100);",
                   "      pm.expect(story.location.supportingArticles).to.be.a('number').and.at.least(1);",
                   "      pm.expect(story.location.supportingDomains).to.be.a('number').and.at.least(1);",
-                  "      pm.expect(story.location.countryCode).to.eql('GM');",
-                  "      pm.expect(story.location.regionCode).to.eql('GM16');",
+                  "      pm.expect(story.location.latitude).to.be.within(south, north);",
+                  "      pm.expect(story.location.longitude).to.be.within(west, east);",
                   "    }",
+                  "    const searchable = [story.representativeArticle.title, story.representativeArticle.domain, story.location?.name, story.location?.countryCode, story.location?.regionCode].filter(Boolean).join(' ').toLowerCase();",
+                  "    pm.expect(searchable).to.include(expectedQuery);",
                   "    pm.expect(story.locations).to.be.an('array');",
                   "    story.locations.forEach(location => pm.expect(location.confidence).to.be.a('number').and.within(0, 100));",
                   "    pm.expect(story.representativeArticle).to.have.all.keys('id', 'canonicalUrl', 'domain', 'firstSeenAt', 'title', 'publishedAt', 'mainImageUrl');",
@@ -259,6 +322,51 @@
           ]
         },
         {
+          "name": "Stories ueber die Datumsgrenze filtern",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories?offset=0&limit=100&sort=priority&direction=desc&from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z&q={{storyQuery}}&bounds={{storyAntimeridianBounds}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories"],
+              "query": [
+                { "key": "offset", "value": "0" },
+                { "key": "limit", "value": "100" },
+                { "key": "sort", "value": "priority" },
+                { "key": "direction", "value": "desc" },
+                { "key": "from", "value": "2020-01-01T00:00:00Z" },
+                { "key": "to", "value": "2030-01-01T00:00:00Z" },
+                { "key": "q", "value": "{{storyQuery}}" },
+                { "key": "bounds", "value": "{{storyAntimeridianBounds}}" }
+              ]
+            },
+            "description": "Prueft einen west-groesser-als-ost Kartenausschnitt ueber die Datumsgrenze mit dem vorbereiteten Treffer."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const [west, south, east, north] = pm.collectionVariables.get('storyAntimeridianBounds').split(',').map(Number);",
+                  "pm.test('Datumsgrenzen-Ausschnitt enthaelt die vorbereitete Story', () => {",
+                  "  pm.expect(west).to.be.above(east);",
+                  "  pm.expect(body.stories, 'Der Datumsgrenzen-Filter darf nicht leer sein').not.to.be.empty;",
+                  "  pm.expect(body.stories.map(story => story.id)).to.include(pm.collectionVariables.get('storyId'));",
+                  "  body.stories.forEach(story => {",
+                  "    pm.expect(story.location.latitude).to.be.within(south, north);",
+                  "    pm.expect(story.location.longitude >= west || story.location.longitude <= east).to.be.true;",
+                  "  });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Ungueltige geografische Story-Kennung",
           "request": {
             "method": "GET",
@@ -269,6 +377,33 @@
               "path": ["stories"],
               "query": [
                 { "key": "region", "value": "GM-16" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => pm.expect(pm.response.json()).to.have.all.keys('code', 'message'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ungueltiger Story-Kartenausschnitt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories?bounds=5,55,16,47",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories"],
+              "query": [
+                { "key": "bounds", "value": "5,55,16,47" }
               ]
             }
           },

@@ -42,4 +42,4 @@ export type StoryDetail = {
   members: { article: Article; assignmentReason: string }[];
 };
 
-export type StoryPage = { stories: Story[]; total: number };
+export type StoryPage = { stories: Story[]; offset: number; limit: number; total: number };

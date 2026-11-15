@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Alert, Box, ButtonBase, Divider, Paper, Stack, Typography } from "@mui/material";
 import StateMessage from "../../shared/StateMessage";
 import LiveMap, { type MapBounds } from "../live-map/LiveMap";
@@ -7,18 +7,8 @@ import StoryFilters, { type StoryFilterValues } from "./StoryFilters";
 import StoryRefreshStatus from "./StoryRefreshStatus";
 import { FormattedDate } from "./StoryMetadata";
 import { readLagebildUrl } from "./lagebildUrlState";
-import type { Story } from "./storyTypes";
 import useLagebildUrlSync from "./useLagebildUrlSync";
 import useStories from "./useStories";
-
-function isInBounds(story: Story, bounds: MapBounds) {
-  if (!story.location) return false;
-  const { latitude, longitude } = story.location;
-  const longitudeVisible = bounds.west <= bounds.east
-    ? longitude >= bounds.west && longitude <= bounds.east
-    : longitude >= bounds.west || longitude <= bounds.east;
-  return latitude >= bounds.south && latitude <= bounds.north && longitudeVisible;
-}
 
 export default function StoryOverview() {
   const [initialUrlState] = useState(() => readLagebildUrl(window.location.search));
@@ -26,20 +16,11 @@ export default function StoryOverview() {
   const [selectedId, setSelectedId] = useState<string | undefined>(initialUrlState.selectedId);
   const [mapBounds, setMapBounds] = useState<MapBounds | undefined>(initialUrlState.mapBounds);
   const hasReportedBounds = useRef(false);
-  const { page, regions, error, isLoading, lastLoadedAt, refresh } = useStories(filters);
+  const { page, regions, error, isLoading, lastLoadedAt, refresh } = useStories(filters, mapBounds);
 
   useLagebildUrlSync({ filters, mapBounds, selectedId });
 
-  const filteredStories = useMemo(() => {
-    const term = filters.query.trim().toLocaleLowerCase("de");
-    if (!term) return page?.stories ?? [];
-    return (page?.stories ?? []).filter((story) => [story.representativeArticle.title, story.representativeArticle.domain, story.location?.name, story.location?.countryCode, story.location?.regionCode]
-      .some((value) => value?.toLocaleLowerCase("de").includes(term)));
-  }, [filters.query, page]);
-  const stories = useMemo(
-    () => mapBounds ? filteredStories.filter((story) => isInBounds(story, mapBounds)) : filteredStories,
-    [filteredStories, mapBounds],
-  );
+  const stories = page?.stories ?? [];
 
   const select = useCallback((id: string) => setSelectedId(id), []);
   const changeFilters = (next: StoryFilterValues) => { setSelectedId(undefined); setFilters(next); };
@@ -58,7 +39,7 @@ export default function StoryOverview() {
 
       <Paper component="section" aria-label="Globales Lagebild" variant="outlined" sx={{ display: "grid", gridTemplateColumns: "minmax(560px, 1fr) minmax(300px, 360px)", flex: 1, minHeight: 0, overflow: "hidden", borderRadius: 2.5, boxShadow: "0 16px 40px rgba(20,45,34,.09)" }}>
         <Box component="section" aria-label="Weltkarte" sx={{ position: "relative", minHeight: 0, bgcolor: "#dbeae3" }}>
-          {!page && isLoading ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={filteredStories} selectedId={selectedId} initialBounds={initialUrlState.mapBounds} onSelect={select} onBoundsChange={changeBounds} />}
+          {!page && isLoading && !lastLoadedAt ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={stories} selectedId={selectedId} initialBounds={initialUrlState.mapBounds} onSelect={select} onBoundsChange={changeBounds} />}
         </Box>
         <Box component="aside" aria-label="Ereignisse und Details" sx={{ display: "flex", flexDirection: "column", minHeight: 0, borderLeft: 1, borderColor: "divider", overflow: "hidden" }}>
           {selectedId ? (
@@ -66,7 +47,7 @@ export default function StoryOverview() {
           ) : (
             <>
               <Box sx={{ px: 2.5, py: 2, flexShrink: 0 }}>
-                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "baseline" }}><Typography variant="h3">Priorisierte Ereignisse</Typography><Typography color="text.secondary" sx={{ fontSize: "0.75rem" }}>{stories.length} von {page?.total ?? 0}</Typography></Stack>
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "baseline" }}><Typography variant="h3">Priorisierte Ereignisse</Typography><Typography color="text.secondary" sx={{ fontSize: "0.75rem" }}>{page ? `${stories.length} von ${page.total}` : "—"}</Typography></Stack>
                 <StoryRefreshStatus isLoading={isLoading} lastLoadedAt={lastLoadedAt} onRefresh={refresh} />
               </Box>
               <Divider />

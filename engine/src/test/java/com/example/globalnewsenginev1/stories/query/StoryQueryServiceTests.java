@@ -84,11 +84,14 @@ class StoryQueryServiceTests {
 
         StoryPage first = service.stories(0, 1, "time", "desc");
         StoryPage second = service.stories(1, 1, "time", "desc");
+        StoryPage empty = service.stories(2, 1, "time", "desc");
 
         assertThat(first.total()).isEqualTo(2);
         assertThat(first.stories()).extracting(StorySummary::id).containsExactly(newer);
         assertThat(first.stories().getFirst().memberCount()).isOne();
         assertThat(second.stories()).extracting(StorySummary::id).containsExactly(older);
+        assertThat(empty.stories()).isEmpty();
+        assertThat(empty.total()).isEqualTo(2);
     }
 
     @Test
@@ -178,7 +181,7 @@ class StoryQueryServiceTests {
 
         StoryPage page = service.stories(0, 1, "articleCount", "desc", new StorySearchCriteria(
                 Instant.parse("2026-09-02T00:00:00Z"),
-                Instant.parse("2026-09-03T00:00:00Z"), "source.org", null, null));
+                Instant.parse("2026-09-03T00:00:00Z"), null, "source.org", null, null, null));
 
         assertThat(page.total()).isOne();
         assertThat(page.stories()).extracting(StorySummary::id).containsExactly(matching);
@@ -219,11 +222,55 @@ class StoryQueryServiceTests {
         seedLocation(3, "London, United Kingdom", "UK", "UKI", 51.5, -0.12, 100, 2, 2);
 
         StoryPage page = service.stories(1, 1, "time", "asc",
-                new StorySearchCriteria(null, null, null, "GM", "GM16"));
+                new StorySearchCriteria(null, null, null, null, "GM", "GM16", null));
 
         assertThat(page.total()).isEqualTo(2);
         assertThat(page.stories()).extracting(StorySummary::id).containsExactly(secondGermanStory);
         assertThat(page.stories().getFirst().location().regionCode()).isEqualTo("GM16");
+    }
+
+    @Test
+    void combinesTextTimeRegionAndMapBoundsBeforeCountingAndPagination() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "matching-berlin", "2026-09-01T10:00:00Z");
+        seedArticle(2, "other-berlin", "2026-09-01T11:00:00Z");
+        seedArticle(3, "matching-paris", "2026-09-01T12:00:00Z");
+        UUID matching = seedStory(1, 1, "matching-berlin", "ACTIVE", "2026-09-01T10:00:00Z");
+        seedStory(2, 1, "other-berlin", "ACTIVE", "2026-09-01T11:00:00Z");
+        seedStory(3, 1, "matching-paris", "ACTIVE", "2026-09-01T12:00:00Z");
+        jdbc.update("UPDATE stories SET representative_title = 'Matching event' WHERE id IN (?, ?)",
+                new UUID(0, 1), new UUID(0, 3));
+        jdbc.update("UPDATE stories SET representative_title = 'Other event' WHERE id = ?", new UUID(0, 2));
+        seedLocation(1, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, 100, 1, 1);
+        seedLocation(2, "Berlin, Germany", "GM", "GM16", 52.52, 13.405, 100, 1, 1);
+        seedLocation(3, "Paris, France", "FR", "FR11", 48.85, 2.35, 100, 1, 1);
+
+        StoryPage page = service.stories(0, 1, "priority", "desc", new StorySearchCriteria(
+                Instant.parse("2026-09-01T00:00:00Z"), Instant.parse("2026-09-02T00:00:00Z"),
+                "matching", null, "GM", "GM16", new StorySearchCriteria.Bounds(5, 47, 16, 55)));
+
+        assertThat(page.total()).isOne();
+        assertThat(page.stories()).extracting(StorySummary::id).containsExactly(matching);
+    }
+
+    @Test
+    void filtersAcrossTheDateLine() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "east", "2026-09-01T10:00:00Z");
+        seedArticle(2, "west", "2026-09-01T11:00:00Z");
+        seedArticle(3, "central", "2026-09-01T12:00:00Z");
+        UUID east = seedStory(1, 1, "east", "ACTIVE", "2026-09-01T10:00:00Z");
+        UUID west = seedStory(2, 1, "west", "ACTIVE", "2026-09-01T11:00:00Z");
+        seedStory(3, 1, "central", "ACTIVE", "2026-09-01T12:00:00Z");
+        seedLocation(1, "East of date line", null, null, 10, 175, 100, 1, 1);
+        seedLocation(2, "West of date line", null, null, 10, -175, 100, 1, 1);
+        seedLocation(3, "Central", null, null, 10, 0, 100, 1, 1);
+
+        StoryPage page = service.stories(0, 20, "time", "asc", new StorySearchCriteria(
+                null, null, null, null, null, null, new StorySearchCriteria.Bounds(170, -20, -170, 20)));
+
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(page.stories()).extracting(StorySummary::id).containsExactly(east, west);
     }
 
     @Test
@@ -323,9 +370,14 @@ class StoryQueryServiceTests {
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "unknown"));
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "desc",
                 new StorySearchCriteria(Instant.parse("2026-09-02T00:00:00Z"),
-                        Instant.parse("2026-09-01T00:00:00Z"), null, null, null)));
+                        Instant.parse("2026-09-01T00:00:00Z"), null, null, null, null, null)));
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "desc",
-                new StorySearchCriteria(null, null, null, "GM!", null)));
+                new StorySearchCriteria(null, null, null, null, "GM!", null, null)));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "desc",
+                new StorySearchCriteria(null, null, "x".repeat(201), null, null, null, null)));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "desc",
+                new StorySearchCriteria(null, null, null, null, null, null,
+                        new StorySearchCriteria.Bounds(5, 55, 16, 47))));
     }
 
     private void seedVersion(long id, String versionKey, String status) {
