@@ -61,7 +61,9 @@ class StoryPairSearchTests {
         assertThat(result.comparedPairs()).isEqualTo(2);
         assertThat(result.decisions()).extracting(decision ->
                 List.of(decision.left().articleRef(), decision.right().articleRef()))
-                .containsExactly(List.of("b".repeat(64), "c".repeat(64)));
+                .containsExactly(
+                        List.of("b".repeat(64), "c".repeat(64)),
+                        List.of("c".repeat(64), "d".repeat(64)));
     }
 
     private StorySnapshotRepository.SnapshotInput input(

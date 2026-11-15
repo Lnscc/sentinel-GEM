@@ -38,6 +38,8 @@ class StorySnapshotServicePostgresIT {
             "story-mvp-title-embedding-48h-v1.0.0";
     private static final String VERSION_24_ELIGIBILITY =
             "story-mvp-title-embedding-24h-v1.1.0";
+    private static final String VERSION_24_COHERENT =
+            "story-mvp-title-embedding-24h-v1.3.0";
 
     private DataSource adminDataSource;
     private DataSource dataSource;
@@ -196,6 +198,24 @@ class StorySnapshotServicePostgresIT {
     }
 
     @Test
+    void loadsTheTitleFrozenWithTheSnapshot() {
+        insertReadyInput(VERSION_24, "a", vector(1, 0), effectiveAt, null);
+        StorySnapshotRepository repository = new StorySnapshotRepository(jdbc);
+        var version = repository.findProcessingVersions(1).getFirst();
+        var inputs = repository.findSnapshotInputs(version.id(), watermark);
+        String hash = StorySnapshotCanonicalizer.snapshotInputHash(version.key(), watermark, inputs);
+        var snapshot = repository.ensureSnapshot(version, watermark,
+                StorySnapshotCanonicalizer.snapshotKey(version.key(), watermark, hash),
+                hash, inputs, clock.instant());
+
+        jdbc.update("UPDATE story_article_inputs SET normalized_title = 'Changed after snapshot'");
+
+        assertThat(repository.loadSnapshotInputs(snapshot.id()))
+                .extracting(StorySnapshotRepository.SnapshotInput::normalizedTitle)
+                .containsExactly("Title a");
+    }
+
+    @Test
     void excludedInputsNeverEnterSnapshotsOrMemberships() {
         jdbc.update("""
                 UPDATE story_clustering_versions SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
@@ -257,6 +277,37 @@ class StorySnapshotServicePostgresIT {
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM story_memberships WHERE current_marker = 1
                 """, Integer.class)).isEqualTo(4);
+    }
+
+    @Test
+    void incrementalRunCanUseTheSecondBestCompatibleStory() {
+        jdbc.update("""
+                UPDATE story_clustering_versions SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+                WHERE version_key = ?
+                """, VERSION_24_COHERENT);
+        insertReadyInput(VERSION_24_COHERENT, "a", vectorAtDegrees(0), effectiveAt, null);
+        insertReadyInput(VERSION_24_COHERENT, "b", vectorAtDegrees(40), effectiveAt, null);
+        insertReadyInput(VERSION_24_COHERENT, "c", vectorAtDegrees(90), effectiveAt, null);
+        StorySnapshotService service = service();
+
+        assertThat(service.processBackfill(watermark, 1).succeededVersions()).isOne();
+        UUID firstStory = story("a");
+        UUID secondStory = story("c");
+        assertThat(story("b")).isEqualTo(firstStory);
+        assertThat(secondStory).isNotEqualTo(firstStory);
+
+        advance(Duration.ofMinutes(1));
+        insertReadyInput(VERSION_24_COHERENT, "d", vectorAtDegrees(50), effectiveAt, null);
+
+        assertThat(service.processIncremental(1).succeededVersions()).isOne();
+        assertThat(story("d")).isEqualTo(secondStory);
+        assertThat(story("a")).isEqualTo(firstStory);
+        assertThat(story("b")).isEqualTo(firstStory);
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_pair_decisions
+                WHERE run_id = (SELECT MAX(id) FROM story_processing_runs)
+                  AND result = 'SAME_STORY'
+                """, Integer.class)).isEqualTo(2);
     }
 
     @Test
@@ -1037,6 +1088,11 @@ class StorySnapshotServicePostgresIT {
             buffer.putFloat(0);
         }
         return buffer.array();
+    }
+
+    private byte[] vectorAtDegrees(double degrees) {
+        double radians = Math.toRadians(degrees);
+        return vector((float) Math.cos(radians), (float) Math.sin(radians));
     }
 
     private long currentInput(String versionKey, String suffix) {

@@ -1,6 +1,8 @@
 package com.example.globalnewsenginev1.stories.snapshot;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -8,6 +10,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import java.io.InputStream;
 import java.nio.file.Path;
 
 @Component
@@ -38,7 +41,7 @@ class StoryReleaseCommand implements ApplicationRunner {
             StoryPromotionService.Approval approval = approval();
             workflow.run(new StoryReleaseWorkflow.Request(candidate,
                     json.readValue(holdoutFile.toFile(), StoryReleaseEvaluation.Holdout.class),
-                    json.readTree(regressionFile.toFile()),
+                    releaseRegression(regressionFile),
                     new StoryReleaseWorkflow.ReviewMetadata(
                             required("stories.release.reviewed-by"),
                             required("stories.release.review-document"),
@@ -49,6 +52,35 @@ class StoryReleaseCommand implements ApplicationRunner {
         } finally {
             context.close();
         }
+    }
+
+    private JsonNode releaseRegression(Path regressionFile) throws Exception {
+        try (InputStream componentRegression = getClass().getResourceAsStream(
+                "/stories/gem87-clustering-quality-v1.json")) {
+            if (componentRegression == null) {
+                throw new IllegalStateException("GEM-87 component regression corpus is missing");
+            }
+            return combineRegression(json.readTree(regressionFile.toFile()),
+                    json.readTree(componentRegression));
+        }
+    }
+
+    static ObjectNode combineRegression(JsonNode regression, JsonNode componentRegression) {
+        if (!regression.isObject() || !componentRegression.isObject()
+                || !componentRegression.path("splits").isObject()) {
+            throw new IllegalArgumentException("Release regression corpora must be JSON objects");
+        }
+        ObjectNode combined = ((ObjectNode) regression).deepCopy();
+        combined.put("corpusVersion", required(regression, "corpusVersion") + "+"
+                + required(componentRegression, "corpusVersion"));
+        combined.set("componentRegression", componentRegression.deepCopy());
+        return combined;
+    }
+
+    private static String required(JsonNode node, String field) {
+        String value = node.path(field).asText();
+        if (value.isBlank()) throw new IllegalArgumentException("Regression corpus is missing " + field);
+        return value;
     }
 
     private StoryPromotionService.Approval approval() {

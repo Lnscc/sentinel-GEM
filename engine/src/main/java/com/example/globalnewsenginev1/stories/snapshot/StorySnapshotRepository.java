@@ -138,7 +138,7 @@ class StorySnapshotRepository {
         return jdbcTemplate.query("""
                 SELECT input.id AS article_input_id, input.article_ref,
                        input.article_input_fingerprint, input.effective_at,
-                       input.effective_at_source, input.title_input_hash,
+                       input.effective_at_source, input.normalized_title, input.title_input_hash,
                        artifact.id AS embedding_artifact_id, artifact.vector_hash,
                        artifact.vector_bytes, artifact.embedding_dimension
                 FROM story_article_inputs input
@@ -160,6 +160,7 @@ class StorySnapshotRepository {
                 resultSet.getString("article_input_fingerprint"),
                 resultSet.getTimestamp("effective_at").toInstant(),
                 resultSet.getString("effective_at_source"),
+                resultSet.getString("normalized_title"),
                 resultSet.getString("title_input_hash"),
                 resultSet.getLong("embedding_artifact_id"),
                 resultSet.getString("vector_hash"),
@@ -209,13 +210,13 @@ class StorySnapshotRepository {
                         INSERT INTO story_snapshot_members (
                             snapshot_id, clustering_version_id, article_input_id,
                             article_ref, article_input_fingerprint,
-                            embedding_artifact_id, vector_hash
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                            embedding_artifact_id, vector_hash, normalized_title
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT DO NOTHING
                         """, snapshot.id(), version.id(), input.articleInputId(),
                         input.articleRef(), input.articleInputFingerprint(),
                         input.embeddingArtifactId() == 0 ? null : input.embeddingArtifactId(),
-                        input.vectorHash());
+                        input.vectorHash(), input.normalizedTitle());
             }
             memberCount = jdbcTemplate.queryForObject("""
                     SELECT COUNT(*) FROM story_snapshot_members WHERE snapshot_id = ?
@@ -318,7 +319,7 @@ class StorySnapshotRepository {
         return jdbcTemplate.query("""
                 SELECT input.id AS article_input_id, input.article_ref,
                        member.article_input_fingerprint, input.effective_at,
-                       input.effective_at_source, input.title_input_hash,
+                       input.effective_at_source, member.normalized_title, input.title_input_hash,
                        artifact.id AS embedding_artifact_id, member.vector_hash,
                        artifact.vector_bytes, artifact.embedding_dimension
                 FROM story_snapshot_members member
@@ -334,6 +335,7 @@ class StorySnapshotRepository {
                 resultSet.getString("article_input_fingerprint"),
                 resultSet.getTimestamp("effective_at").toInstant(),
                 resultSet.getString("effective_at_source"),
+                resultSet.getString("normalized_title"),
                 resultSet.getString("title_input_hash"),
                 resultSet.getLong("embedding_artifact_id"),
                 resultSet.getString("vector_hash"),
@@ -472,12 +474,21 @@ class StorySnapshotRepository {
             String articleInputFingerprint,
             Instant effectiveAt,
             String effectiveAtSource,
+            String normalizedTitle,
             String titleInputHash,
             long embeddingArtifactId,
             String vectorHash,
             byte[] vectorBytes,
             int embeddingDimension
     ) {
+        SnapshotInput(long articleInputId, String articleRef, String articleInputFingerprint,
+                      Instant effectiveAt, String effectiveAtSource, String titleInputHash,
+                      long embeddingArtifactId, String vectorHash, byte[] vectorBytes,
+                      int embeddingDimension) {
+            this(articleInputId, articleRef, articleInputFingerprint, effectiveAt, effectiveAtSource,
+                    null, titleInputHash, embeddingArtifactId, vectorHash, vectorBytes,
+                    embeddingDimension);
+        }
     }
 
     record ExistingAssignment(String articleRef, UUID storyId, String representativeArticleRef) { }

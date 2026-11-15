@@ -59,7 +59,7 @@ class StoryDomainModelMigrationPostgresIT {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM articles WHERE id = ?", Integer.class, existingArticleId)).isOne();
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM story_clustering_versions", Integer.class)).isEqualTo(5);
+                "SELECT COUNT(*) FROM story_clustering_versions", Integer.class)).isEqualTo(6);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM story_clustering_versions WHERE status = 'ACTIVE'", Integer.class))
                 .isOne();
@@ -73,9 +73,9 @@ class StoryDomainModelMigrationPostgresIT {
                 SELECT candidate_window_hours
                 FROM story_clustering_versions
                 ORDER BY candidate_window_hours
-                """, Integer.class)).containsExactly(24, 24, 24, 48, 72);
+                """, Integer.class)).containsExactly(24, 24, 24, 24, 48, 72);
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM story_clustering_version_status_history", Integer.class)).isEqualTo(9);
+                "SELECT COUNT(*) FROM story_clustering_version_status_history", Integer.class)).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT input_eligibility_rule_version FROM story_clustering_versions
                 WHERE version_key = 'story-mvp-title-embedding-24h-v1.1.0'
@@ -84,10 +84,50 @@ class StoryDomainModelMigrationPostgresIT {
                 SELECT input_eligibility_rule_version FROM story_clustering_versions
                 WHERE version_key = 'story-mvp-title-embedding-24h-v1.2.0' AND status = 'SHADOW'
                 """, String.class)).isEqualTo("non-event-content-v1");
+        assertThat(jdbcTemplate.queryForMap("""
+                SELECT component_rule_version, input_eligibility_rule_version, status
+                FROM story_clustering_versions
+                WHERE version_key = 'story-mvp-title-embedding-24h-v1.3.0'
+                """)).containsEntry("component_rule_version", "complete-linkage-template-coherent-v2")
+                .containsEntry("input_eligibility_rule_version", "non-event-content-v1")
+                .containsEntry("status", "SHADOW");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT to_regclass('story_memberships')", String.class)).isEqualTo("story_memberships");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT to_regclass('story_publish_commits')", String.class)).isEqualTo("story_publish_commits");
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT is_nullable FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'story_snapshot_members'
+                  AND column_name = 'normalized_title'
+                """, String.class)).isEqualTo("YES");
+    }
+
+    @Test
+    void backfillsFrozenTitlesForSnapshotsWithExistingRuns() {
+        migrateTo("36");
+        long versionId = versionId(24);
+        long embeddingId = insertReadyEmbedding('v', 2);
+        long inputId = insertReadyArticleInput(
+                versionId, existingArticleId, "hash-existing", 'w', embeddingId, true);
+        long snapshotId = insertSnapshot(versionId, 'x', timestamp);
+        jdbcTemplate.update("""
+                INSERT INTO story_snapshot_members (
+                    snapshot_id, clustering_version_id, article_input_id, article_ref,
+                    article_input_fingerprint, embedding_artifact_id, vector_hash
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, snapshotId, versionId, inputId, "hash-existing", hash('w'),
+                embeddingId, hash('w'));
+        insertRun(versionId, snapshotId, 'y', 1);
+
+        migrateToLatest();
+
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT normalized_title FROM story_snapshot_members WHERE snapshot_id = ?
+                """, String.class, snapshotId)).isEqualTo("A usable title");
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                UPDATE story_snapshot_members SET normalized_title = 'Changed' WHERE snapshot_id = ?
+                """, snapshotId)).isInstanceOf(DataAccessException.class);
     }
 
     @Test
@@ -236,6 +276,12 @@ class StoryDomainModelMigrationPostgresIT {
                 .schemas(schemaName).defaultSchema(schemaName).load().migrate();
     }
 
+    private void migrateTo(String version) {
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration")
+                .schemas(schemaName).defaultSchema(schemaName)
+                .target(MigrationVersion.fromVersion(version)).load().migrate();
+    }
+
     private long insertArticle(String suffix) {
         String articleRef = "hash-" + suffix;
         jdbcTemplate.update("""
@@ -326,9 +372,12 @@ class StoryDomainModelMigrationPostgresIT {
         jdbcTemplate.update("""
                 INSERT INTO story_snapshot_members (
                     snapshot_id, clustering_version_id, article_input_id, article_ref,
-                    article_input_fingerprint, embedding_artifact_id, vector_hash
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, snapshotId, versionId, inputId, articleRef, hash(fingerprint), embeddingId, hash(vectorHash));
+                    article_input_fingerprint, embedding_artifact_id, vector_hash, normalized_title
+                ) SELECT ?, ?, ?, ?, ?, ?, ?, normalized_title
+                FROM story_article_inputs
+                WHERE id = ?
+                """, snapshotId, versionId, inputId, articleRef, hash(fingerprint), embeddingId,
+                hash(vectorHash), inputId);
     }
 
     private long insertRun(long versionId, long snapshotId, char key, long fencingToken) {

@@ -153,6 +153,7 @@ public class StoryReleaseWorkflow {
     private boolean hasNewRegression(StoryRegressionEvaluation.Result candidate,
                                      StoryRegressionEvaluation.Result baseline) {
         return !candidate.inputQualityDeviations().isEmpty()
+                || !candidate.componentDeviations().isEmpty()
                 || !baseline.relationshipDeviations().containsAll(candidate.relationshipDeviations());
     }
 

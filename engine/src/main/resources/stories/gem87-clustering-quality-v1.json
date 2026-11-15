@@ -1,0 +1,104 @@
+{
+  "corpusVersion": "gem87-clustering-quality-v1.2.0",
+  "componentRuleVersion": "complete-linkage-template-coherent-v2",
+  "candidateWindowHours": 24,
+  "candidateSimilarityThreshold": 0.700000,
+  "candidateSearchMode": "exact-cosine-radius-v1",
+  "splits": {
+    "regression": [
+      {
+        "id": "quarterly-company-entities",
+        "articles": [
+          {"ref": "serina", "title": "Serina Therapeutics Reports Second Quarter 2026 Financial Results", "degrees": 0, "story": "serina"},
+          {"ref": "verrica", "title": "Verrica Pharmaceuticals Reports Second Quarter 2026 Financial Results", "degrees": 5, "story": "verrica"}
+        ]
+      },
+      {
+        "id": "key-takeaways-company-entities",
+        "articles": [
+          {"ref": "acme-takeaways", "title": "3 Key Takeaways From Acme's Q2 Earnings", "degrees": 0, "story": "acme"},
+          {"ref": "globex-takeaways", "title": "3 Key Takeaways From Globex's Q2 Earnings", "degrees": 5, "story": "globex"}
+        ]
+      },
+      {
+        "id": "shared-name-quarterly-entities",
+        "articles": [
+          {"ref": "nova", "title": "Nova Reports Second Quarter 2026 Financial Results", "degrees": -4, "story": "nova"},
+          {"ref": "nova-therapeutics", "title": "Nova Therapeutics Reports Second Quarter 2026 Financial Results", "degrees": 0, "story": "nova-therapeutics"},
+          {"ref": "nova-pharmaceuticals", "title": "Nova Pharmaceuticals Reports Second Quarter 2026 Financial Results", "degrees": 4, "story": "nova-pharmaceuticals"},
+          {"ref": "nova-therapeutics-inc", "title": "Nova Therapeutics Inc. Reports Q2 2026 Financial Results", "degrees": 8, "story": "nova-therapeutics"}
+        ]
+      },
+      {
+        "id": "shared-name-key-takeaways-entities",
+        "articles": [
+          {"ref": "alpha-bank", "title": "3 Key Takeaways From Alpha Bank's Q2 Earnings", "degrees": 0, "story": "alpha-bank"},
+          {"ref": "alpha-energy", "title": "3 Key Takeaways From Alpha Energy's Q2 Earnings", "degrees": 4, "story": "alpha-energy"},
+          {"ref": "alpha-bank-corp", "title": "3 Key Takeaways From Alpha Bank Corp.'s Second Quarter Earnings", "degrees": 8, "story": "alpha-bank"}
+        ]
+      },
+      {
+        "id": "zelda-guide-topics",
+        "articles": [
+          {"ref": "zelda-masks", "title": "Zelda Majora's Mask Guide: How to Find All Masks", "degrees": 0, "story": "masks"},
+          {"ref": "zelda-songs", "title": "Zelda Majora's Mask Guide: How to Learn All Songs", "degrees": 5, "story": "songs"},
+          {"ref": "zelda-fairies", "title": "Zelda Majora's Mask Guide: All Fairy Fountain Locations", "degrees": 10, "story": "fairies"},
+          {"ref": "zelda-equipment", "title": "Zelda Majora's Mask Guide: How to Get All Equipment", "degrees": 15, "story": "equipment"}
+        ]
+      },
+      {
+        "id": "same-event-title-variants",
+        "articles": [
+          {"ref": "launch-one", "title": "Northstar launches Atlas satellite after weather delay", "degrees": 0, "story": "atlas-launch"},
+          {"ref": "launch-two", "title": "Atlas satellite launched by Northstar following weather delay", "degrees": 10, "story": "atlas-launch"}
+        ]
+      },
+      {
+        "id": "ordinary-event-stopwords",
+        "articles": [
+          {"ref": "tunnel-one", "title": "Fire closes tunnel in Berlin", "degrees": 0, "story": "tunnel-fire"},
+          {"ref": "tunnel-two", "title": "Berlin tunnel closed after fire in the city", "degrees": 8, "story": "tunnel-fire"}
+        ]
+      },
+      {
+        "id": "generic-and-specific-guide-subjects",
+        "articles": [
+          {"ref": "all-masks", "title": "Zelda Majora's Mask Guide: How to Find All Masks", "degrees": 0, "story": "all-masks"},
+          {"ref": "stone-mask", "title": "Zelda Majora's Mask Guide: How to Get the Stone Mask", "degrees": 4, "story": "stone-mask"},
+          {"ref": "stone-mask-location", "title": "Zelda Majora's Mask Guide: Stone Mask Location", "degrees": 8, "story": "stone-mask"}
+        ]
+      },
+      {
+        "id": "single-similar-member-is-insufficient",
+        "articles": [
+          {"ref": "chain-a", "title": "Alpha event", "degrees": 0, "story": "chain-one"},
+          {"ref": "chain-b", "title": "Alpha event follow-up", "degrees": 40, "story": "chain-one"},
+          {"ref": "chain-c", "title": "Different event", "degrees": -40, "story": "chain-two"}
+        ]
+      }
+    ],
+    "unseen": [
+      {
+        "id": "unseen-quarterly-template",
+        "articles": [
+          {"ref": "orion-quarter", "title": "Orion Biotech Announces Third Quarter 2026 Earnings Results", "degrees": 0, "story": "orion"},
+          {"ref": "lumen-quarter", "title": "Lumen Pharma Announces Third Quarter 2026 Earnings Results", "degrees": 4, "story": "lumen"}
+        ]
+      },
+      {
+        "id": "unseen-guide-topics",
+        "articles": [
+          {"ref": "guide-armor", "title": "Elden Ring Guide: How to Find the Night Armor", "degrees": 0, "story": "armor"},
+          {"ref": "guide-spells", "title": "Elden Ring Guide: How to Find the Moon Spells", "degrees": 4, "story": "spells"}
+        ]
+      },
+      {
+        "id": "unseen-positive-event",
+        "articles": [
+          {"ref": "airport-one", "title": "Frankfurt Airport halts departures after power failure", "degrees": 0, "story": "airport-outage"},
+          {"ref": "airport-two", "title": "Power outage stops departing flights at Frankfurt Airport", "degrees": 8, "story": "airport-outage"}
+        ]
+      }
+    ]
+  }
+}

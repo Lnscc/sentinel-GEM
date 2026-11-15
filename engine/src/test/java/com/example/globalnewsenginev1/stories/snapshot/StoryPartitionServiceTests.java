@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -98,6 +100,46 @@ class StoryPartitionServiceTests {
     }
 
     @Test
+    void incrementalAssignmentRequiresCoherenceWithEveryExistingStoryMember() {
+        var existingA = titledAngle("a", 0, "Alpha event");
+        var existingB = titledAngle("b", 40, "Alpha event follow-up");
+        var changed = titledAngle("c", -40, "Different event");
+        var pair = new StorySnapshotService.PairDecision(changed, existingA,
+                new BigDecimal("0.766044"), 0, 1, "SAME_STORY", "pair-rule", false);
+        UUID storyId = UUID.randomUUID();
+
+        var result = StoryPartitionService.incrementalPartition(coherentRules(),
+                List.of(existingA, existingB, changed), List.of(pair), Set.of("c"), List.of(
+                        new StorySnapshotRepository.ExistingAssignment("a", storyId, "a"),
+                        new StorySnapshotRepository.ExistingAssignment("b", storyId, "a")));
+
+        assertThat(groups(result)).containsExactlyInAnyOrder(List.of("a", "b"), List.of("c"));
+    }
+
+    @Test
+    void incrementalAssignmentTriesTheNextCompatibleStory() {
+        var firstNear = titledAngle("a", 5, "Alpha event");
+        var firstFar = titledAngle("b", 60, "Alpha event");
+        var second = titledAngle("d", 20, "Alpha event");
+        var changed = titledAngle("c", 0, "Alpha event");
+        UUID firstStory = UUID.randomUUID();
+        UUID secondStory = UUID.randomUUID();
+        var rejectedBest = new StorySnapshotService.PairDecision(changed, firstNear,
+                new BigDecimal("0.996195"), 0, 1, "SAME_STORY", "pair-rule", false);
+        var acceptedSecond = new StorySnapshotService.PairDecision(changed, second,
+                new BigDecimal("0.939693"), 0, 2, "SAME_STORY", "pair-rule", false);
+
+        var result = StoryPartitionService.incrementalPartition(coherentRules(),
+                List.of(firstNear, firstFar, second, changed),
+                List.of(rejectedBest, acceptedSecond), Set.of("c"), List.of(
+                        new StorySnapshotRepository.ExistingAssignment("a", firstStory, "a"),
+                        new StorySnapshotRepository.ExistingAssignment("b", firstStory, "a"),
+                        new StorySnapshotRepository.ExistingAssignment("d", secondStory, "d")));
+
+        assertThat(groups(result)).containsExactlyInAnyOrder(List.of("a", "b"), List.of("d", "c"));
+    }
+
+    @Test
     void rejectsUnsupportedRulesDuplicateArticlesAndInvalidArtifacts() {
         var valid = input("a", 0, 1, 0);
         assertThatThrownBy(() -> partition(List.of(valid, valid)))
@@ -142,6 +184,12 @@ class StoryPartitionServiceTests {
                 window, new BigDecimal("0.700000"), "exact-cosine-radius-v1", StoryPartitionService.COMPONENT_RULE);
     }
 
+    private static StoryPartitionService.SnapshotRules coherentRules() {
+        return new StoryPartitionService.SnapshotRules(1, "snapshot", "input-hash", "version", 2,
+                24, new BigDecimal("0.700000"), "exact-cosine-radius-v1",
+                StoryPartitionService.COHERENT_COMPONENT_RULE);
+    }
+
     private static List<List<String>> groups(StoryPartitionService.Partition result) {
         return result.components().stream().map(component -> component.members().stream()
                 .map(StoryPartitionService.MemberEvidence::articleRef).toList()).toList();
@@ -150,6 +198,16 @@ class StoryPartitionServiceTests {
     private static StorySnapshotRepository.SnapshotInput angle(String ref, long hours, double degrees) {
         return input(ref, hours, (float) Math.cos(Math.toRadians(degrees)),
                 (float) Math.sin(Math.toRadians(degrees)));
+    }
+
+    private static StorySnapshotRepository.SnapshotInput titledAngle(
+            String ref, double degrees, String title) {
+        byte[] bytes = ByteBuffer.allocate(8)
+                .putFloat((float) Math.cos(Math.toRadians(degrees)))
+                .putFloat((float) Math.sin(Math.toRadians(degrees))).array();
+        return new StorySnapshotRepository.SnapshotInput(ref.charAt(0), ref, "fingerprint-" + ref,
+                START, "PUBLISHED_AT", title, "title-" + ref, ref.charAt(0),
+                StorySnapshotCanonicalizer.sha256(bytes), bytes, 2);
     }
 
     private static StorySnapshotRepository.SnapshotInput input(String ref, long hours, float x, float y) {

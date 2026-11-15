@@ -19,6 +19,7 @@ import java.util.UUID;
 public class StoryPartitionService {
 
     static final String COMPONENT_RULE = "medoid-radius-agglomerative-v1";
+    static final String COHERENT_COMPONENT_RULE = "complete-linkage-template-coherent-v2";
     private final StorySnapshotRepository repository;
 
     StoryPartitionService(StorySnapshotRepository repository) {
@@ -71,6 +72,7 @@ public class StoryPartitionService {
             Set<String> changedArticleRefs,
             List<StorySnapshotRepository.ExistingAssignment> existingAssignments
     ) {
+        validate(rules);
         Map<String, StorySnapshotRepository.SnapshotInput> inputByRef = new HashMap<>();
         inputs.forEach(input -> inputByRef.put(input.articleRef(), input));
         Map<String, Object> groupByRef = new HashMap<>();
@@ -80,6 +82,20 @@ public class StoryPartitionService {
             if (!changedArticleRefs.contains(assignment.articleRef())
                     && inputByRef.containsKey(assignment.articleRef())) {
                 groupByRef.put(assignment.articleRef(), assignment.storyId());
+            }
+        }
+        Map<Object, List<StorySnapshotRepository.SnapshotInput>> membersByGroup = new HashMap<>();
+        for (var input : inputs) {
+            Object group = groupByRef.get(input.articleRef());
+            if (group != null) {
+                membersByGroup.computeIfAbsent(group, ignored -> new ArrayList<>()).add(input);
+            }
+        }
+        Map<String, float[]> vectors = new HashMap<>();
+        if (COHERENT_COMPONENT_RULE.equals(rules.componentRuleVersion())) {
+            for (var input : inputs) {
+                vectors.put(input.articleRef(), ExactCosine.decode(
+                        input.vectorBytes(), rules.dimension(), input.vectorHash()));
             }
         }
 
@@ -97,11 +113,16 @@ public class StoryPartitionService {
                         : pair.right().articleRef().equals(input.articleRef())
                                 ? pair.left().articleRef() : null;
                 if (other != null && groupByRef.containsKey(other)) {
-                    target = groupByRef.get(other);
-                    break;
+                    Object candidate = groupByRef.get(other);
+                    if (coherent(rules, input, membersByGroup.get(candidate), vectors)) {
+                        target = candidate;
+                        break;
+                    }
                 }
             }
-            groupByRef.put(input.articleRef(), target == null ? input.articleRef() : target);
+            Object group = target == null ? input.articleRef() : target;
+            groupByRef.put(input.articleRef(), group);
+            membersByGroup.computeIfAbsent(group, ignored -> new ArrayList<>()).add(input);
         }
 
         Map<Object, List<StorySnapshotRepository.SnapshotInput>> groups = new LinkedHashMap<>();
@@ -150,13 +171,7 @@ public class StoryPartitionService {
     static Partition partition(SnapshotRules rules,
                                List<StorySnapshotRepository.SnapshotInput> frozenInputs,
                                boolean includeMergeDiagnostics) {
-        if (!COMPONENT_RULE.equals(rules.componentRuleVersion())
-                || !"exact-cosine-radius-v1".equals(rules.searchMode())
-                || !Set.of(24, 48, 72).contains(rules.windowHours())
-                || rules.threshold().compareTo(new BigDecimal("0.700000")) != 0
-                || rules.dimension() <= 0) {
-            throw new IllegalArgumentException("Unsupported clustering version: " + rules.versionKey());
-        }
+        validate(rules);
         List<StorySnapshotRepository.SnapshotInput> inputs = frozenInputs.stream()
                 .sorted(Comparator.comparing(StorySnapshotRepository.SnapshotInput::effectiveAt)
                         .thenComparing(StorySnapshotRepository.SnapshotInput::articleRef)).toList();
@@ -199,7 +214,9 @@ public class StoryPartitionService {
             List<MemberEvidence> evidence = evidence(members, medoid, inputs, scores);
             boolean accepted = evidence.stream().allMatch(member ->
                     member.similarityToMedoid().compareTo(rules.threshold()) >= 0
-                            && member.timeDistance().compareTo(window) <= 0);
+                            && member.timeDistance().compareTo(window) <= 0)
+                    && (!COHERENT_COMPONENT_RULE.equals(rules.componentRuleVersion())
+                    || coherent(members, inputs, scores, window, threshold));
             if (includeMergeDiagnostics) decisions.add(new MergeDecision(refs(candidate.left(), inputs),
                     refs(candidate.right(), inputs), decimal(candidate.similarity()),
                     inputs.get(medoid).articleRef(), accepted, evidence));
@@ -221,6 +238,16 @@ public class StoryPartitionService {
                 inputs.get(cluster.medoid()).articleRef(),
                 evidence(cluster.members(), cluster.medoid(), inputs, scores))).toList();
         return new Partition(rules, components, List.copyOf(decisions));
+    }
+
+    private static void validate(SnapshotRules rules) {
+        if (!Set.of(COMPONENT_RULE, COHERENT_COMPONENT_RULE).contains(rules.componentRuleVersion())
+                || !"exact-cosine-radius-v1".equals(rules.searchMode())
+                || !Set.of(24, 48, 72).contains(rules.windowHours())
+                || rules.threshold().compareTo(new BigDecimal("0.700000")) != 0
+                || rules.dimension() <= 0) {
+            throw new IllegalArgumentException("Unsupported clustering version: " + rules.versionKey());
+        }
     }
 
     private static void addCandidate(PriorityQueue<Candidate> candidates, Cluster first, Cluster second,
@@ -255,6 +282,42 @@ public class StoryPartitionService {
             }
         }
         return best;
+    }
+
+    private static boolean coherent(SnapshotRules rules,
+                                    StorySnapshotRepository.SnapshotInput input,
+                                    List<StorySnapshotRepository.SnapshotInput> members,
+                                    Map<String, float[]> vectors) {
+        if (!COHERENT_COMPONENT_RULE.equals(rules.componentRuleVersion())) return true;
+        Duration window = Duration.ofHours(rules.windowHours());
+        float[] inputVector = vectors.get(input.articleRef());
+        for (var member : members) {
+            if (ExactCosine.similarity(inputVector, vectors.get(member.articleRef()))
+                    .compareTo(rules.threshold()) < 0
+                    || Duration.between(input.effectiveAt(), member.effectiveAt()).abs().compareTo(window) > 0
+                    || !StorySubjectCoherence.compatible(input.normalizedTitle(), member.normalizedTitle())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean coherent(List<Integer> members,
+                                    List<StorySnapshotRepository.SnapshotInput> inputs,
+                                    Scores scores, Duration window, long threshold) {
+        for (int left = 0; left < members.size(); left++) {
+            for (int right = left + 1; right < members.size(); right++) {
+                int leftIndex = members.get(left);
+                int rightIndex = members.get(right);
+                if (scores.get(leftIndex, rightIndex) < threshold
+                        || distance(inputs, leftIndex, rightIndex).compareTo(window) > 0
+                        || !StorySubjectCoherence.compatible(inputs.get(leftIndex).normalizedTitle(),
+                        inputs.get(rightIndex).normalizedTitle())) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private static List<String> refs(Cluster cluster,

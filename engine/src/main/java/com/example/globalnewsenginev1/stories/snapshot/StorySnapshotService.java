@@ -298,11 +298,10 @@ public class StorySnapshotService {
                 }
             }
         } else {
-            Map<PairKey, PairDecision> bestPositivePairs = new HashMap<>();
+            Map<PairKey, PairDecision> positivePairs = new HashMap<>();
             for (int changedIndex = 0; changedIndex < inputs.size(); changedIndex++) {
                 var changed = inputs.get(changedIndex);
                 if (!changedArticleRefs.contains(changed.articleRef())) continue;
-                PairDecision bestPositive = null;
                 int firstCandidate = lowerBound(inputs, changed.effectiveAt().minus(window));
                 int afterLastCandidate = upperBound(inputs, changed.effectiveAt().plus(window));
                 for (int candidateIndex = firstCandidate;
@@ -315,24 +314,14 @@ public class StorySnapshotService {
                     if (distance.compareTo(window) > 0) continue;
                     PairDecision decision = compare(version, changed, candidate, vectors,
                             bestComparison, articlesWithPositive, distance);
-                    String bestOtherRef = bestPositive == null ? null
-                            : bestPositive.left().articleRef().equals(changed.articleRef())
-                                    ? bestPositive.right().articleRef()
-                                    : bestPositive.left().articleRef();
-                    if (decision != null && (bestPositive == null
-                            || decision.similarity().compareTo(bestPositive.similarity()) > 0
-                            || (decision.similarity().compareTo(bestPositive.similarity()) == 0
-                            && candidate.articleRef().compareTo(bestOtherRef) < 0))) {
-                        bestPositive = decision;
+                    if (decision != null) {
+                        positivePairs.putIfAbsent(new PairKey(decision.left().articleRef(),
+                                decision.right().articleRef()), decision);
                     }
                     comparedPairs++;
                 }
-                if (bestPositive != null) {
-                    bestPositivePairs.put(new PairKey(bestPositive.left().articleRef(),
-                            bestPositive.right().articleRef()), bestPositive);
-                }
             }
-            sameStory.addAll(bestPositivePairs.values());
+            sameStory.addAll(positivePairs.values());
         }
 
         List<PairDecision> decisions = sameStory;

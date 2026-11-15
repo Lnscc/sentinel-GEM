@@ -105,6 +105,19 @@ class StoryReleaseWorkflowTests {
     }
 
     @Test
+    void componentRegressionNeverPromotesEvenWhenBaselineAlsoFailsIt() {
+        StoryReleaseWorkflow workflow = workflow(ready(), ready());
+        reviewed(true);
+        var componentFailure = regression(List.of(), List.of("shared-name-quarterly:nova:nova-therapeutics"));
+        when(regressions.evaluate(eq(1L), any())).thenReturn(componentFailure);
+        when(regressions.evaluate(eq(2L), any())).thenReturn(componentFailure);
+
+        assertThat(workflow.run(request(true, approval())).outcome())
+                .isEqualTo("BLOCKED_REGRESSION");
+        verify(promotion, never()).promote(any(), any(), any());
+    }
+
+    @Test
     void successfulPromotionVerifiesListAndDetail() {
         StoryReleaseWorkflow workflow = workflow(ready(), ready());
         reviewed(true);
@@ -193,8 +206,14 @@ class StoryReleaseWorkflowTests {
     }
 
     private StoryRegressionEvaluation.Result regression(List<String> inputDeviations) {
+        return regression(inputDeviations, List.of());
+    }
+
+    private StoryRegressionEvaluation.Result regression(List<String> inputDeviations,
+                                                         List<String> componentDeviations) {
         return new StoryRegressionEvaluation.Result("regression-v1", "regression-hash", 1, 0,
-                List.of(), 1, inputDeviations, inputDeviations.size());
+                List.of(), 1, inputDeviations, 1, componentDeviations,
+                inputDeviations.size() + componentDeviations.size());
     }
 
     private void reviewed(boolean passed) {

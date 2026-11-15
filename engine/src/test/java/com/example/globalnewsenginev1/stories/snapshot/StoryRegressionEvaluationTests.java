@@ -77,4 +77,19 @@ class StoryRegressionEvaluationTests {
 
         assertThat(result.inputQualityDeviations()).isEmpty();
     }
+
+    @Test
+    void evaluatesGem87ComponentCasesAsAnAbsoluteReleaseGate() throws Exception {
+        var corpus = json.readTree(getClass().getResourceAsStream(
+                "/stories/gem87-clustering-quality-v1.json"));
+
+        var coherent = StoryRegressionEvaluation.evaluateComponentRegression(
+                corpus, StoryPartitionService.COHERENT_COMPONENT_RULE);
+        var baseline = StoryRegressionEvaluation.evaluateComponentRegression(
+                corpus, StoryPartitionService.COMPONENT_RULE);
+
+        assertThat(coherent.relationshipCases()).isPositive();
+        assertThat(coherent.deviations()).isEmpty();
+        assertThat(baseline.deviations()).isNotEmpty();
+    }
 }
