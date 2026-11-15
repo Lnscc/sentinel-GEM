@@ -1,13 +1,16 @@
 # Agent-Engineering-Workflow
 
-Dieser Workflow automatisiert die Umsetzung, Tests und Code-Reviews. Menschen
-entscheiden über fachliche oder technische Fragen und geben in Phase 1 den
-Merge frei; sie müssen keinen Code reviewen.
+Dieser Workflow automatisiert Umsetzung, Tests, Code-Reviews und Integration.
+Menschen entscheiden über fachliche oder technische Fragen; sie müssen weder
+Code reviewen noch einen fertigen Pull Request separat zum Merge freigeben.
 
 ## Freigabe und Aufnahme
 
 Ein Ticket ist nur ausführbar, wenn es im Linear-Team `Sentinel GEM` den Status
 `Todo` und das Label `agent-ready` hat. `Backlog` ist immer ausgeschlossen.
+Das Label autorisiert den gesamten hier beschriebenen Ablauf bis einschließlich
+Squash-Merge. Diese Freigabe bleibt nach der Aufnahme bestehen, obwohl der
+Orchestrator das Label zur exklusiven Beanspruchung entfernt.
 
 Vor dem Start prüft der Orchestrator:
 
@@ -39,24 +42,41 @@ Fehlerantworten. Nicht erforderliche manuelle Tests müssen begründet werden.
 
 ## Unabhängiger Review
 
-Nach grüner CI prüft ein unabhängiger Read-only-Agent Anforderungen, Diff und
-Testnachweise. Er erhält nicht die Schlussfolgerungen des Implementierers.
+Nach grünen Implementierungs-Checks prüft Codex Cloud Code Review als separate
+GitHub-App Anforderungen, Diff und Testnachweise des aktuellen Head-Commits. Der
+Orchestrator akzeptiert nur ein abgeschlossenes Review von
+`chatgpt-codex-connector[bot]`, dessen Commit dem aktuellen PR-Head entspricht
+und das keine offenen Findings meldet. Reviewer, Commit, Ergebnis und
+Schleifenzahl werden im PR dokumentiert.
 
 - P0/P1: Der PR bleibt Draft und wird nicht automatisch nachgebessert.
 - P2/P3: Höchstens zwei Nachbesserungs- und Review-Schleifen.
 - Verbleibende Findings: Der PR bleibt Draft und benötigt eine Entscheidung.
-- Keine Findings: Der PR wird für die Integrationsfreigabe bereitgestellt.
+- Keine Findings: Der Orchestrator veröffentlicht den head-spezifischen
+  Commit-Status `Agent review gate` mit Link auf die Bot-Evidenz und aktiviert
+  den GitHub-Squash-Auto-Merge.
 
 Menschen werden nur bei unklaren Produktanforderungen, Architektur- oder
 Technologieentscheidungen, Breaking Changes, Datenmigrationen, Sicherheits-
-oder erheblichen Betriebsrisiken einbezogen. Die Merge-Freigabe erfolgt über
-das GitHub-Label `merge-approved`, nicht über eine menschliche Code-Review.
+oder erheblichen Betriebsrisiken einbezogen. Das Bot-Review des aktuellen
+Head-Commits ist der technische Nachweis der unabhängigen Agentenprüfung. Jeder
+neue Commit macht das vorherige Ergebnis ungültig und wird automatisch erneut
+geprüft; bis zum neuen Ergebnis darf Auto-Merge nicht aktiviert werden.
+
+Änderungen an der Review-Steuerung selbst dürfen sich nicht automatisch
+freigeben. Dazu zählen insbesondere `AGENTS.md`, Agenten-Skills und
+-Instruktionen, dieser Workflow und das vorliegende Prozessdokument. Das Gate
+blockiert solche Control-Plane-Änderungen als technische Entscheidung; ihre
+Integration benötigt eine explizite separate Freigabe.
 
 ## Integration und Abschluss
 
-In Phase 1 führt der Orchestrator nach `merge-approved`, grüner CI und
-erfolgreichem Agent-Review einen Squash-Merge aus. Eine Merge Queue wird erst
-eingeführt, wenn reale Parallelitätskonflikte sie rechtfertigen.
+Nach einem abgeschlossenen Codex-Review ohne offene Findings veröffentlicht der
+Orchestrator den Required Check `Agent review gate` für den geprüften Head und
+aktiviert Auto-Merge. GitHub führt den Squash-Merge aus, sobald alle
+Pflichtchecks grün sind. Eine Merge Queue wird erst eingeführt, wenn reale
+Parallelitätskonflikte sie rechtfertigen. Menschliche Code-Reviews sind kein
+Bestandteil dieses Ablaufs.
 
 Das Linear-Ticket bleibt bis dahin `In Progress`. Erst wenn der Merge-Commit in
 Remote-`main` enthalten und dessen CI grün ist, ergänzt der Orchestrator die
