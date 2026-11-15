@@ -122,6 +122,7 @@ commands.
 | Story model and processing | [Stories](docs/stories.md) |
 | Database structure | [Database overview](docs/database-overview.md) |
 | Operations and troubleshooting | [Operations](docs/operations.md) |
+| Agent engineering workflow | [Engineering workflow](docs/engineering-agent-workflow.md) |
 | Ready-to-use API requests | [Postman collection](docs/postman) |
 
 Engineering work is tracked in the
