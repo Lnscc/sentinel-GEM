@@ -4,6 +4,7 @@ import StateMessage from "../../shared/StateMessage";
 import LiveMap, { type MapBounds } from "../live-map/LiveMap";
 import StoryDetails from "./StoryDetails";
 import StoryFilters, { type StoryFilterValues } from "./StoryFilters";
+import StoryImage from "./StoryImage";
 import StoryRefreshStatus from "./StoryRefreshStatus";
 import { FormattedDate } from "./StoryMetadata";
 import { readLagebildUrl } from "./lagebildUrlState";
@@ -55,8 +56,11 @@ export default function StoryOverview() {
               {page && stories.length === 0 && <StateMessage>Kein Ereignis passt zu diesen Filtern.</StateMessage>}
               <Box role="list" aria-label="Gefilterte Ereignisse" sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
                 {stories.map((story, index) => (
-                  <ButtonBase component="article" role="listitem" key={story.id} onClick={() => select(story.id)} sx={{ display: "grid", gridTemplateColumns: "36px 1fr", gap: 1.5, width: "100%", p: 2.25, textAlign: "left", alignItems: "start", borderBottom: 1, borderColor: "divider", "&:hover": { bgcolor: "#f8faf9" } }}>
+                  <ButtonBase component="article" role="listitem" key={story.id} onClick={() => select(story.id)} sx={{ display: "grid", gridTemplateColumns: "36px 72px 1fr", gap: 1.5, width: "100%", p: 2.25, textAlign: "left", alignItems: "start", borderBottom: 1, borderColor: "divider", "&:hover": { bgcolor: "#f8faf9" } }}>
                     <Box sx={{ display: "grid", placeItems: "center", width: 34, height: 34, borderRadius: 1, bgcolor: "#eaf1ed", color: "primary.dark", fontSize: "0.75rem", fontWeight: 800 }}>{index + 1}</Box>
+                    <Box sx={{ overflow: "hidden", borderRadius: 1 }}>
+                      <StoryImage src={story.representativeArticle.mainImageUrl} variant="card" />
+                    </Box>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography color="primary.dark" sx={{ fontSize: "0.75rem", fontWeight: 700 }}>{story.location?.name ?? "Ohne Ortsangabe"}</Typography>
                       <Typography variant="h3" sx={{ my: 0.75, fontSize: "1.05rem" }}>{story.representativeArticle.title}</Typography>

@@ -66,6 +66,10 @@ describe("Globales Lagebild", () => {
     expect(screen.getByRole("heading", { name: "Globales Lagebild" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
+    const listItems = within(screen.getByRole("list", { name: "Gefilterte Ereignisse" })).getAllByRole("listitem");
+    expect(listItems[0].querySelector("img")).toHaveAttribute("src", "https://images.example.com/story.jpg");
+    expect(listItems[1].querySelector("img")).toBeNull();
+    expect(listItems[1].querySelector(".story-image__placeholder")).toBeInTheDocument();
     await waitFor(() => expect(mapLibre.addSource).toHaveBeenCalled());
     expect(mapLibre.addLayer).toHaveBeenCalledWith(expect.objectContaining({ id: "story-cluster-hit-area", source: "stories" }));
     expect(mapLibre.addLayer).toHaveBeenCalledWith(expect.objectContaining({ id: "story-point-hit-area", source: "stories" }));

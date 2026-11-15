@@ -1,9 +1,20 @@
-import { useState, type CSSProperties, type MouseEvent } from "react";
+import { type CSSProperties, type MouseEvent } from "react";
 
 const buttonStyle: CSSProperties = { position: "relative", padding: 0, border: 0, background: "transparent", cursor: "pointer" };
 
+function httpUrl(value: string | null | undefined) {
+  if (!value) return undefined;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function ImageCard({ url, offset = 0, selected = false }: { url?: string | null; offset?: number; selected?: boolean }) {
-  const [failed, setFailed] = useState(false);
+  const src = httpUrl(url);
   return (
     <span className="live-map-marker__image" style={{
       position: "absolute", right: offset, bottom: offset * .75, display: "block", width: 82, height: 50,
@@ -12,8 +23,8 @@ function ImageCard({ url, offset = 0, selected = false }: { url?: string | null;
       boxShadow: selected ? "0 0 0 4px rgba(225, 130, 18, .24), 0 5px 14px rgba(11, 71, 52, .28)" : "0 5px 14px rgba(11, 71, 52, .28)",
       opacity: offset === 16 ? .75 : offset === 8 ? .9 : 1,
     }}>
-      <span aria-hidden="true" style={{ display: "grid", placeItems: "center", width: "100%", height: "100%", color: "rgba(255,255,255,.8)", fontSize: 22 }}>▧</span>
-      {url && !failed && <img src={url} alt="" onError={() => setFailed(true)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+      <span className="live-map-marker__placeholder" aria-hidden="true" style={{ display: "grid", placeItems: "center", width: "100%", height: "100%", color: "rgba(255,255,255,.8)", fontSize: 22 }}>▧</span>
+      {src && <img key={src} src={src} alt="" onError={(event) => { event.currentTarget.hidden = true; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
     </span>
   );
 }
