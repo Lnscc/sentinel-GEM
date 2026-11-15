@@ -42,9 +42,9 @@ export default function StoryOverview() {
         <Box component="section" aria-label="Weltkarte" sx={{ position: "relative", minHeight: 0, bgcolor: "#dbeae3" }}>
           {!page && isLoading && !lastLoadedAt ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={stories} selectedId={selectedId} initialBounds={initialUrlState.mapBounds} onSelect={select} onBoundsChange={changeBounds} />}
         </Box>
-        <Box component="aside" aria-label="Ereignisse und Details" sx={{ display: "flex", flexDirection: "column", minHeight: 0, borderLeft: 1, borderColor: "divider", overflow: "hidden" }}>
+        <Box component="aside" aria-label="Ereignisse und Details" sx={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, borderLeft: 1, borderColor: "divider", overflow: "hidden" }}>
           {selectedId ? (
-            <Box sx={{ height: "100%", overflow: "auto", p: 2.5 }}><StoryDetails id={selectedId} onBack={() => setSelectedId(undefined)} /></Box>
+            <Box sx={{ height: "100%", minWidth: 0, overflow: "auto", p: 2.5 }}><StoryDetails id={selectedId} onBack={() => setSelectedId(undefined)} /></Box>
           ) : (
             <>
               <Box sx={{ px: 2.5, py: 2, flexShrink: 0 }}>

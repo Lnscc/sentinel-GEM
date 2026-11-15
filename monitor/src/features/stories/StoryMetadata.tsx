@@ -30,13 +30,15 @@ export default function StoryMetadata({
       sx={{
         display: "grid",
         gridTemplateColumns: { xs: "1fr", sm: columns },
+        minWidth: 0,
         gap: 2,
         m: 0,
         pt: 2,
         borderTop: 1,
         borderColor: "divider",
+        "& > *": { minWidth: 0 },
         "& dt": { mb: 0.5, color: "text.secondary", fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" },
-        "& dd": { m: 0, color: "text.secondary", fontSize: "0.9rem", lineHeight: 1.45 },
+        "& dd": { m: 0, overflowWrap: "anywhere", color: "text.secondary", fontSize: "0.9rem", lineHeight: 1.45 },
       }}
     >
       {children}

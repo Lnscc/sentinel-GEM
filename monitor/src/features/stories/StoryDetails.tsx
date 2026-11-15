@@ -24,7 +24,7 @@ export default function StoryDetails({ id, onBack }: { id: string; onBack: () =>
       {!story && !error && <StateMessage>Ereignis wird geladen …</StateMessage>}
       {error && <Alert severity="error">Das Ereignis konnte nicht geladen werden. {error}</Alert>}
       {story && (
-        <Box component="article">
+        <Box component="article" sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
           <Box component="header" sx={{ mb: 3 }}>
             <Typography variant="overline">Ereignis · {story.state}</Typography>
             <Typography variant="h2" sx={{ my: 1 }}>{story.representativeArticle.title}</Typography>
