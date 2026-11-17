@@ -287,6 +287,16 @@ Mitgliedschaften mit Zuordnungsgrund. Unbekannte oder abgeloeste IDs liefern `40
 weiterverwendeten oeffentlichen ID wird der Stand der konfigurierten Version geliefert.
 Andere Versionen sind nicht produktsichtbar.
 
+`GET /stories/countries` liefert ein Array aus `{ "code": "GM", "name": "Deutschland" }`.
+Es enthaelt die unterschiedlichen Laender der primaeren Story-Orte im gesamten sichtbaren,
+nicht abgeloesten Datenbestand, unabhaengig von Paginierung, Zeitraum, Suche und Kartenausschnitt.
+Ein leerer Bestand liefert `[]`. Die Codes sind GDELT/FIPS; deutsche Anzeigenamen stammen aus
+`stories/gdelt-countries.tsv` (GDELT-Lookup mit aktuellen FIPS-Korrekturen nach GeoNames).
+Unbekannte Codes bleiben als `Unbekanntes Land (Code)` auswaehlbar.
+Der Monitor sortiert die Namen alphabetisch und uebertraegt die Auswahl als `country` an die
+Story-API und in die teilbare URL. Das Land umfasst alle primaeren Story-Orte dieses Landes;
+Zeitraum, Textsuche und Kartenausschnitt schraenken die Ergebnisse weiterhin gemeinsam ein.
+
 Beide Endpunkte liefern alle deduplizierten GDELT-ActionGeo-Orte als `locations`. Jeder Ort enthaelt
 `name`, `countryCode`, `regionCode`, `latitude`, `longitude`, `source`, die hoechste
 Mention-`confidence` sowie `supportingArticles` und `supportingDomains`. `location` bleibt der

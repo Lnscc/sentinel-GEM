@@ -1,6 +1,7 @@
 package com.example.globalnewsenginev1.stories.api;
 
 import com.example.globalnewsenginev1.stories.query.StoryDetail;
+import com.example.globalnewsenginev1.stories.query.StoryCountry;
 import com.example.globalnewsenginev1.stories.query.StoryPage;
 import com.example.globalnewsenginev1.stories.query.StoryQueryService;
 import com.example.globalnewsenginev1.stories.query.StorySearchCriteria;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -28,6 +30,11 @@ public class StoryController {
 
     public StoryController(StoryQueryService queryService) {
         this.queryService = queryService;
+    }
+
+    @GetMapping("/countries")
+    public List<StoryCountry> countries() {
+        return queryService.countries();
     }
 
     @GetMapping

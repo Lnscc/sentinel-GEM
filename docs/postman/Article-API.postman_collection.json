@@ -191,6 +191,46 @@
       "name": "Stories",
       "item": [
         {
+          "name": "Verfuegbare Story-Laender",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/countries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "countries"
+              ]
+            },
+            "description": "Alle Laender der primaeren Story-Orte in der sichtbaren Clustering-Version, ohne Paginierung oder weitere Filter. Codes sind GDELT/FIPS, Namen deutsch."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Stabiler Laendervertrag, auch bei leerem Datenbestand', () => {",
+                  "  const countries = pm.response.json();",
+                  "  pm.expect(countries).to.be.an('array');",
+                  "  pm.expect(new Set(countries.map(country => country.code)).size).to.eql(countries.length);",
+                  "  countries.forEach(country => {",
+                  "    pm.expect(country).to.have.all.keys('code', 'name');",
+                  "    pm.expect(country.code).to.be.a('string').and.not.empty;",
+                  "    pm.expect(country.name).to.be.a('string').and.not.empty;",
+                  "    if (country.code === 'GM') pm.expect(country.name).to.eql('Deutschland');",
+                  "    if (country.code === 'CH') pm.expect(country.name).to.eql('China');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Lokalisierte Story als Pruefdatensatz laden",
           "request": {
             "method": "GET",

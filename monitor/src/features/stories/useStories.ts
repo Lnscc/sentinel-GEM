@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MapBounds } from "../live-map/LiveMap";
 import type { StoryPage } from "./storyTypes";
-import type { RegionOption, StoryFilterValues } from "./StoryFilters";
+import type { CountryOption, StoryFilterValues } from "./StoryFilters";
 
 const PAGE_SIZE = 100;
 const REFRESH_INTERVAL_MS = 60_000;
@@ -11,16 +11,34 @@ export default function useStories(filters: StoryFilterValues, mapBounds?: MapBo
   const queryValue = filters.query.trim();
   const bounds = mapBounds && [mapBounds.west, mapBounds.south, mapBounds.east, mapBounds.north]
     .map((value) => Number(value.toFixed(5))).join(",");
-  const visibleScope = JSON.stringify([filters.hours, queryValue, filters.region.trim(), bounds]);
+  const visibleScope = JSON.stringify([filters.hours, queryValue, filters.country.trim(), bounds]);
   const [page, setPage] = useState<StoryPage>();
   const [debouncedQuery, setDebouncedQuery] = useState(queryValue);
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
   const [lastLoadedAt, setLastLoadedAt] = useState<Date>();
-  const [regions, setRegions] = useState<RegionOption[]>([]);
+  const [countries, setCountries] = useState<CountryOption[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const pageScope = useRef<string | undefined>(undefined);
   const pageCache = useRef<{ scope: string; page: StoryPage } | undefined>(undefined);
+
+  const [countriesError, setCountriesError] = useState<string>();
+  useEffect(() => {
+    const controller = new AbortController();
+    setCountriesError(undefined);
+    fetch("/api/stories/countries", { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json() as Promise<CountryOption[]>;
+      })
+      .then((next) => {
+        if (!controller.signal.aborted) setCountries(next.sort((a, b) => a.name.localeCompare(b.name, "de")));
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setCountriesError("Die Länder konnten nicht geladen werden.");
+      });
+    return () => controller.abort();
+  }, [refreshKey]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setRefreshKey((key) => key + 1), REFRESH_INTERVAL_MS);
@@ -47,9 +65,9 @@ export default function useStories(filters: StoryFilterValues, mapBounds?: MapBo
     const from = new Date(Date.now() - Number(filters.hours) * 60 * 60 * 1000).toISOString();
     const query = new URLSearchParams({ offset: "0", limit: String(PAGE_SIZE), sort: "priority", direction: "desc", from });
     if (debouncedQuery) query.set("q", debouncedQuery);
-    if (filters.region.trim()) query.set("region", filters.region.trim());
+    if (filters.country.trim()) query.set("country", filters.country.trim());
     if (bounds) query.set("bounds", bounds);
-    const scope = JSON.stringify([filters.hours, debouncedQuery, filters.region.trim(), bounds]);
+    const scope = JSON.stringify([filters.hours, debouncedQuery, filters.country.trim(), bounds]);
 
     setIsLoading(true);
     setError(undefined);
@@ -63,15 +81,6 @@ export default function useStories(filters: StoryFilterValues, mapBounds?: MapBo
         pageScope.current = scope;
         pageCache.current = { scope, page: nextPage };
         setPage(nextPage);
-        setRegions((current) => {
-          const known = new Map(current.map((region) => [region.code, region]));
-          nextPage.stories.forEach(({ location }) => {
-            if (location?.regionCode && location.name && !known.has(location.regionCode)) {
-              known.set(location.regionCode, { code: location.regionCode, name: location.name });
-            }
-          });
-          return [...known.values()].sort((left, right) => left.name.localeCompare(right.name, "de"));
-        });
         setLastLoadedAt(new Date());
       })
       .catch((reason: unknown) => {
@@ -83,7 +92,7 @@ export default function useStories(filters: StoryFilterValues, mapBounds?: MapBo
       .finally(() => { if (!controller.signal.aborted) setIsLoading(false); });
 
     return () => controller.abort();
-  }, [bounds, debouncedQuery, filters.hours, filters.region, queryValue, refreshKey]);
+  }, [bounds, debouncedQuery, filters.hours, filters.country, queryValue, refreshKey]);
 
-  return { page, regions, error, isLoading, lastLoadedAt, refresh: () => setRefreshKey((key) => key + 1) };
+  return { page, countries, countriesError, error, isLoading, lastLoadedAt, refresh: () => setRefreshKey((key) => key + 1) };
 }
