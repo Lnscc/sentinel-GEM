@@ -40,6 +40,10 @@ Whenever a REST API endpoint or its request/response contract is added, changed,
 
 - Track engineering work in the Linear team `Sentinel GEM` (`GEM`).
 - For agent-ready tickets, follow `docs/engineering-agent-workflow.md`.
+- Setting `agent-ready` authorizes the complete documented lifecycle, including
+  commits, pushes, pull requests, independent agent review, and automatic merge.
+  That authorization persists after the orchestrator claims and removes the
+  label, unless the user explicitly revokes it.
 - Do not add repository-local ticket files.
 - When implementing a Linear issue, summarize the implemented behavior in the
   issue. Prefer a comment for chronological updates, implementation results,
@@ -49,8 +53,9 @@ Whenever a REST API endpoint or its request/response contract is added, changed,
   without asking.
 - Keep the issue `In Progress` until its verified commit is contained in `main`;
   uncommitted changes on a `main` checkout do not count.
-- A status transition never authorizes committing, pushing, merging, or otherwise
-  putting a change on `main`; those actions still require their own authorization.
+- A status transition alone never authorizes committing, pushing, merging, or
+  otherwise putting a change on `main`; only the explicit `agent-ready`
+  authorization or a separate user instruction does.
 - Ask before changing status only when the correct transition is ambiguous.
 
 ## Backlog prioritization

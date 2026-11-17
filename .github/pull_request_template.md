@@ -20,6 +20,14 @@
 
 - Falls nicht erforderlich, Begründung:
 
+## Unabhängiger Agenten-Review
+
+- Reviewer: `chatgpt-codex-connector[bot]` (ausstehend)
+- Reviewed commit: ausstehend
+- Result: ausstehend
+- Review-Schleifen: 0
+- Evidenz: ausstehend
+
 ## API und Betrieb
 
 - API-/Postman-Auswirkung:
