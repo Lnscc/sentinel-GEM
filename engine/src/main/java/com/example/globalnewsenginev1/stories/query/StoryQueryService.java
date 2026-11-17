@@ -96,6 +96,13 @@ public class StoryQueryService {
         return stories(offset, limit, sort, direction, StorySearchCriteria.defaults());
     }
 
+    public List<StoryCountry> countries() {
+        return jdbcTemplate.query("SELECT DISTINCT primary_location.country_code " + VISIBLE_STORY
+                        + " AND primary_location.country_code IS NOT NULL AND TRIM(primary_location.country_code) <> ''"
+                        + " ORDER BY primary_location.country_code",
+                (rs, row) -> new StoryCountry(rs.getString(1), CountryNames.name(rs.getString(1))), visibleVersion);
+    }
+
     public StoryPage stories(int offset, int limit, String sort, String direction,
                              StorySearchCriteria criteria) {
         validatePagination(offset, limit);

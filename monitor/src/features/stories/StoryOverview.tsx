@@ -17,7 +17,7 @@ export default function StoryOverview() {
   const [selectedId, setSelectedId] = useState<string | undefined>(initialUrlState.selectedId);
   const [mapBounds, setMapBounds] = useState<MapBounds | undefined>(initialUrlState.mapBounds);
   const hasReportedBounds = useRef(false);
-  const { page, regions, error, isLoading, lastLoadedAt, refresh } = useStories(filters, mapBounds);
+  const { page, countries, countriesError, error, isLoading, lastLoadedAt, refresh } = useStories(filters, mapBounds);
 
   useLagebildUrlSync({ filters, mapBounds, selectedId });
 
@@ -35,7 +35,7 @@ export default function StoryOverview() {
     <Box component="main" sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, px: 4, pt: 2, pb: 3, overflow: "hidden" }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 1.5, flexShrink: 0 }}>
         <Box sx={{ minWidth: 150 }}><Typography variant="overline" color="primary.main">Weltweit</Typography><Typography variant="h3">Globales Lagebild</Typography></Box>
-        <Box sx={{ flex: 1 }}><StoryFilters filters={filters} regions={regions} onChange={changeFilters} /></Box>
+        <Box sx={{ flex: 1 }}><StoryFilters filters={filters} countries={countries} error={countriesError} onChange={changeFilters} /></Box>
       </Stack>
 
       <Paper component="section" aria-label="Globales Lagebild" variant="outlined" sx={{ display: "grid", gridTemplateColumns: "minmax(560px, 1fr) minmax(300px, 360px)", flex: 1, minHeight: 0, overflow: "hidden", borderRadius: 2.5, boxShadow: "0 16px 40px rgba(20,45,34,.09)" }}>

@@ -8,7 +8,7 @@ vi.mock("./useLagebildUrlSync", () => ({ default: () => undefined }));
 vi.mock("./useStories", () => ({
   default: () => ({
     page: { stories: [], offset: 0, limit: 100, total: 0 },
-    regions: [],
+    countries: [],
     error: undefined,
     isLoading: false,
     lastLoadedAt: new Date("2026-11-15T10:00:00Z"),

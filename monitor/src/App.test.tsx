@@ -50,9 +50,13 @@ const story = {
   locations: [{ name: "Berlin", countryCode: "GM", regionCode: "GM16", latitude: 52.52, longitude: 13.405, source: "GDELT_EVENT_ACTION", confidence: 100, supportingArticles: 2, supportingDomains: 2 }],
   representativeArticle: { domain: "example.com", title: "Ein wichtiges Ereignis", mainImageUrl: "https://images.example.com/story.jpg" }, memberCount: 2, sourceCount: 2,
 };
-const otherStory = { ...story, id: "story-2", location: { ...story.location, name: "Paris", regionCode: "FR11", latitude: 48.85, longitude: 2.35 }, representativeArticle: { ...story.representativeArticle, domain: "news.fr", title: "Ein anderes Ereignis", mainImageUrl: null } };
+const otherStory = { ...story, id: "story-2", location: { ...story.location, name: "Paris", countryCode: "FR", regionCode: "FR11", latitude: 48.85, longitude: 2.35 }, representativeArticle: { ...story.representativeArticle, domain: "news.fr", title: "Ein anderes Ereignis", mainImageUrl: null } };
 const detail = { ...story, state: "PUBLISHED", representativeArticle: { ...story.representativeArticle, id: 1, canonicalUrl: "https://example.com/1", firstSeenAt: story.effectiveFrom, publishedAt: null }, members: [{ assignmentReason: "representative", article: { id: 1, canonicalUrl: "https://example.com/1", domain: "example.com", firstSeenAt: story.effectiveFrom, title: "Artikel eins", publishedAt: null, mainImageUrl: null } }] };
 const response = (body: unknown, ok = true, status = ok ? 200 : 500) => Promise.resolve({ ok, status, json: () => Promise.resolve(body) } as Response);
+const mockFetch = (implementation: typeof fetch) => vi.spyOn(globalThis, "fetch").mockImplementation((input, init) =>
+  String(input) === "/api/stories/countries"
+    ? response([{ code: "GM", name: "Deutschland" }, { code: "FR", name: "Frankreich" }, { code: "UP", name: "Ukraine" }])
+    : implementation(input, init));
 const renderApp = () => render(<ThemeProvider theme={createTheme()}><App /></ThemeProvider>);
 
 describe("Globales Lagebild", () => {
@@ -60,7 +64,7 @@ describe("Globales Lagebild", () => {
   afterEach(cleanup);
 
   it("zeigt Karte und priorisierte Ereignisse aus der bestehenden API", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [story, otherStory], total: 2 }));
+    const fetchMock = mockFetch(() => response({ stories: [story, otherStory], total: 2 }));
     renderApp();
 
     expect(screen.getByRole("heading", { name: "Globales Lagebild" })).toBeInTheDocument();
@@ -74,7 +78,7 @@ describe("Globales Lagebild", () => {
     expect(mapLibre.addLayer).toHaveBeenCalledWith(expect.objectContaining({ id: "story-cluster-hit-area", source: "stories" }));
     expect(mapLibre.addLayer).toHaveBeenCalledWith(expect.objectContaining({ id: "story-point-hit-area", source: "stories" }));
     expect(within(screen.getByRole("region", { name: "Weltkarte" })).getByLabelText("Interaktive Weltkarte der aktuellen Ereignisse")).toBeInTheDocument();
-    const url = new URL(fetchMock.mock.calls[0][0] as string, "http://localhost");
+    const url = new URL(fetchMock.mock.calls.find(([input]) => String(input).startsWith("/api/stories?"))![0] as string, "http://localhost");
     expect(url.searchParams.get("sort")).toBe("priority");
     expect(url.searchParams.get("direction")).toBe("desc");
     expect(url.searchParams.get("limit")).toBe("100");
@@ -89,7 +93,7 @@ describe("Globales Lagebild", () => {
       return 1;
     }) as typeof window.setInterval);
     let listRequests = 0;
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+    mockFetch((input) => {
       if (String(input).includes("/story-1")) return response(detail);
       listRequests += 1;
       return response({ stories: listRequests === 1 ? [story] : [story, otherStory], total: listRequests === 1 ? 1 : 2 });
@@ -118,7 +122,7 @@ describe("Globales Lagebild", () => {
   it("behält bei Aktualisierungsfehlern die Daten und bietet einen erneuten Versuch an", async () => {
     let listRequests = 0;
     let shouldFail = false;
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+    mockFetch(() => {
       listRequests += 1;
       if (shouldFail) return response({}, false);
       return response({ stories: listRequests === 1 ? [story] : [story, otherStory], total: listRequests === 1 ? 1 : 2 });
@@ -140,8 +144,8 @@ describe("Globales Lagebild", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("filtert Suche, Zeitraum und Region konsistent und setzt alles zurück", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+  it("filtert Suche, Zeitraum und Land konsistent und setzt alles zurück", async () => {
+    const fetchMock = mockFetch((input) => {
       const url = new URL(String(input), "http://localhost");
       return url.searchParams.get("q") === "Paris"
         ? response({ stories: [otherStory], total: 1 })
@@ -156,32 +160,52 @@ describe("Globales Lagebild", () => {
     expect(await screen.findByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
     expect(new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost").searchParams.get("q")).toBe("Paris");
     expect(fetchMock.mock.calls.filter(([input]) => new URL(String(input), "http://localhost").searchParams.has("q"))).toHaveLength(1);
-    await user.click(screen.getByRole("combobox", { name: "Region" }));
-    await user.click(screen.getByRole("option", { name: "Paris (FR11)" }));
+    await user.click(screen.getByRole("combobox", { name: "Land" }));
+    await user.click(screen.getByRole("option", { name: "Frankreich" }));
     await user.click(screen.getByRole("combobox", { name: "Zeitraum" }));
     await user.click(screen.getByRole("option", { name: "Letzte 6 Stunden" }));
     await waitFor(() => {
       const url = new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost");
-      expect(url.searchParams.get("region")).toBe("FR11");
+      expect(url.searchParams.get("country")).toBe("FR");
     });
     await waitFor(() => {
       expect(new URLSearchParams(window.location.search).get("q")).toBe("Paris");
-      expect(new URLSearchParams(window.location.search).get("region")).toBe("FR11");
+      expect(new URLSearchParams(window.location.search).get("country")).toBe("FR");
       expect(new URLSearchParams(window.location.search).get("hours")).toBe("6");
     });
 
-    await user.click(screen.getByTitle("Clear"));
-    await waitFor(() => expect(new URLSearchParams(window.location.search).has("region")).toBe(false));
-    expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("");
+    await user.click(screen.getByTitle("Land entfernen"));
+    await waitFor(() => expect(new URLSearchParams(window.location.search).has("country")).toBe(false));
+    expect(screen.getByRole("combobox", { name: "Land" })).toHaveValue("");
 
     await user.click(screen.getByRole("button", { name: "Filter löschen" }));
     expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("");
-    expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Land" })).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 24 Stunden");
   });
 
+  it("findet ein Land außerhalb der geladenen Story-Seite per Tastatur und entfernt es wieder", async () => {
+    const fetchMock = mockFetch((input) => response({ stories: new URL(String(input), "http://localhost").searchParams.has("country") ? [] : [story], total: 1 }));
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
+    const country = screen.getByRole("combobox", { name: "Land" });
+    await user.type(country, "ukr");
+    expect(await screen.findByRole("option", { name: "Ukraine" })).toBeInTheDocument();
+    await user.keyboard("{ArrowDown}{Enter}");
+    await waitFor(() => expect(new URLSearchParams(window.location.search).get("country")).toBe("UP"));
+    expect(country).toHaveValue("Ukraine");
+    expect(await screen.findByText("Kein Ereignis passt zu diesen Filtern.")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("country=UP"))).toBe(true);
+    expect(screen.queryByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).not.toBeInTheDocument();
+    await user.click(country);
+    await user.keyboard("{Control>}a{/Control}{Backspace}{Escape}");
+    await waitFor(() => expect(new URLSearchParams(window.location.search).has("country")).toBe(false));
+    expect(await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" })).toBeInTheDocument();
+  });
+
   it("entfernt alte Ergebnisse, wenn ein neuer Suchumfang abgelehnt wird", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+    mockFetch((input) => {
       const query = new URL(String(input), "http://localhost").searchParams.get("q");
       return query && query.length > 200
         ? response({}, false, 400)
@@ -201,7 +225,7 @@ describe("Globales Lagebild", () => {
 
   it("entfernt alte Ergebnisse sofort, bevor die neue Suche antwortet", async () => {
     let resolveSearch!: (value: Response) => void;
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+    mockFetch((input) => {
       const query = new URL(String(input), "http://localhost").searchParams.get("q");
       if (query === "Paris") return new Promise((resolve) => { resolveSearch = resolve; });
       return response({ stories: [story], total: 1 });
@@ -225,7 +249,7 @@ describe("Globales Lagebild", () => {
   it("ignoriert die JSON-Antwort einer abgebrochenen älteren Suche", async () => {
     let resolveOldJson!: (value: unknown) => void;
     let oldSignal: AbortSignal | undefined;
-    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+    mockFetch((input, init) => {
       const query = new URL(String(input), "http://localhost").searchParams.get("q");
       if (query === "alt") {
         oldSignal = init?.signal as AbortSignal;
@@ -249,35 +273,35 @@ describe("Globales Lagebild", () => {
   });
 
   it("stellt Filter, Kartenausschnitt und ausgewähltes Ereignis aus der URL wieder her", async () => {
-    window.history.replaceState(null, "", "/?hours=6&region=GM16&q=wichtig&bounds=10,50,15,55&story=story-1");
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story], total: 1 }));
+    window.history.replaceState(null, "", "/?hours=6&country=GM&q=wichtig&bounds=10,50,15,55&story=story-1");
+    const fetchMock = mockFetch((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story], total: 1 }));
     renderApp();
 
     expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("wichtig");
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 6 Stunden");
     expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
     expect(window.location.search).toContain("story=story-1");
-    await waitFor(() => expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("Berlin (GM16)"));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Land" })).toHaveValue("Deutschland"));
     await waitFor(() => expect(mapLibre.options.bounds).toEqual([[10, 50], [15, 55]]));
-    const listUrl = new URL(fetchMock.mock.calls.find(([input]) => !String(input).includes("/story-1"))![0] as string, "http://localhost");
+    const listUrl = new URL(fetchMock.mock.calls.find(([input]) => String(input).startsWith("/api/stories?"))![0] as string, "http://localhost");
     expect(listUrl.searchParams.get("q")).toBe("wichtig");
     expect(listUrl.searchParams.get("bounds")).toBe("10,50,15,55");
   });
 
   it("fällt bei ungültigen URL-Parametern auf den Standardzustand zurück", async () => {
-    window.history.replaceState(null, "", "/?hours=7&region=GM16&story=story-1&bounds=10,50,15");
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [story], total: 1 }));
+    window.history.replaceState(null, "", "/?hours=7&country=GM&story=story-1&bounds=10,50,15");
+    mockFetch(() => response({ stories: [story], total: 1 }));
     renderApp();
 
     expect(screen.getByRole("searchbox", { name: "Suche" })).toHaveValue("");
-    expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Land" })).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 24 Stunden");
     expect(await screen.findByRole("heading", { name: "Priorisierte Ereignisse" })).toBeInTheDocument();
     expect(window.location.search).toBe("");
   });
 
   it("öffnet Details aus Liste und Karte im Kontextpanel und kehrt zurück", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story], total: 1 }));
+    mockFetch((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story], total: 1 }));
     const user = userEvent.setup();
     renderApp();
     const heading = await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
@@ -301,7 +325,7 @@ describe("Globales Lagebild", () => {
       type: "Feature", geometry: { type: "Point", coordinates: [13.4, 52.5] },
       properties: { cluster: true, cluster_id: 7, point_count: 3, point_count_abbreviated: "3" },
     }];
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story, otherStory], total: 2 }));
+    mockFetch((input) => String(input).includes("/story-1") ? response(detail) : response({ stories: [story, otherStory], total: 2 }));
     const user = userEvent.setup();
     renderApp();
 
@@ -329,7 +353,7 @@ describe("Globales Lagebild", () => {
       type: "Feature", geometry: { type: "Point", coordinates: [13.4, 52.5] },
       properties: { cluster: true, cluster_id: 7, point_count: 2, point_count_abbreviated: "2" },
     }];
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [story, otherStory], total: 2 }));
+    mockFetch(() => response({ stories: [story, otherStory], total: 2 }));
     renderApp();
     await screen.findByRole("button", { name: "Cluster mit 2 Ereignissen" });
 
@@ -347,7 +371,7 @@ describe("Globales Lagebild", () => {
     window.history.replaceState(null, "", "/?q=Berlin&bounds=10,50,15,55");
     mapLibre.state.queryFeatures = [];
     mapLibre.state.bounds = [10, 50, 15, 55];
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [story], total: 1 }));
+    mockFetch(() => response({ stories: [story], total: 1 }));
     renderApp();
 
     await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
@@ -361,7 +385,7 @@ describe("Globales Lagebild", () => {
   });
 
   it("synchronisiert Liste, Anzahl und Auswahl mit dem Kartenausschnitt", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+    const fetchMock = mockFetch((input) => {
       if (String(input).includes("/story-1")) return response(detail);
       const bounds = new URL(String(input), "http://localhost").searchParams.get("bounds");
       return bounds === "2,48,3,49"
@@ -385,7 +409,7 @@ describe("Globales Lagebild", () => {
   });
 
   it("normalisiert MapLibre-Weltkopien als gültigen Datumsgrenzen-Ausschnitt", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ stories: [], total: 0 }));
+    const fetchMock = mockFetch(() => response({ stories: [], total: 0 }));
     renderApp();
     await screen.findByLabelText("Interaktive Weltkarte der aktuellen Ereignisse");
 
@@ -406,7 +430,7 @@ describe("Globales Lagebild", () => {
     expect(await screen.findByLabelText("Interaktive Weltkarte der aktuellen Ereignisse")).toBeInTheDocument();
 
     view.unmount();
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({}, false));
+    mockFetch(() => response({}, false));
     renderApp();
     expect(await screen.findByRole("alert")).toHaveTextContent("Die Ereignisse konnten nicht geladen werden. HTTP 500");
   });

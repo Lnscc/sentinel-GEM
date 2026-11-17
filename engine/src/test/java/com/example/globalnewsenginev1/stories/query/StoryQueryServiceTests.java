@@ -70,6 +70,29 @@ class StoryQueryServiceTests {
     }
 
     @Test
+    void listsCountriesAcrossAllPagesOfTheVisibleDataset() {
+        assertThat(service.countries()).isEmpty();
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedVersion(2, "other-version", "SHADOW");
+        seedArticle(1, "a", "2026-09-01T10:00:00Z");
+        for (int i = 1; i <= 102; i++) {
+            seedStory(i, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z");
+            seedLocation(i, "Berlin", i == 102 ? "UP" : "GM", "GM16", 52, 13, 100, 1, 1);
+        }
+        seedStory(103, 1, "a", "SUPERSEDED", "2026-09-01T10:00:00Z");
+        seedLocation(103, "Paris", "FR", "FR11", 48, 2, 100, 1, 1);
+        seedStory(104, 2, "a", "ACTIVE", "2026-09-01T10:00:00Z");
+        seedLocation(104, "London", "UK", "UK00", 51, 0, 100, 1, 1);
+        seedStory(105, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z");
+        seedLocation(105, "Unknown", null, null, 0, 0, 100, 1, 1);
+        assertThat(service.countries()).containsExactly(
+                new StoryCountry("GM", "Deutschland"), new StoryCountry("UP", "Ukraine"));
+        assertThat(service.stories(0, 100, "time", "asc").stories()).hasSize(100);
+        assertThat(CountryNames.name("CH")).isEqualTo("China");
+        assertThat(CountryNames.name("SZ")).isEqualTo("Schweiz");
+    }
+
+    @Test
     void returnsOnlyCurrentVisibleStoriesWithStablePagination() {
         seedVersion(1, "visible-version", "SHADOW");
         seedVersion(2, "other-version", "ACTIVE");

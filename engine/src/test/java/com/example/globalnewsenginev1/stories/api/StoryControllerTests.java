@@ -1,6 +1,7 @@
 package com.example.globalnewsenginev1.stories.api;
 
 import com.example.globalnewsenginev1.stories.query.StoryArticle;
+import com.example.globalnewsenginev1.stories.query.StoryCountry;
 import com.example.globalnewsenginev1.stories.query.StoryDetail;
 import com.example.globalnewsenginev1.stories.query.StoryLocation;
 import com.example.globalnewsenginev1.stories.query.StoryMember;
@@ -37,6 +38,14 @@ class StoryControllerTests {
         mockMvc = standaloneSetup(new StoryController(queryService))
                 .setControllerAdvice(new StoryApiExceptionHandler())
                 .build();
+    }
+
+    @Test
+    void returnsAvailableCountriesWithoutPagination() throws Exception {
+        mockMvc.perform(get("/stories/countries"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].code").value("GM"))
+                .andExpect(jsonPath("$[0].name").value("Deutschland"));
     }
 
     @Test
@@ -152,6 +161,11 @@ class StoryControllerTests {
 
         StubStoryQueryService() {
             super(new JdbcTemplate(), "unused");
+        }
+
+        @Override
+        public List<StoryCountry> countries() {
+            return List.of(new StoryCountry("GM", "Deutschland"));
         }
 
         @Override
