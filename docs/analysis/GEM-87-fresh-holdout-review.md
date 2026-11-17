@@ -11,12 +11,27 @@ for the selected cases. This review does not authorize promotion.
   pairs, precision >= 0.95, recall >= 0.90, and no input-quality deviation.
 - Candidate configuration SHA-256:
   `203edfdd5ea2f061eefa046769c6e9d3eb8de0ad987246ac474bee2ee2b462b6`.
-- Label file SHA-256:
+- Original sealed label file SHA-256 (UTF-8 without BOM, CRLF line endings):
   `e12e5dd00588cd152540f131024ef180bbdc00385519bbdb7346c02482fd3eb3`.
+- LF-normalized label file SHA-256, matching the committed Git blob:
+  `5b69f68177a92bad511499e2cd98b68509d92e01770402310b71250801b2f827`.
 
 The canonical labels are in `GEM-87-fresh-holdout-v1.json`; source headlines,
 canonical URLs, timestamps, selection provenance and the complete frozen
 candidate configuration are in `GEM-87-fresh-holdout-sources-v1.json`.
+
+Git normalizes this text artifact to LF. For a portable byte-integrity check,
+replace CRLF byte pairs with LF without changing any other bytes, then hash the
+result. Run from the repository root:
+
+```powershell
+python -c "import hashlib,pathlib; p=pathlib.Path('docs/analysis/GEM-87-fresh-holdout-v1.json'); print(hashlib.sha256(p.read_bytes().replace(b'\r\n', b'\n')).hexdigest())"
+```
+
+The result must equal the LF-normalized checksum above. To reproduce the
+original freeze checksum, convert those normalized LF bytes to CRLF before
+hashing. The original checksum is retained as historical freeze evidence; the
+line-ending-independent evaluator hash is recorded under Observed result.
 
 ## Selection and independence
 
