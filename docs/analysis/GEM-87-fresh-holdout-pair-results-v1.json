@@ -1,0 +1,628 @@
+{
+  "candidateMetrics": {
+    "truePositives": 19,
+    "falsePositives": 0,
+    "falseNegatives": 1,
+    "precision": 1.0,
+    "recall": 0.95
+  },
+  "baselineMetrics": {
+    "complete": false,
+    "evaluatedPairs": 34,
+    "totalPairs": 40,
+    "missingPairIds": [
+      "D08",
+      "L27",
+      "L50",
+      "L51",
+      "N21",
+      "N35"
+    ],
+    "precision": null,
+    "recall": null
+  },
+  "candidateConfigurationUnchanged": true,
+  "labelsUnchanged": true,
+  "cases": [
+    {
+      "caseId": "D01",
+      "left": "35e6cc4d9b04dc2c054729bb97b4039e9e161f5eb29640ff5ec9d6931424da21",
+      "right": "497ff93265e070b8cdf5d23f0120724754410b9c1c3b32c030894452b0e3904d",
+      "sameStory": true,
+      "rationale": "Both reports preview the same UConn-Arizona matchup and Dan Hurley visit to Tucson.",
+      "titles": [
+        "No. 3 UConn visits No. 12 Arizona in Dan Hurley's first Tucson trip",
+        "No. 3 UConn visits No. 12 Arizona in Dan Hurley's first Tucson trip"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "D02",
+      "left": "4b75db43642e7bc170b255eebf2407bb0dd19e76fb162b5c5a39c2352f82a8ce",
+      "right": "5a0a8c67fa33aac418a31b1087e841e8c58810a276a674f3c73f2b749ec8f15b",
+      "sameStory": true,
+      "rationale": "Both report the accusation that a Ramsey County deputy was intoxicated on duty.",
+      "titles": [
+        "Ramsey County, N.D. deputy accused of being intoxicated while on the job",
+        "Ramsey County, N.D. deputy accused of being intoxicated while on the job"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "D04",
+      "left": "02a5544f37a499e1006af2e89931ce361dc808044a4137c8556a0e7d95bd18b1",
+      "right": "544afd61fcd854963fe45068a5109644068ff7b8b2d817fac97a9f3b91ad6e74",
+      "sameStory": true,
+      "rationale": "Both report the same Federal Reserve October industrial-production release with identical figures.",
+      "titles": [
+        "US industrial production declines 0.4 pc in October, manufacturing output rises 0.3 pc: Federal Reserve",
+        "US industrial production declines 0.4 pc in October, manufacturing output rises 0.3 pc: Federal Reserve"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "D07",
+      "left": "57d04e320753242c0645d3c4b8c97ae143e02aa46eb19b63947cd90680b8204f",
+      "right": "b7d8832e9926d82a5713c092f1dae3daef1a94dcc8d856b25dee0f9c3572c8e5",
+      "sameStory": true,
+      "rationale": "Both report the Ontario secondary teachers 96 percent strike-mandate vote.",
+      "titles": [
+        "Ontario secondary teachers vote 96% in favour of strike mandate",
+        "Ontario secondary teachers vote 96% in favour of strike mandate"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "D08",
+      "left": "77c97811a96ee9b8e07c71a0804ebb79585f7b636bfd1e1bdceabc786e029bfc",
+      "right": "a354952b475d61e9db56da33f4bfd5bee920e9802a4cdccd4a92b49faeb85111",
+      "sameStory": true,
+      "rationale": "Both publish the same Credex announcement about monetizing unused cloud and AI credits.",
+      "titles": [
+        "Credex Turns Unused Cloud and AI Credits Into Working Capital for Startups",
+        "Credex Turns Unused Cloud and AI Credits Into Working Capital for Startups"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": null,
+      "baselineCorrect": null
+    },
+    {
+      "caseId": "D16",
+      "left": "01053c3427c615a22af95cbc7e9b64edffb1d469e026c5935889747eaf9e9b40",
+      "right": "0e3552a633f9a6d1fd6452f9c45f716ba782bbe7c701ab8b1b68d4d287827bfe",
+      "sameStory": true,
+      "rationale": "Both report the federal review identifying leadership failures in the Grand Canyon lodge fire.",
+      "titles": [
+        "Federal review faults leadership failures in Grand Canyon fire that destroyed lodge",
+        "Federal review faults leadership failures in Grand Canyon fire that destroyed lodge"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "D24",
+      "left": "d73fa6a036bfc8e07226fa2b44524a346eaa8667d768de18cdf1befc1019da76",
+      "right": "e99241044f8fb25d0deab5808fb7a38c9f301b24c1d0319d70eeadfb73124036",
+      "sameStory": true,
+      "rationale": "Both report the same Sorbelicious dessert recall for undeclared peanuts and hazelnuts.",
+      "titles": [
+        "Sorbelicious Dessert recalled: undeclared peanut, hazelnut",
+        "Sorbelicious Dessert recalled: undeclared peanut, hazelnut"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "D27",
+      "left": "0bc697f9fb205d69362e3b427f95d5abff5146a11586647e02465a45bddb188c",
+      "right": "24ae7907ccc9b06cdef1c74652b00d5ecf1c2fcc935574c073d6a8f1346d6977",
+      "sameStory": true,
+      "rationale": "Both report the Dodge Center house fire in which a family lost five dogs.",
+      "titles": [
+        "Dodge Center Family Loses Five Dogs In Weekend House Fire",
+        "Dodge Center Family Loses Five Dogs In Weekend House Fire"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L01",
+      "left": "178e06299776ab6ada5029855681466ec22432ca0c87f1591a26ce7117e11b3d",
+      "right": "1f4f8c6cd35bd90d4b6ac31dc2c912f2bab30cd15bc55057e226bf37286ccb52",
+      "sameStory": true,
+      "rationale": "Both announce construction of the first Hanwha Philly Shipyard vessel in the four-tanker program.",
+      "titles": [
+        "Hanwha Philly Shipyard Begins Construction of First Vessel in Four-Tanker ...",
+        "Hanwha Philly Shipyard Begins Construction of First Vessel in Four-Tanker Program"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L08",
+      "left": "bf65e501f39e5cbb6f579a3f9362796157781b3527a4273fb35b0e409d38e56c",
+      "right": "f5273029ac66b67b3f538250676a9341018bf54a6d44307964fb6babb34212d6",
+      "sameStory": true,
+      "rationale": "Both report Dan Campbell expressing confidence after the same Aidan Hutchinson knee injury.",
+      "titles": [
+        "Coach Dan Campbell still confident in Lions despite Aidan Hutchinson's season-ending knee injury – Macomb Daily",
+        "Coach Dan Campbell still confident in Lions despite Aidan Hutchinson's season-ending knee injury"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L24",
+      "left": "04f1ef6d262ec2bb3bbbaa1fd0042c346fe6b1fd45e17497abfaddbed36c2520",
+      "right": "f3040fd3370aeacc5294389d2c6e8e99afe3d6dd8a56adef262a8960cd057eac",
+      "sameStory": true,
+      "rationale": "Both report Bears receiver Luther Burden clearing concussion protocol.",
+      "titles": [
+        "Bears report: WR Luther Burden clears concussion protocol",
+        "Bears WR Luther Burden III clears concussion protocol"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L27",
+      "left": "5439d1522cee1b655da7e699c3c232e7cff79dfc93e3ba2a9157e49dd2e3cadc",
+      "right": "948cf7cc1e233b813be632a3a703e4729634f72c8a679d5b30e57a0a64fd6abe",
+      "sameStory": true,
+      "rationale": "Both report the death of filmmaker Ray Tintori, Heidi Gardner partner, aged 43.",
+      "titles": [
+        "Ray Tintori, boyfriend of SNL alum Heidi Gardner, dies at 43",
+        "Filmmaker Ray Tintori, boyfriend of SNL alum Heidi Gardner, dies in NY at 43"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": null,
+      "baselineCorrect": null
+    },
+    {
+      "caseId": "L39",
+      "left": "1138aa2708349c66237583e31fc4acecd827f646a9ba6eb1f8923388b0163cfe",
+      "right": "9f3a549fdc9d7d3f617e7223d2f97171b43eccc76a3454c01654fcf875619774",
+      "sameStory": true,
+      "rationale": "Both report Dustin May agreeing to move from the Brewers to the White Sox.",
+      "titles": [
+        "Dustin May agrees to $52 million deal with White Sox as Brewers get raided again",
+        "Brewers' Dustin May reportedly agrees to deal with White Sox"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L43",
+      "left": "7403db8b4fea3fe6dbf8e89906122c12d0143099268ea6afeb65bf769ee9b6b1",
+      "right": "bafe9fcb127c1dab7064bf12ce0fbc2973265bd15e9256a1867122f8e8696df6",
+      "sameStory": true,
+      "rationale": "Both report the assault on the same 20-year-old Save-on-Foods manager following a theft attempt in Prince George/College Heights.",
+      "titles": [
+        "20-year-old Save-on-Foods manager in PG assaulted following theft attempt : My Cariboo Now",
+        "20-year-old Save-on-Foods manager in College Heights assaulted following theft attempt : My Prince George Now"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L49",
+      "left": "35a2b4c1d41f900bc8179ef1726d73ddb3409335d9bedf322eae774bd90f4e32",
+      "right": "ca9505f4fb7a6014ded187f13b15afe7214cb9b8b45abfc7627dd2517bd40347",
+      "sameStory": true,
+      "rationale": "Both report David Beckham lawsuit over fragrance sales in gas stations and discount stores.",
+      "titles": [
+        "David Beckham sues for US$41 million after his fragrance is sold in gas stations and discount stores",
+        "David Beckham sues for $41M after fragrance is sold in gas stations"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L50",
+      "left": "dbaf795afeea11f737c4b74228e3a10d9a019d1d5a45ffee2523023361c2e417",
+      "right": "f430c2c2e226492f02c82b8cdda0384074c8fd831b976fd09e509d1e09f9ddf3",
+      "sameStory": true,
+      "rationale": "Both report injuries from severe turbulence on the same JetBlue flight to Florida.",
+      "titles": [
+        "People Injured After Severe Turbulence On JetBlue Flight | NewsTalk WMEQ",
+        "Five people injured amid severe turbulence on JetBlue flight to Florida"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": null,
+      "baselineCorrect": null
+    },
+    {
+      "caseId": "L51",
+      "left": "59a230e4538c48eea10ae5e6e17f1495c7529156058e001d5ce480a18da8ffae",
+      "right": "63ba6af326d32ce21463df46da6eccbb8ac4c7c92026e0e968e7d07dda39fcbd",
+      "sameStory": true,
+      "rationale": "Both announce Jason Isbell touring with Drive-By Truckers.",
+      "titles": [
+        "Jason Isbell Announces Tour With Drive-By Truckers",
+        "Jason Isbell and the 400 Unit announce tour with Drive-By Truckers"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": null,
+      "baselineCorrect": null
+    },
+    {
+      "caseId": "L69",
+      "left": "588a3f7fd407b5ddd11407478b47994da4ba6f9531d5a6bf662f5d7c7f405fba",
+      "right": "ee2d1e5d496f96a2e91a340990417675337682e555e1a9ab90efc23251a7cfeb",
+      "sameStory": true,
+      "rationale": "Both report the UK sanctions on companies involved in West Bank settlements.",
+      "titles": [
+        "UK imposes sanctions on eight companies involved in West Bank settlements expansion",
+        "UK sanctions Israeli companies building West Bank settlements"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": false,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L59",
+      "left": "17b456961f7c57638ca6d14e5bd52007c8accda5e70cd4fe989f994b91a98ae2",
+      "right": "284a02d66579291415c6d5f62d65933b63e35aa2fb18c23da70a5d6bc95d6fa3",
+      "sameStory": true,
+      "rationale": "Both announce Tiger Woods returning to competition at the Bahamas Hero World Challenge.",
+      "titles": [
+        "Tiger Woods to return to competition at Bahamas tournament",
+        "Tiger Woods to return to competition at Hero World Challenge, the Bahamas tournament he hosts"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L71",
+      "left": "016cd40266ec2c75842d7cc22337b52be07b34995f9f7bce49c2d2ebe98022b9",
+      "right": "e59ed4ce6431107ec6d358414949a490c587bfabd5bb92d0a7300dbc30437f1d",
+      "sameStory": true,
+      "rationale": "Both report the release of the London-set sixth-season Only Murders in the Building trailer.",
+      "titles": [
+        "'Only Murders in the Building' Heads to London in Star-Studded Season 6 Trailer",
+        "'Only Murders in the Building' shows off London-set season 6 with official trailer – AM 880 KIXI"
+      ],
+      "candidateSameStory": true,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L00",
+      "left": "ccb4731655f935073951e8d6472bee780ceb09a71931610c716159467f363e1f",
+      "right": "d94e4560d77e1a7ca1edb79bbf02325a1f0fd4cc610485cf98b9eb3ea069ebb0",
+      "sameStory": false,
+      "rationale": "F5 and Veritone are different companies; matching investment-takeaway templates do not identify one publication subject.",
+      "titles": [
+        "F5: 3 Key Takeaways for Long-Term Investors",
+        "Veritone: 3 Key Takeaways for Long-Term Investors"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": false
+    },
+    {
+      "caseId": "L56",
+      "left": "0fe91e26e2e5ebd00f4e45f63abc1b07c266d2952cceae0222d3274756e2bd4d",
+      "right": "b73974917bf09ff330b9b57f8d68e911392ee23a46b5c6255581fe5d3780ad48",
+      "sameStory": false,
+      "rationale": "Radware and AerCap are different companies despite the same long-term-investor title template.",
+      "titles": [
+        "Radware: 3 Key Takeaways for Long-Term Investors",
+        "AerCap: 3 Key Takeaways for Long-Term Investors"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "L57",
+      "left": "11fce3d2a421e1999fe4fff8b882d311d84aad68dfea857036e5ae0f67e0ca6b",
+      "right": "4eb287ff331aa58b588106073a0c97636573bc3a0e64f513c5ee82c638a367d7",
+      "sameStory": false,
+      "rationale": "TOMI and AirJoule Technologies are different companies despite the same investor-takeaway template.",
+      "titles": [
+        "TOMI: 3 Key Takeaways for Long-Term Investors",
+        "AirJoule Technologies: 3 Key Takeaways for Long-Term Investors"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": true,
+      "baselineCorrect": false
+    },
+    {
+      "caseId": "L75",
+      "left": "0bff5a259b9e3017143d02a74a6fc36a4d42b784407922bd29c40fda4a8f7fe2",
+      "right": "c5d08efdc28fc734e74c5749d381065e24283adf4cb2526dae281eae10362ae6",
+      "sameStory": false,
+      "rationale": "Beasley and JD.com earnings calls concern different companies.",
+      "titles": [
+        "Beasley (BBGI) Q3 2026 Earnings Call Transcript",
+        "JD.com (JD) Q3 2026 Earnings Call Transcript"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N04",
+      "left": "0337b3585fd2a62038f8a19a214b7b4f6523c59d08bf3bb3c08f749f733c8d96",
+      "right": "3a66e816529558e260611fae3cb8c3cd3c7a90e9ae17d6d330b83d7a60e217dd",
+      "sameStory": false,
+      "rationale": "The investor notices concern distinct FLNC/Fluence and ADIG securities and investigations, despite sharing the law firm.",
+      "titles": [
+        "Levi & Korsinsky Notifies Fluence Energy, Inc. (FLNC) Investors of ...",
+        "ADIG Investor Alert: Levi & Korsinsky Notifies Investors of Investigation ..."
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N07",
+      "left": "f8aa503769a580a965a3b16f3e5990fb122638cc0d452f1210fe37d4ec3e757c",
+      "right": "fdf4ed4103255607e7cfef2a5bfc287001ea1c486f524148ee9e87bba880d7db",
+      "sameStory": false,
+      "rationale": "The legal notices concern CVRX and Ingredion, different companies, despite sharing the law firm.",
+      "titles": [
+        "CVRX STOCKHOLDER ALERT: Bronstein, Gewirtz and Grossman, LLC Announces ...",
+        "Bronstein, Gewirtz & Grossman, LLC Is Investigating Ingredion Incorporated ..."
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N08",
+      "left": "ba8fc1fa27f746ab3af3db4f2e040ed375a9ca2da5852f0ab36da311fe55a05c",
+      "right": "fee121da9343371140252031b7fdf84b69427641e916bba1696369a86679bded",
+      "sameStory": false,
+      "rationale": "Rosalind Eleazar acceptance speech and Florence Pugh speech are separate individual speeches at the same awards series.",
+      "titles": [
+        "Read Rosalind Eleazar's ELLE 2026 Women in Hollywood Acceptance Speech",
+        "Florence Pugh Honors 'Thousands of People' in Women in Hollywood Speech"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N14",
+      "left": "298296e1eaeb40a75813e71e97a0b9b648e2200be5d42fcb9dc63e5d629c2e6f",
+      "right": "ac91e201098f6dcb44d194a119b75a0a2f30b6be5761ad23c95cc921925ad2da",
+      "sameStory": false,
+      "rationale": "Creating a New York AI-safety enforcement unit and California suing OpenAI are separate government actions in different states.",
+      "titles": [
+        "New York Attorney General Creates Unit to Enforce AI Safety",
+        "California Attorney General Sues OpenAI Over Alleged AI Safety Failures"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N21",
+      "left": "506350847ca6196cf69a75152d35be83dd04714f24287ffad656f1d669cb53c3",
+      "right": "d3165056f7734dd24a50adb4c8c1d93ac83f79948a0c8b8ff1ca481ae939b440",
+      "sameStory": false,
+      "rationale": "Century Casinos financial restatement/results and Talon Metals quarterly results concern different companies.",
+      "titles": [
+        "Century Casinos, Inc. Announces Restatement of Previously Issued Financial Statements and Preliminary Third Quarter 2026 Financial Results",
+        "Talon Metals reports third quarter 2026 results"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": null,
+      "baselineCorrect": null
+    },
+    {
+      "caseId": "N23",
+      "left": "bb5e60c6fa637e395e7306c747674354521767465075b01872c450fb2b60860d",
+      "right": "ea3dbc6f692e7b60ba39f5b8a0dcb93abd1d6e0403afa67a6e986be88086c837",
+      "sameStory": false,
+      "rationale": "Walt Disney Q4 and Similarweb Q3 earnings-call transcripts concern different companies and reporting periods.",
+      "titles": [
+        "Walt Disney (DIS) Q4 2026 Earnings Call Transcript",
+        "Similarweb (SMWB) Q3 2026 Earnings Call Transcript"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N27",
+      "left": "134e51995baf374fa5d12570b7de621e542dade1bdd5d72bd94dce45c497de59",
+      "right": "26bce5abc7804558a903e9a012c025ae94fde916d7031e33aa2fd02fd9dd86d3",
+      "sameStory": false,
+      "rationale": "The hospital cyber incident and Associated Grocers labor strike are distinct events reported by the same local publisher.",
+      "titles": [
+        "Monadnock Community Hospital confirms cyber incident - Monadnock Ledger-Transcript",
+        "Teamsters strike at Associated Grocers enters second week - Monadnock Ledger-Transcript"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N38",
+      "left": "5638542650ab4a7c2515b30b2109ad313449edad72782d87dc9f9fabfe14861c",
+      "right": "d989fcbd8aadc0999f1bf6d973fd454513d0a01e1798579812264c7f087bcc99",
+      "sameStory": false,
+      "rationale": "Axe Compute and Reliance Global earnings-call transcripts concern different companies.",
+      "titles": [
+        "Axe Compute (AGPU) Q3 2026 Earnings Call Transcript",
+        "Reliance Global (XGPU) Q3 2026 Earnings Call Transcript"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N56",
+      "left": "861061a6d8c8264699fb3c1afbba4048f4a6afd3a7e60a3a0a335d4e0b737e5b",
+      "right": "9459a27dc1006f3cedd4ba3b3612270cc6aba30c9cf502b18d8ce1130c010ae2",
+      "sameStory": false,
+      "rationale": "India-Japan defense talks and South Korea-Japan energy/supply-chain cooperation involve different counterparties and decisions.",
+      "titles": [
+        "India, Japan to deepen defence ties at 2+2 talks",
+        "South Korea and Japan Agree to Deepen Energy and Supply-Chain Ties"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N74",
+      "left": "72f522805331e2bf668e66085cd98593c6fad7d5342196d0b598ebb8f66aa519",
+      "right": "8eb0c3d367a342f2eb5de36f6756d1f3a11742f25eac7f1ffbc1222fccaa8d23",
+      "sameStory": false,
+      "rationale": "The Auckland police-officer assault charges and the Missoula robbery/assault charge concern different people and jurisdictions.",
+      "titles": [
+        "Three police officers have been charged with assault - in relation to a police pursuit in central Auckland in March - 18-Nov-2026",
+        "Missoula Man Charged With Robbery And Assault After Pursuit"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N76",
+      "left": "08be0f67b610ab1009ca60d7645710a15f0af8857d718042119afc3e504fed02",
+      "right": "13efb7431ac947d7869cda5d78b03944b850c79ae5290d1caaa703bf21e425c7",
+      "sameStory": false,
+      "rationale": "The Medway officer being struck by a truck and an officer arrest after a Hagen bus-driver shooting concern different incidents and countries.",
+      "titles": [
+        "Police track down driver who allegedly intentionally struck officer with truck in Medway",
+        "Police Officer arrested after fatal shooting of bus driver in Hagen"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N77",
+      "left": "c1caf6db69192e0fbc2f5eebb039c4247b28d5fa3ce4afeea452d6043d30b16e",
+      "right": "ea3938775295c04b1c7085f845c59e53612ff11da06cda65330d862d1b094d2b",
+      "sameStory": false,
+      "rationale": "Cambodia reopening an Angkor temple and the US-Thailand trade statement are different events despite sharing a publisher.",
+      "titles": [
+        "Cambodia reopens 1,000-year-old temple at Angkor - Georgia Asian Times",
+        "US, Thailand sign joint trade statement - Georgia Asian Times"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N03",
+      "left": "2da4c3d8234885127072e238652d18ae35bc0b9d41b3f26cddd8612c7aa96021",
+      "right": "a905ff5ddda6577097a5c9319d5314a17d422c96dfb3d94dbfa19179f20ac53c",
+      "sameStory": false,
+      "rationale": "The Trowbridge hatchet-related death and M4 erroneous speed-camera checks are different incidents despite sharing a publisher.",
+      "titles": [
+        "Trowbridge dad died after 'confronting man with hatchet' | The Wiltshire Gazette and Herald",
+        "M4 speed cameras 'turned off' after '2,650 wrong checks' | The Wiltshire Gazette and Herald"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N06",
+      "left": "1ba487a5b471066c8f2044543a611f63e7bec7a9e5670d72ff53a29e23bb14c9",
+      "right": "31d48e099c7af91581caef1d06fa412b9ac81c957fe736e5f07183242f1fd74a",
+      "sameStory": false,
+      "rationale": "Indiana public-health investment returns and an Indiana University national-security research hub are separate institutional developments.",
+      "titles": [
+        "Indiana health commissioner says public health is generating return on investment – Inside INdiana Business",
+        "IU launches new hub for national security research partnerships – Inside INdiana Business"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    },
+    {
+      "caseId": "N35",
+      "left": "3ddbfce80083f1ab77dcebe28f168e1b539e2196006c6c9430e00fe87125a5f6",
+      "right": "bbdc04f96d05da3ad3c2ae3e6c14e78135212aed3d26bfbacf20f6d4b936f4f6",
+      "sameStory": false,
+      "rationale": "Martin Lewis criticism of an Ofgem charge and the A12 crater/reopening concern different events despite identical publisher suffixes.",
+      "titles": [
+        "Martin Lewis hits out at Ofgem over Market Stabilisation Charge | Harwich and Manningtree Standard",
+        "A12 re-opening update after large crater forced closure | Harwich and Manningtree Standard"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": null,
+      "baselineCorrect": null
+    },
+    {
+      "caseId": "N51",
+      "left": "5255909ec0a492ffa6570cf50739b7268b17a8ef0d5b6702df141b795acb3d89",
+      "right": "dcc80f1de7d14c1d7f646b7677d187ab90450be73884aa8bdd73c09fc61bcc5d",
+      "sameStory": false,
+      "rationale": "Awarding a Gothenburg fairway-deepening contract and a bulk-carrier bidding announcement concern different maritime procurement projects.",
+      "titles": [
+        "Contractor appointed for Port of Gothenburg fairway deepening project | Hellenic Shipping News Worldwide",
+        "Bidding Announcement of 56928.20t Bulk Carrier \"ZJ2026-0187\" | Hellenic Shipping News Worldwide"
+      ],
+      "candidateSameStory": false,
+      "candidateCorrect": true,
+      "baselineSameStory": false,
+      "baselineCorrect": true
+    }
+  ]
+}

@@ -1,0 +1,882 @@
+{
+  "seed": 20261117,
+  "rawArticles": 14071,
+  "eligibleArticles": 13220,
+  "exclusionFiles": [
+    "docs\\analysis\\ART-032-corpus.json",
+    "docs\\analysis\\ART-044-holdout-v1.json",
+    "docs\\analysis\\ART-045-regression-cases-v1.json",
+    "docs\\analysis\\ART-048-holdout-v1.json",
+    "docs\\analysis\\GEM-103-holdout-v1.json",
+    "engine\\src\\main\\resources\\stories\\gem87-clustering-quality-v1.json",
+    "engine\\src\\main\\resources\\stories\\art032-excluded-hashes.txt"
+  ],
+  "excludedHashes": 303,
+  "modelAssignmentsRead": false,
+  "modelScoresRead": false,
+  "labelFreezeTime": "2026-11-17T21:07:29.268081+00:00",
+  "candidateConfig": {
+    "id": 6,
+    "version_key": "story-mvp-title-embedding-24h-v1.3.0",
+    "title_normalization_version": "art031-title-nfkc-ws-v1",
+    "generic_title_rule_version": "art031-generic-title-v1",
+    "embedding_model_id": "text-embedding-3-small",
+    "embedding_model_version": "openai:text-embedding-3-small@2026-07-20",
+    "embedding_dimension": 1536,
+    "candidate_time_rule_version": "published-at-else-first-seen-v1",
+    "candidate_window_hours": 24,
+    "candidate_similarity_threshold": 0.7,
+    "candidate_search_mode": "exact-cosine-radius-v1",
+    "pair_decision_rule_version": "cosine-070-time24-v1",
+    "component_rule_version": "complete-linkage-template-coherent-v2",
+    "feature_normalization_versions": "none-v1",
+    "status": "SHADOW",
+    "created_at": "2026-11-15T03:01:26.43073+00:00",
+    "updated_at": "2026-11-15T03:01:26.43073+00:00",
+    "input_eligibility_rule_version": "non-event-content-v1"
+  },
+  "candidateConfigSha256": "203edfdd5ea2f061eefa046769c6e9d3eb8de0ad987246ac474bee2ee2b462b6",
+  "holdoutFileSha256": "e12e5dd00588cd152540f131024ef180bbdc00385519bbdb7346c02482fd3eb3",
+  "rawPoolSha256": "87670e288d378b4e417ff4b48ef12ef726383ae3d123e222df5c28d289a38b73",
+  "positivePairs": 20,
+  "negativePairs": 20,
+  "uniquePairArticles": 80,
+  "inputQualityCases": 8,
+  "labelBasis": "Raw source headline and canonical URL only; no full-text verification is claimed.",
+  "selectedPairIds": [
+    "D01",
+    "D02",
+    "D04",
+    "D07",
+    "D08",
+    "D16",
+    "D24",
+    "D27",
+    "L01",
+    "L08",
+    "L24",
+    "L27",
+    "L39",
+    "L43",
+    "L49",
+    "L50",
+    "L51",
+    "L69",
+    "L59",
+    "L71",
+    "L00",
+    "L56",
+    "L57",
+    "L75",
+    "N04",
+    "N07",
+    "N08",
+    "N14",
+    "N21",
+    "N23",
+    "N27",
+    "N38",
+    "N56",
+    "N74",
+    "N76",
+    "N77",
+    "N03",
+    "N06",
+    "N35",
+    "N51"
+  ],
+  "articles": [
+    {
+      "ref": "35e6cc4d9b04dc2c054729bb97b4039e9e161f5eb29640ff5ec9d6931424da21",
+      "url": "http://www.tucsonpost.com/news/279438926/no-3-uconn-visits-no-12-arizona-in-dan-hurley-first-tucson-trip",
+      "domain": "www.tucsonpost.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "No. 3 UConn visits No. 12 Arizona in Dan Hurley's first Tucson trip",
+      "published_at": null,
+      "titleHash": "8294bf0406c5225c0f5be9b7708a02a218bcdbdddb8397e6aa9cb5e253bdbc7f"
+    },
+    {
+      "ref": "497ff93265e070b8cdf5d23f0120724754410b9c1c3b32c030894452b0e3904d",
+      "url": "http://www.cincinnatisun.com/news/279438926/no-3-uconn-visits-no-12-arizona-in-dan-hurley-first-tucson-trip",
+      "domain": "www.cincinnatisun.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "No. 3 UConn visits No. 12 Arizona in Dan Hurley's first Tucson trip",
+      "published_at": null,
+      "titleHash": "8294bf0406c5225c0f5be9b7708a02a218bcdbdddb8397e6aa9cb5e253bdbc7f"
+    },
+    {
+      "ref": "4b75db43642e7bc170b255eebf2407bb0dd19e76fb162b5c5a39c2352f82a8ce",
+      "url": "https://froggyweb.com/2026/11/17/ramsey-county-n-d-deputy-accused-of-being-intoxicated-while-on-the-job",
+      "domain": "froggyweb.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Ramsey County, N.D. deputy accused of being intoxicated while on the job",
+      "published_at": "2026-11-17T17:34:00+00:00",
+      "titleHash": "7d40be0698d63dfdaa898a035465b18c12199dd843c54dccd0ca2997d7d44cfc"
+    },
+    {
+      "ref": "5a0a8c67fa33aac418a31b1087e841e8c58810a276a674f3c73f2b749ec8f15b",
+      "url": "https://y94.com/2026/11/17/ramsey-county-n-d-deputy-accused-of-being-intoxicated-while-on-the-job",
+      "domain": "y94.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "Ramsey County, N.D. deputy accused of being intoxicated while on the job",
+      "published_at": "2026-11-17T17:34:00+00:00",
+      "titleHash": "7d40be0698d63dfdaa898a035465b18c12199dd843c54dccd0ca2997d7d44cfc"
+    },
+    {
+      "ref": "02a5544f37a499e1006af2e89931ce361dc808044a4137c8556a0e7d95bd18b1",
+      "url": "http://www.orlandoecho.com/news/279439056/us-industrial-production-declines-04-pc-in-october-manufacturing-output-rises-03-pc-federal-reserve",
+      "domain": "www.orlandoecho.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "US industrial production declines 0.4 pc in October, manufacturing output rises 0.3 pc: Federal Reserve",
+      "published_at": null,
+      "titleHash": "b91a2b8c9973ed0553a16b82e93d20cb3baec4231576c3da9d450e2c0587cf6a"
+    },
+    {
+      "ref": "544afd61fcd854963fe45068a5109644068ff7b8b2d817fac97a9f3b91ad6e74",
+      "url": "http://www.europesun.com/news/279439056/us-industrial-production-declines-04-pc-in-october-manufacturing-output-rises-03-pc-federal-reserve",
+      "domain": "www.europesun.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "US industrial production declines 0.4 pc in October, manufacturing output rises 0.3 pc: Federal Reserve",
+      "published_at": null,
+      "titleHash": "b91a2b8c9973ed0553a16b82e93d20cb3baec4231576c3da9d450e2c0587cf6a"
+    },
+    {
+      "ref": "57d04e320753242c0645d3c4b8c97ae143e02aa46eb19b63947cd90680b8204f",
+      "url": "https://toronto.citynews.ca/2026/11/17/ontario-high-school-teachers-osstf-strike-mandate",
+      "domain": "toronto.citynews.ca",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "Ontario secondary teachers vote 96% in favour of strike mandate",
+      "published_at": "2026-11-17T16:50:00+00:00",
+      "titleHash": "d94ef2ac60c8469ce357ce0d718fefaef501af2e3a5744db99c6bd84def8f650"
+    },
+    {
+      "ref": "b7d8832e9926d82a5713c092f1dae3daef1a94dcc8d856b25dee0f9c3572c8e5",
+      "url": "https://globalnews.ca/news/12154581/ontario-secondary-school-teachers-federation-strike-vote",
+      "domain": "globalnews.ca",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Ontario secondary teachers vote 96% in favour of strike mandate",
+      "published_at": null,
+      "titleHash": "d94ef2ac60c8469ce357ce0d718fefaef501af2e3a5744db99c6bd84def8f650"
+    },
+    {
+      "ref": "77c97811a96ee9b8e07c71a0804ebb79585f7b636bfd1e1bdceabc786e029bfc",
+      "url": "http://www.utahindependent.com/news/279438569/credex-turns-unused-cloud-and-ai-credits-into-working-capital-for-startups",
+      "domain": "www.utahindependent.com",
+      "first_seen_at": "2026-11-17T18:00:00+00:00",
+      "title": "Credex Turns Unused Cloud and AI Credits Into Working Capital for Startups",
+      "published_at": null,
+      "titleHash": "c8662024ef523adb09e51a5d90b74d080b7ea2ee1010821f0bb69b77a4066fb9"
+    },
+    {
+      "ref": "a354952b475d61e9db56da33f4bfd5bee920e9802a4cdccd4a92b49faeb85111",
+      "url": "http://www.tucsonpost.com/news/279438569/credex-turns-unused-cloud-and-ai-credits-into-working-capital-for-startups",
+      "domain": "www.tucsonpost.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "Credex Turns Unused Cloud and AI Credits Into Working Capital for Startups",
+      "published_at": null,
+      "titleHash": "c8662024ef523adb09e51a5d90b74d080b7ea2ee1010821f0bb69b77a4066fb9"
+    },
+    {
+      "ref": "01053c3427c615a22af95cbc7e9b64edffb1d469e026c5935889747eaf9e9b40",
+      "url": "https://isp.netscape.com/news/story/0001/20261117/7f4d7cd8ffe4a0a4af5d304cc3ec93a7",
+      "domain": "isp.netscape.com",
+      "first_seen_at": "2026-11-17T19:00:00+00:00",
+      "title": "Federal review faults leadership failures in Grand Canyon fire that destroyed lodge",
+      "published_at": null,
+      "titleHash": "4fc129338708c56e8a862702729ba7941fe0975051c284795a45365c8aff6b97"
+    },
+    {
+      "ref": "0e3552a633f9a6d1fd6452f9c45f716ba782bbe7c701ab8b1b68d4d287827bfe",
+      "url": "https://www.sandiegouniontribune.com/2026/11/17/grand-canyon-fire-federal-review",
+      "domain": "www.sandiegouniontribune.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Federal review faults leadership failures in Grand Canyon fire that destroyed lodge",
+      "published_at": "2026-11-17T14:26:00+00:00",
+      "titleHash": "4fc129338708c56e8a862702729ba7941fe0975051c284795a45365c8aff6b97"
+    },
+    {
+      "ref": "d73fa6a036bfc8e07226fa2b44524a346eaa8667d768de18cdf1befc1019da76",
+      "url": "https://www.insidehalton.com/news/canada-food-recall-dessert-sorbelicious/article_24f14daa-d72f-5ea2-a60e-9a4a534a100c.html",
+      "domain": "www.insidehalton.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Sorbelicious Dessert recalled: undeclared peanut, hazelnut",
+      "published_at": "2026-11-17T16:50:00+00:00",
+      "titleHash": "ca43ff5191dab08734d407368973048b416c83d2949cf7e6c5a225f02298d3a6"
+    },
+    {
+      "ref": "e99241044f8fb25d0deab5808fb7a38c9f301b24c1d0319d70eeadfb73124036",
+      "url": "https://www.parrysound.com/news/canada-food-recall-dessert-sorbelicious/article_12ba3e80-6032-5092-9184-d9e049e6fa7c.html",
+      "domain": "www.parrysound.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "Sorbelicious Dessert recalled: undeclared peanut, hazelnut",
+      "published_at": "2026-11-17T16:50:00+00:00",
+      "titleHash": "ca43ff5191dab08734d407368973048b416c83d2949cf7e6c5a225f02298d3a6"
+    },
+    {
+      "ref": "0bc697f9fb205d69362e3b427f95d5abff5146a11586647e02465a45bddb188c",
+      "url": "https://kroc.com/ixp/669/p/dodge-center-house-fire-dogs-lost",
+      "domain": "kroc.com",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "Dodge Center Family Loses Five Dogs In Weekend House Fire",
+      "published_at": "2026-11-17T16:29:00+00:00",
+      "titleHash": "949b9ae90899e010ea39ef969fd4e1cfd938b757136c8b47f9dd75bc92b8856f"
+    },
+    {
+      "ref": "24ae7907ccc9b06cdef1c74652b00d5ecf1c2fcc935574c073d6a8f1346d6977",
+      "url": "https://therockofrochester.com/ixp/669/p/dodge-center-house-fire-dogs-lost",
+      "domain": "therockofrochester.com",
+      "first_seen_at": "2026-11-17T19:00:00+00:00",
+      "title": "Dodge Center Family Loses Five Dogs In Weekend House Fire",
+      "published_at": "2026-11-17T16:29:00+00:00",
+      "titleHash": "949b9ae90899e010ea39ef969fd4e1cfd938b757136c8b47f9dd75bc92b8856f"
+    },
+    {
+      "ref": "178e06299776ab6ada5029855681466ec22432ca0c87f1591a26ce7117e11b3d",
+      "url": "https://www.pr-inside.com/hanwha-philly-shipyard-begins-construction-of-first-vessel-in-four-tanker-r5244826.htm",
+      "domain": "www.pr-inside.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "Hanwha Philly Shipyard Begins Construction of First Vessel in Four-Tanker ...",
+      "published_at": null,
+      "titleHash": "97e14b825b6e4b4eeff60460c4b81415182fec640e9d64d0f9640e3af894bd09"
+    },
+    {
+      "ref": "1f4f8c6cd35bd90d4b6ac31dc2c912f2bab30cd15bc55057e226bf37286ccb52",
+      "url": "http://www.newjerseytelegraph.com/news/279439162/hanwha-philly-shipyard-begins-construction-of-first-vessel-in-four-tanker-program",
+      "domain": "www.newjerseytelegraph.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "Hanwha Philly Shipyard Begins Construction of First Vessel in Four-Tanker Program",
+      "published_at": null,
+      "titleHash": "e632e10d88b171490f7948a4ac9cf4fe5355cdb492e924e966ec4dd63aae431b"
+    },
+    {
+      "ref": "bf65e501f39e5cbb6f579a3f9362796157781b3527a4273fb35b0e409d38e56c",
+      "url": "https://www.macombdaily.com/2026/11/17/coach-dan-campbell-still-confident-in-lions-despite-aidan-hutchinsons-season-ending-knee-injury",
+      "domain": "www.macombdaily.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "Coach Dan Campbell still confident in Lions despite Aidan Hutchinson's season-ending knee injury – Macomb Daily",
+      "published_at": "2026-11-17T17:17:00+00:00",
+      "titleHash": "a20097f15751b9144446d13608f22d32e3d870308f8d9fba4acd580582c6c2f4"
+    },
+    {
+      "ref": "f5273029ac66b67b3f538250676a9341018bf54a6d44307964fb6babb34212d6",
+      "url": "http://www.leadertelegram.com/news/nation-world/coach-dan-campbell-still-confident-in-lions-despite-aidan-hutchinsons-season-ending-knee-injury/article_a2eca641-41b2-50f9-8eaa-8be6ec536a20.html",
+      "domain": "www.leadertelegram.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Coach Dan Campbell still confident in Lions despite Aidan Hutchinson's season-ending knee injury",
+      "published_at": "2026-11-17T17:12:00+00:00",
+      "titleHash": "79dafe01120383882f829a1fed15e0b709ac35e2be3e337342b6674e0deeaf1f"
+    },
+    {
+      "ref": "04f1ef6d262ec2bb3bbbaa1fd0042c346fe6b1fd45e17497abfaddbed36c2520",
+      "url": "https://chicago.suntimes.com/bears/2026/11/17/bears-report-luther-burden-kyler-gordon-clears-concussion-protocol-shoulder-injury-nfl",
+      "domain": "chicago.suntimes.com",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "Bears report: WR Luther Burden clears concussion protocol",
+      "published_at": "2026-11-17T18:10:00+00:00",
+      "titleHash": "a8aaf87a5910665cc5013d043416cf6e6ecf62b48b68615bb4828845f7629266"
+    },
+    {
+      "ref": "f3040fd3370aeacc5294389d2c6e8e99afe3d6dd8a56adef262a8960cd057eac",
+      "url": "https://www.z93jamz.com/2026/11/17/bears-wr-luther-burden-iii-clears-concussion-protocol",
+      "domain": "www.z93jamz.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Bears WR Luther Burden III clears concussion protocol",
+      "published_at": "2026-11-17T19:23:00+00:00",
+      "titleHash": "1cfa9707f923ac03e8714011e73f716c30858a0909d87bf1db4d157523349043"
+    },
+    {
+      "ref": "5439d1522cee1b655da7e699c3c232e7cff79dfc93e3ba2a9157e49dd2e3cadc",
+      "url": "https://www.nydailynews.com/2026/11/17/ray-tintori-dead-heidi-gardner-boyfriend",
+      "domain": "www.nydailynews.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "Ray Tintori, boyfriend of SNL alum Heidi Gardner, dies at 43",
+      "published_at": "2026-11-17T15:07:00+00:00",
+      "titleHash": "7111b298e62b48e4b2d5270feb9002513ebdd9ef5fe79f84a12e46e12453bc68"
+    },
+    {
+      "ref": "948cf7cc1e233b813be632a3a703e4729634f72c8a679d5b30e57a0a64fd6abe",
+      "url": "https://www.mercurynews.com/2026/11/17/ray-tintori-dead-heidi-gardner-boyfriend",
+      "domain": "www.mercurynews.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "Filmmaker Ray Tintori, boyfriend of SNL alum Heidi Gardner, dies in NY at 43",
+      "published_at": "2026-11-17T16:05:00+00:00",
+      "titleHash": "2713f0b020dab86450df7a95bf605532ccf0caface4dea56ab814464cdeca774"
+    },
+    {
+      "ref": "1138aa2708349c66237583e31fc4acecd827f646a9ba6eb1f8923388b0163cfe",
+      "url": "https://www.aol.com/articles/dustin-may-agrees-52-million-163712000.html",
+      "domain": "www.aol.com",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "Dustin May agrees to $52 million deal with White Sox as Brewers get raided again",
+      "published_at": "2026-11-17T16:37:00+00:00",
+      "titleHash": "6080d33dbbe6a579284711c0cc4d375272b446844708713d2016c9f403591bc4"
+    },
+    {
+      "ref": "9f3a549fdc9d7d3f617e7223d2f97171b43eccc76a3454c01654fcf875619774",
+      "url": "https://www.fox969.com/2026/11/17/brewers-dustin-may-reportedly-agrees-to-deal-with-white-sox",
+      "domain": "www.fox969.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Brewers' Dustin May reportedly agrees to deal with White Sox",
+      "published_at": "2026-11-17T16:42:00+00:00",
+      "titleHash": "44ce4514771a6411a26d665d16579f59442ad50e18dea990415e8891ec2e769b"
+    },
+    {
+      "ref": "7403db8b4fea3fe6dbf8e89906122c12d0143099268ea6afeb65bf769ee9b6b1",
+      "url": "https://www.mycariboonow.com/317458/news/rcmp/crime/20-year-old-save-on-foods-manager-in-pg-assaulted-following-theft-attempt",
+      "domain": "www.mycariboonow.com",
+      "first_seen_at": "2026-11-17T19:00:00+00:00",
+      "title": "20-year-old Save-on-Foods manager in PG assaulted following theft attempt : My Cariboo Now",
+      "published_at": "2026-11-17T17:37:00+00:00",
+      "titleHash": "d333a5dc3305bef569f2c0bb6fdaf20f08fb4e0e0e9221220b78dd73cc6ff5de"
+    },
+    {
+      "ref": "bafe9fcb127c1dab7064bf12ce0fbc2973265bd15e9256a1867122f8e8696df6",
+      "url": "https://www.myprincegeorgenow.com/255678/news/rcmp/crime/20-year-old-save-on-foods-manager-in-college-heights-assaulted-following-theft-attempt",
+      "domain": "www.myprincegeorgenow.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "20-year-old Save-on-Foods manager in College Heights assaulted following theft attempt : My Prince George Now",
+      "published_at": "2026-11-17T16:30:00+00:00",
+      "titleHash": "aea62ad4713436f20d4965dbc525ff9a72e7541f84060f8d9276b57818ceb00c"
+    },
+    {
+      "ref": "35a2b4c1d41f900bc8179ef1726d73ddb3409335d9bedf322eae774bd90f4e32",
+      "url": "https://jamaica-gleaner.com/article/world-news/20261118/david-beckham-sues-us41-million-after-his-fragrance-sold-gas-stations",
+      "domain": "jamaica-gleaner.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "David Beckham sues for US$41 million after his fragrance is sold in gas stations and discount stores",
+      "published_at": "2026-11-17T15:21:00+00:00",
+      "titleHash": "4ad5ed6f83a6e1388f766bd8d013610a6361564845419906b2eb03e086bcca38"
+    },
+    {
+      "ref": "ca9505f4fb7a6014ded187f13b15afe7214cb9b8b45abfc7627dd2517bd40347",
+      "url": "https://www.courant.com/2026/11/17/david-beckham-fragrance-lawsuit",
+      "domain": "www.courant.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "David Beckham sues for $41M after fragrance is sold in gas stations",
+      "published_at": "2026-11-17T17:13:00+00:00",
+      "titleHash": "04ca90ec2b954f7f0e02bce5ce45cabfddc62f438ec6f0893ed96210fc923a4c"
+    },
+    {
+      "ref": "dbaf795afeea11f737c4b74228e3a10d9a019d1d5a45ffee2523023361c2e417",
+      "url": "https://wmeq.iheart.com/content/2026-11-17-people-injured-after-severe-turbulence-on-jetblue-flight",
+      "domain": "wmeq.iheart.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "People Injured After Severe Turbulence On JetBlue Flight | NewsTalk WMEQ",
+      "published_at": null,
+      "titleHash": "e10516d766b1c5a403cd5829ebb96cd35c23a52657d8d8badc6bd7207b0d56ca"
+    },
+    {
+      "ref": "f430c2c2e226492f02c82b8cdda0384074c8fd831b976fd09e509d1e09f9ddf3",
+      "url": "https://www.yahoo.com/news/weather-news/articles/five-people-injured-amid-severe-142020782.html",
+      "domain": "www.yahoo.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Five people injured amid severe turbulence on JetBlue flight to Florida",
+      "published_at": "2026-11-17T14:20:00+00:00",
+      "titleHash": "65ddef1341789d38d3397ff0da6f5d51233e4a982bfa60c9019ada5c928e0bdb"
+    },
+    {
+      "ref": "59a230e4538c48eea10ae5e6e17f1495c7529156058e001d5ce480a18da8ffae",
+      "url": "https://www.rollingstone.com/music/music-news/jason-isbell-drive-by-truckers-2027-tour-1235659533",
+      "domain": "www.rollingstone.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "Jason Isbell Announces Tour With Drive-By Truckers",
+      "published_at": "2026-11-17T16:13:00+00:00",
+      "titleHash": "64f54129a71ea22c1c8dc52748374b6340e40cb6123e4fe3a95f9e207750e190"
+    },
+    {
+      "ref": "63ba6af326d32ce21463df46da6eccbb8ac4c7c92026e0e968e7d07dda39fcbd",
+      "url": "https://www.pastemagazine.com/music/jason-isbell-and-the-400-unit/jason-isbell-and-the-400-unit-announce-tour-with-drive-by-truckers",
+      "domain": "www.pastemagazine.com",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "Jason Isbell and the 400 Unit announce tour with Drive-By Truckers",
+      "published_at": "2026-11-17T17:47:00+00:00",
+      "titleHash": "f38e380a4a9c79fd3c270732bda02a0bbc56aaf4cd1474a88166e86e969680f2"
+    },
+    {
+      "ref": "588a3f7fd407b5ddd11407478b47994da4ba6f9531d5a6bf662f5d7c7f405fba",
+      "url": "http://www.bignewsnetwork.com/news/279439192/uk-imposes-sanctions-on-eight-companies-involved-in-west-bank-settlements-expansion",
+      "domain": "www.bignewsnetwork.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "UK imposes sanctions on eight companies involved in West Bank settlements expansion",
+      "published_at": null,
+      "titleHash": "29d00ef3aa15011b20371d36ec1220f543c1c8d1fb23b1ba93fcd1fa6152b211"
+    },
+    {
+      "ref": "ee2d1e5d496f96a2e91a340990417675337682e555e1a9ab90efc23251a7cfeb",
+      "url": "http://www.leadertelegram.com/news/world/uk-sanctions-israeli-companies-building-west-bank-settlements/article_2c8c2775-bfa4-5f94-ab6a-7ae0c5448be5.html",
+      "domain": "www.leadertelegram.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "UK sanctions Israeli companies building West Bank settlements",
+      "published_at": "2026-11-17T14:00:00+00:00",
+      "titleHash": "313779efdd26c5c14402d3437c8349c6e32cde58135124920984dba93193ac9f"
+    },
+    {
+      "ref": "17b456961f7c57638ca6d14e5bd52007c8accda5e70cd4fe989f994b91a98ae2",
+      "url": "https://kmit.com/news/030030-tiger-woods-to-return-to-competition-at-bahamas-tournament",
+      "domain": "kmit.com",
+      "first_seen_at": "2026-11-17T19:45:00+00:00",
+      "title": "Tiger Woods to return to competition at Bahamas tournament",
+      "published_at": null,
+      "titleHash": "3d74930d07d41da99d6278e772f1ac79611bd43a0eca8178f2d6b7ecfd72a864"
+    },
+    {
+      "ref": "284a02d66579291415c6d5f62d65933b63e35aa2fb18c23da70a5d6bc95d6fa3",
+      "url": "https://www.readingeagle.com/2026/11/17/tiger-woods-to-return-to-competition-at-hero-world-challenge-the-bahamas-tournament-he-hosts",
+      "domain": "www.readingeagle.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Tiger Woods to return to competition at Hero World Challenge, the Bahamas tournament he hosts",
+      "published_at": "2026-11-17T16:38:00+00:00",
+      "titleHash": "48cdfdb50af3047c8a5dc00c0200ae906b42a494ff7ff64f83b8450509bcad9d"
+    },
+    {
+      "ref": "016cd40266ec2c75842d7cc22337b52be07b34995f9f7bce49c2d2ebe98022b9",
+      "url": "https://movieweb.com/only-murders-in-london-trailer",
+      "domain": "movieweb.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "'Only Murders in the Building' Heads to London in Star-Studded Season 6 Trailer",
+      "published_at": null,
+      "titleHash": "d0ef955a27e7eb13909d76cf611d82d6c61cb75308f8978258b1330bf5ab7f8c"
+    },
+    {
+      "ref": "e59ed4ce6431107ec6d358414949a490c587bfabd5bb92d0a7300dbc30437f1d",
+      "url": "https://kixi.com/only-murders-in-the-building-shows-off-london-set-season-6-with-official-trailer",
+      "domain": "kixi.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "'Only Murders in the Building' shows off London-set season 6 with official trailer – AM 880 KIXI",
+      "published_at": "2026-11-17T18:45:00+00:00",
+      "titleHash": "a54c8857fdb866e3477093aa3e7d5198694c1e472020ddd1bcbc0a3a9a3909ce"
+    },
+    {
+      "ref": "ccb4731655f935073951e8d6472bee780ceb09a71931610c716159467f363e1f",
+      "url": "https://www.fool.com/earnings/takeaways/2026/11/17/f5-3-key-takeaways-for-long-term-investors?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "F5: 3 Key Takeaways for Long-Term Investors",
+      "published_at": "2026-11-17T18:15:00+00:00",
+      "titleHash": "a75c4c556daf09b9e5fc9a4b8f128353b8b0c3ca9043b8d8aada86b0e91b32bc"
+    },
+    {
+      "ref": "d94e4560d77e1a7ca1edb79bbf02325a1f0fd4cc610485cf98b9eb3ea069ebb0",
+      "url": "https://www.fool.com/earnings/takeaways/2026/11/17/veritone-3-key-takeaways-for-long-term-investors?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "Veritone: 3 Key Takeaways for Long-Term Investors",
+      "published_at": "2026-11-17T18:15:00+00:00",
+      "titleHash": "d68f15dc855fb1c015c2434ca5af5483467d6ba476ac68d60810236f9618264e"
+    },
+    {
+      "ref": "0fe91e26e2e5ebd00f4e45f63abc1b07c266d2952cceae0222d3274756e2bd4d",
+      "url": "https://www.fool.com/earnings/takeaways/2026/11/17/radware-3-key-takeaways-for-long-term-investors?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "Radware: 3 Key Takeaways for Long-Term Investors",
+      "published_at": "2026-11-17T18:28:00+00:00",
+      "titleHash": "8db407a7f01dec4857dcaa2839aa6fa1e96a20a03d9ecaa8fdb721b116218e4a"
+    },
+    {
+      "ref": "b73974917bf09ff330b9b57f8d68e911392ee23a46b5c6255581fe5d3780ad48",
+      "url": "https://www.fool.com/earnings/takeaways/2026/11/17/aercap-3-key-takeaways-for-long-term-investors?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "AerCap: 3 Key Takeaways for Long-Term Investors",
+      "published_at": "2026-11-17T18:30:00+00:00",
+      "titleHash": "28dc12126cacb063370c14304a3c8707a374b03783fc44084f72b875b5e7dde2"
+    },
+    {
+      "ref": "11fce3d2a421e1999fe4fff8b882d311d84aad68dfea857036e5ae0f67e0ca6b",
+      "url": "https://www.fool.com/earnings/takeaways/2026/11/17/tomi-3-key-takeaways-for-long-term-investors?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "TOMI: 3 Key Takeaways for Long-Term Investors",
+      "published_at": "2026-11-17T17:41:00+00:00",
+      "titleHash": "848814ad280273a5ee7ed2a0aa606625e46b8733e26c0f1defb3ee9a73e41c1d"
+    },
+    {
+      "ref": "4eb287ff331aa58b588106073a0c97636573bc3a0e64f513c5ee82c638a367d7",
+      "url": "https://www.fool.com/earnings/takeaways/2026/11/17/airjoule-technologies-3-key-takeaways-for-long-term-investors?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "AirJoule Technologies: 3 Key Takeaways for Long-Term Investors",
+      "published_at": "2026-11-17T18:46:00+00:00",
+      "titleHash": "bb1691c63359f48817c2cce90c9f3c580268b0a9ce8cc73badc3d3ca236eeb98"
+    },
+    {
+      "ref": "0bff5a259b9e3017143d02a74a6fc36a4d42b784407922bd29c40fda4a8f7fe2",
+      "url": "https://www.fool.com/earnings/call-transcripts/2026/11/17/beasley-bbgi-q3-2026-earnings-call-transcript?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Beasley (BBGI) Q3 2026 Earnings Call Transcript",
+      "published_at": "2026-11-17T19:28:00+00:00",
+      "titleHash": "7bb05aed3de51f16078604a6648675ce35d78be078daa6ebb8f7ac70dd080103"
+    },
+    {
+      "ref": "c5d08efdc28fc734e74c5749d381065e24283adf4cb2526dae281eae10362ae6",
+      "url": "https://www.fool.com/earnings/call-transcripts/2026/11/17/jdcom-jd-q3-2026-earnings-call-transcript?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "JD.com (JD) Q3 2026 Earnings Call Transcript",
+      "published_at": "2026-11-17T17:54:00+00:00",
+      "titleHash": "3ecc8f07ed42bc5829ffdeb4820f072e70eeb9efce51f62a9a7f8c294b7e9545"
+    },
+    {
+      "ref": "0337b3585fd2a62038f8a19a214b7b4f6523c59d08bf3bb3c08f749f733c8d96",
+      "url": "https://www.pr-inside.com/levi-korsinsky-notifies-fluence-energy-inc-flnc-investors-of-r5244819.htm",
+      "domain": "www.pr-inside.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "Levi & Korsinsky Notifies Fluence Energy, Inc. (FLNC) Investors of ...",
+      "published_at": null,
+      "titleHash": "5be42ffc2907430937a13262b2b6eb1f3b6cd08bae2e13ed0d3b368e0bee892d"
+    },
+    {
+      "ref": "3a66e816529558e260611fae3cb8c3cd3c7a90e9ae17d6d330b83d7a60e217dd",
+      "url": "https://www.pr-inside.com/adig-investor-alert-levi-korsinsky-notifies-investors-of-investigation-r5244816.htm",
+      "domain": "www.pr-inside.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "ADIG Investor Alert: Levi & Korsinsky Notifies Investors of Investigation ...",
+      "published_at": null,
+      "titleHash": "63748b75cbb65bb3ddbac212a653916c410ed65218473190d864c33603080b47"
+    },
+    {
+      "ref": "f8aa503769a580a965a3b16f3e5990fb122638cc0d452f1210fe37d4ec3e757c",
+      "url": "https://www.pr-inside.com/cvrx-stockholder-alert-bronstein-gewirtz-and-grossman-llc-announces-r5244786.htm",
+      "domain": "www.pr-inside.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "CVRX STOCKHOLDER ALERT: Bronstein, Gewirtz and Grossman, LLC Announces ...",
+      "published_at": null,
+      "titleHash": "74e1fafed46dc67f08d2b6dce6cf1a5c1d2f828f370ced84b2322b2637fb4f5c"
+    },
+    {
+      "ref": "fdf4ed4103255607e7cfef2a5bfc287001ea1c486f524148ee9e87bba880d7db",
+      "url": "https://www.pr-inside.com/bronstein-gewirtz-grossman-llc-is-investigating-ingredion-incorporated-r5244789.htm",
+      "domain": "www.pr-inside.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Bronstein, Gewirtz & Grossman, LLC Is Investigating Ingredion Incorporated ...",
+      "published_at": null,
+      "titleHash": "9bec7678d1361b57512100cf63c218aa5e14674176da3ac8f765644f4b8906f3"
+    },
+    {
+      "ref": "ba8fc1fa27f746ab3af3db4f2e040ed375a9ca2da5852f0ab36da311fe55a05c",
+      "url": "https://www.elle.com/culture/celebrities/a74455190/rosalind-eleazar-elle-2026-women-in-hollywood-speech",
+      "domain": "www.elle.com",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "Read Rosalind Eleazar's ELLE 2026 Women in Hollywood Acceptance Speech",
+      "published_at": "2026-11-17T18:02:00+00:00",
+      "titleHash": "34238e6b8ea4d6d27989d05d05efc4f6462bb10d98c8133eafbe3a75dc8c41e0"
+    },
+    {
+      "ref": "fee121da9343371140252031b7fdf84b69427641e916bba1696369a86679bded",
+      "url": "https://www.elle.com/culture/celebrities/a74454090/florence-pugh-elle-2026-women-in-hollywood-speech",
+      "domain": "www.elle.com",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "Florence Pugh Honors 'Thousands of People' in Women in Hollywood Speech",
+      "published_at": "2026-11-17T16:21:00+00:00",
+      "titleHash": "4790fc7ede3699df93c06ad56eaabcadd15744271b0382c21e7578a01fdcb388"
+    },
+    {
+      "ref": "298296e1eaeb40a75813e71e97a0b9b648e2200be5d42fcb9dc63e5d629c2e6f",
+      "url": "https://www.wktv.com/news/local/new-york-attorney-general-creates-unit-to-enforce-ai-safety/article_9a29e082-7b7b-4835-9ac3-8743ace2c7a7.html",
+      "domain": "www.wktv.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "New York Attorney General Creates Unit to Enforce AI Safety",
+      "published_at": "2026-11-17T16:39:00+00:00",
+      "titleHash": "840a0d0cd4aa19944d7d99321ea7b4b587fad166138b9a717ebea549d16f4caa"
+    },
+    {
+      "ref": "ac91e201098f6dcb44d194a119b75a0a2f30b6be5761ad23c95cc921925ad2da",
+      "url": "https://www.claycord.com/2026/11/17/california-attorney-general-sues-openai-over-alleged-ai-safety-failures",
+      "domain": "www.claycord.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "California Attorney General Sues OpenAI Over Alleged AI Safety Failures",
+      "published_at": "2026-11-17T16:00:00+00:00",
+      "titleHash": "96a7c18d3a765d03a0b1a36f0e6c8362cb9a68ea757f1dc5e8056797b48642e4"
+    },
+    {
+      "ref": "506350847ca6196cf69a75152d35be83dd04714f24287ffad656f1d669cb53c3",
+      "url": "https://www.prnewswire.com/news-releases/century-casinos-inc-announces-restatement-of-previously-issued-financial-statements-and-preliminary-third-quarter-2026-financial-results-302942209.html",
+      "domain": "www.prnewswire.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "Century Casinos, Inc. Announces Restatement of Previously Issued Financial Statements and Preliminary Third Quarter 2026 Financial Results",
+      "published_at": null,
+      "titleHash": "e86c03ee37457296fae3eece6422b0513faebde279259139cecce96d1b9bb888"
+    },
+    {
+      "ref": "d3165056f7734dd24a50adb4c8c1d93ac83f79948a0c8b8ff1ca481ae939b440",
+      "url": "https://www.businessnorth.com/press_releases/talon-metals-reports-third-quarter-2026-results/article_af4eeb16-d227-43fc-81d0-4f3579aefeb8.html",
+      "domain": "www.businessnorth.com",
+      "first_seen_at": "2026-11-17T18:00:00+00:00",
+      "title": "Talon Metals reports third quarter 2026 results",
+      "published_at": "2026-11-17T15:02:00+00:00",
+      "titleHash": "2cd822c702b2cf38366bcf2b69c931e8c247e77031c0ede526a08212fac7fe86"
+    },
+    {
+      "ref": "bb5e60c6fa637e395e7306c747674354521767465075b01872c450fb2b60860d",
+      "url": "https://www.fool.com/earnings/call-transcripts/2026/11/17/walt-disney-dis-q4-2026-earnings-call-transcript?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Walt Disney (DIS) Q4 2026 Earnings Call Transcript",
+      "published_at": "2026-11-17T18:11:00+00:00",
+      "titleHash": "6e463e0e01b13a1605cd83fcc0d0127405b7513e4dcdae79ea1fb58a79d64a58"
+    },
+    {
+      "ref": "ea3dbc6f692e7b60ba39f5b8a0dcb93abd1d6e0403afa67a6e986be88086c837",
+      "url": "https://www.fool.com/earnings/call-transcripts/2026/11/17/similarweb-smwb-q3-2026-earnings-call-transcript?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Similarweb (SMWB) Q3 2026 Earnings Call Transcript",
+      "published_at": "2026-11-17T19:14:00+00:00",
+      "titleHash": "f39aa35df6c4deb97101b552dd871d863b908cac5cf83cbb5f51368e5801ab1b"
+    },
+    {
+      "ref": "134e51995baf374fa5d12570b7de621e542dade1bdd5d72bd94dce45c497de59",
+      "url": "https://ledgertranscript.com/2026/11/17/monadnock-community-hospital-cyber-incident",
+      "domain": "ledgertranscript.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "Monadnock Community Hospital confirms cyber incident - Monadnock Ledger-Transcript",
+      "published_at": "2026-11-17T15:12:00+00:00",
+      "titleHash": "a89d5c675dc5536a1cdcb2a4fa9f7917f3ab249b227e1480276b34524b271d67"
+    },
+    {
+      "ref": "26bce5abc7804558a903e9a012c025ae94fde916d7031e33aa2fd02fd9dd86d3",
+      "url": "https://ledgertranscript.com/2026/11/17/teamsters-associated-grocers-pembroke-strike-nh",
+      "domain": "ledgertranscript.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "Teamsters strike at Associated Grocers enters second week - Monadnock Ledger-Transcript",
+      "published_at": "2026-11-17T18:18:00+00:00",
+      "titleHash": "c5ab8fcab62456907955d403d1be54efdf0d50f3c40f35f66a95fd54ab1132c7"
+    },
+    {
+      "ref": "5638542650ab4a7c2515b30b2109ad313449edad72782d87dc9f9fabfe14861c",
+      "url": "https://www.fool.com/earnings/call-transcripts/2026/11/17/axe-compute-agpu-q3-2026-earnings-call-transcript?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T20:00:00+00:00",
+      "title": "Axe Compute (AGPU) Q3 2026 Earnings Call Transcript",
+      "published_at": "2026-11-17T19:26:00+00:00",
+      "titleHash": "1f2321ed082d6dd775e9680bfbdfdcb67c1e7ddb1fb0e814674a6d423bb801b3"
+    },
+    {
+      "ref": "d989fcbd8aadc0999f1bf6d973fd454513d0a01e1798579812264c7f087bcc99",
+      "url": "https://www.fool.com/earnings/call-transcripts/2026/11/17/reliance-global-xgpu-q3-2026-earnings-call-transcript?source=iedfolrf0000001",
+      "domain": "www.fool.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Reliance Global (XGPU) Q3 2026 Earnings Call Transcript",
+      "published_at": "2026-11-17T18:07:00+00:00",
+      "titleHash": "2b6cc3603fb7ac3abdfdbaca6780d23683c4c66850d822df5a24eb0115f69350"
+    },
+    {
+      "ref": "861061a6d8c8264699fb3c1afbba4048f4a6afd3a7e60a3a0a335d4e0b737e5b",
+      "url": "https://economictimes.indiatimes.com/news/defence/india-japan-to-deepen-defence-ties-at-22-talks/articleshow/135938534.cms",
+      "domain": "economictimes.indiatimes.com",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "India, Japan to deepen defence ties at 2+2 talks",
+      "published_at": null,
+      "titleHash": "f7b67d2c5eb1c314b96ef67adc6c8afeb6811d8a78b7b7e55fd4a32e40e3c521"
+    },
+    {
+      "ref": "9459a27dc1006f3cedd4ba3b3612270cc6aba30c9cf502b18d8ce1130c010ae2",
+      "url": "https://econotimes.com/South-Korea-and-Japan-Agree-to-Deepen-Energy-and-Supply-Chain-Ties-1778435",
+      "domain": "econotimes.com",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "South Korea and Japan Agree to Deepen Energy and Supply-Chain Ties",
+      "published_at": "2026-11-17T18:03:00+00:00",
+      "titleHash": "870dfac75b5f6a813c852a426826f0091ac8662c9c6684821d785c5464519d9a"
+    },
+    {
+      "ref": "72f522805331e2bf668e66085cd98593c6fad7d5342196d0b598ebb8f66aa519",
+      "url": "https://home.nzcity.co.nz/news/article.aspx?fm=psp,tsf&id=458203",
+      "domain": "home.nzcity.co.nz",
+      "first_seen_at": "2026-11-17T19:30:00+00:00",
+      "title": "Three police officers have been charged with assault - in relation to a police pursuit in central Auckland in March - 18-Nov-2026",
+      "published_at": null,
+      "titleHash": "ff0e4a9a8c3b953e257713cd706dbdc99c1c5e3a8b9b09a162c0d4a1d9cf1c7a"
+    },
+    {
+      "ref": "8eb0c3d367a342f2eb5de36f6756d1f3a11742f25eac7f1ffbc1222fccaa8d23",
+      "url": "https://kyssfm.com/ixp/119/p/steals-girlfriend-car-flees",
+      "domain": "kyssfm.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Missoula Man Charged With Robbery And Assault After Pursuit",
+      "published_at": "2026-11-17T14:47:00+00:00",
+      "titleHash": "f572b339c9a5d686d6863bbb4cd22d6395a16097245a91723c86210abb12348e"
+    },
+    {
+      "ref": "08be0f67b610ab1009ca60d7645710a15f0af8857d718042119afc3e504fed02",
+      "url": "https://www.boston.com/news/crime/2026/11/17/police-track-down-driver-who-allegedly-intentionally-struck-officer-with-truck-in-medway",
+      "domain": "www.boston.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Police track down driver who allegedly intentionally struck officer with truck in Medway",
+      "published_at": null,
+      "titleHash": "f5d23dd5951b5b56c3109a7c9690029ef13ea9c5e4774a53a61efea8312a2ad0"
+    },
+    {
+      "ref": "13efb7431ac947d7869cda5d78b03944b850c79ae5290d1caaa703bf21e425c7",
+      "url": "https://www.postcourier.com.pg/police-officer-arrested-after-fatal-shooting-of-bus-driver-in-hagen",
+      "domain": "www.postcourier.com.pg",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "Police Officer arrested after fatal shooting of bus driver in Hagen",
+      "published_at": "2026-11-17T14:28:00+00:00",
+      "titleHash": "7e01dceab8cfde7db9f154835996396aeaa5004d28306100a4230ce1d943214a"
+    },
+    {
+      "ref": "c1caf6db69192e0fbc2f5eebb039c4247b28d5fa3ce4afeea452d6043d30b16e",
+      "url": "https://gasiantimes.com/art/2026/11/15/cambodia-reopens-1000-year-old-temple-at-angkor",
+      "domain": "gasiantimes.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "Cambodia reopens 1,000-year-old temple at Angkor - Georgia Asian Times",
+      "published_at": "2026-11-15T16:52:00+00:00",
+      "titleHash": "dd786a36d068b402128565dc2d438fb2149959b37dd8638d13941e357ebc1b19"
+    },
+    {
+      "ref": "ea3938775295c04b1c7085f845c59e53612ff11da06cda65330d862d1b094d2b",
+      "url": "https://gasiantimes.com/business/2026/11/17/us-thailand-sign-joint-trade-statement",
+      "domain": "gasiantimes.com",
+      "first_seen_at": "2026-11-17T19:15:00+00:00",
+      "title": "US, Thailand sign joint trade statement - Georgia Asian Times",
+      "published_at": "2026-11-17T16:59:00+00:00",
+      "titleHash": "abe9fb37a047aa8ec7bb35ac052c3d4a2a2c41513dcc176c9a0a41edc4bdc616"
+    },
+    {
+      "ref": "2da4c3d8234885127072e238652d18ae35bc0b9d41b3f26cddd8612c7aa96021",
+      "url": "https://www.gazetteandherald.co.uk/news/26738271.trowbridge-dad-died-confronting-man-hatchet",
+      "domain": "www.gazetteandherald.co.uk",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "Trowbridge dad died after 'confronting man with hatchet' | The Wiltshire Gazette and Herald",
+      "published_at": "2026-11-17T15:54:00+00:00",
+      "titleHash": "b6b605c24eb7e7cd32167e97b514898056b40177d1077ed1cb7c90ee9ff9bc09"
+    },
+    {
+      "ref": "a905ff5ddda6577097a5c9319d5314a17d422c96dfb3d94dbfa19179f20ac53c",
+      "url": "https://www.gazetteandherald.co.uk/news/26738888.m4-speed-cameras-turned-off-2-650-wrong-checks",
+      "domain": "www.gazetteandherald.co.uk",
+      "first_seen_at": "2026-11-17T18:45:00+00:00",
+      "title": "M4 speed cameras 'turned off' after '2,650 wrong checks' | The Wiltshire Gazette and Herald",
+      "published_at": "2026-11-17T18:21:00+00:00",
+      "titleHash": "051caaa7a16ff21fe2f26b75505b0e9293a69db1efa16b15b56e705364c0cf60"
+    },
+    {
+      "ref": "1ba487a5b471066c8f2044543a611f63e7bec7a9e5670d72ff53a29e23bb14c9",
+      "url": "https://www.insideindianabusiness.com/articles/indiana-health-commissioner-says-public-health-is-generating-return-on-investment",
+      "domain": "www.insideindianabusiness.com",
+      "first_seen_at": "2026-11-17T19:45:00+00:00",
+      "title": "Indiana health commissioner says public health is generating return on investment – Inside INdiana Business",
+      "published_at": "2026-11-17T14:54:00+00:00",
+      "titleHash": "a757d22e861d7fd40653f51a99d9b52aa2af95fd24e34688e0849b23e4621e54"
+    },
+    {
+      "ref": "31d48e099c7af91581caef1d06fa412b9ac81c957fe736e5f07183242f1fd74a",
+      "url": "https://www.insideindianabusiness.com/articles/iu-launches-new-hub-for-national-security-research-partnerships",
+      "domain": "www.insideindianabusiness.com",
+      "first_seen_at": "2026-11-17T19:45:00+00:00",
+      "title": "IU launches new hub for national security research partnerships – Inside INdiana Business",
+      "published_at": "2026-11-17T17:30:00+00:00",
+      "titleHash": "9d186b8ab1c6f6d59ac524041fa4cac4cd1ae3ca6ccb6d3273db6113e36bca26"
+    },
+    {
+      "ref": "3ddbfce80083f1ab77dcebe28f168e1b539e2196006c6c9430e00fe87125a5f6",
+      "url": "https://www.harwichandmanningtreestandard.co.uk/news/national/uk-today/26737748.martin-lewis-hits-ofgem-market-stabilisation-charge",
+      "domain": "www.harwichandmanningtreestandard.co.uk",
+      "first_seen_at": "2026-11-17T18:00:00+00:00",
+      "title": "Martin Lewis hits out at Ofgem over Market Stabilisation Charge | Harwich and Manningtree Standard",
+      "published_at": "2026-11-17T14:42:00+00:00",
+      "titleHash": "92be38898fe7027a82e497bf3a23a92ec002f8f81cb241e7498b7a069eceea69"
+    },
+    {
+      "ref": "bbdc04f96d05da3ad3c2ae3e6c14e78135212aed3d26bfbacf20f6d4b936f4f6",
+      "url": "https://www.harwichandmanningtreestandard.co.uk/news/26737641.a12-re-opening-update-large-crater-forced-closure",
+      "domain": "www.harwichandmanningtreestandard.co.uk",
+      "first_seen_at": "2026-11-17T18:00:00+00:00",
+      "title": "A12 re-opening update after large crater forced closure | Harwich and Manningtree Standard",
+      "published_at": "2026-11-17T14:35:00+00:00",
+      "titleHash": "6a3b022e26f6be09db209ffd96478bb823be327ca008390f1c3864ca3dc63ec7"
+    },
+    {
+      "ref": "5255909ec0a492ffa6570cf50739b7268b17a8ef0d5b6702df141b795acb3d89",
+      "url": "https://www.hellenicshippingnews.com/contractor-appointed-for-port-of-gothenburg-fairway-deepening-project",
+      "domain": "www.hellenicshippingnews.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Contractor appointed for Port of Gothenburg fairway deepening project | Hellenic Shipping News Worldwide",
+      "published_at": null,
+      "titleHash": "13be7cd19ae0369f16e9b6fea09169eef04c5c2a3d7dc2a6047f1609b1316f9c"
+    },
+    {
+      "ref": "dcc80f1de7d14c1d7f646b7677d187ab90450be73884aa8bdd73c09fc61bcc5d",
+      "url": "https://www.hellenicshippingnews.com/bidding-announcement-of-56928-20t-bulk-carrier-zj2026-0187",
+      "domain": "www.hellenicshippingnews.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Bidding Announcement of 56928.20t Bulk Carrier \"ZJ2026-0187\" | Hellenic Shipping News Worldwide",
+      "published_at": null,
+      "titleHash": "2a6d1cc36bd1047e6f21a727dd054422a5d6c94ab09519a5da31c359d691c2e2"
+    },
+    {
+      "ref": "056b88a67163206969f53b8c9470ebf4542cbda0a7bc1dcffa22bb3eec751c69",
+      "url": "https://www.wtae.com/article/when-you-should-thaw-thanksgiving-turkey/74425733",
+      "domain": "www.wtae.com",
+      "first_seen_at": "2026-11-17T19:00:00+00:00",
+      "title": "How to thaw a turkey safely for Thanksgiving",
+      "published_at": null,
+      "titleHash": "f1f88c4de77b57b95e03edded4261a4324087e8f4cb4b255e20f4f29ad3f7a68"
+    },
+    {
+      "ref": "5ac41cd416005b4e3f4431590e8828fb71b095264719aca673d9c6b4b8d0b7f7",
+      "url": "https://www.wtae.com/article/pittsburgh-man-accused-of-pistol-whipping-two-women/74452184",
+      "domain": "www.wtae.com",
+      "first_seen_at": "2026-11-17T19:00:00+00:00",
+      "title": "Police: Pittsburgh man pistol-whipped 2 women with stolen gun, threatened to kill one",
+      "published_at": null,
+      "titleHash": "a38f417348672860407435ca6a27a6ed91d0d4bcdabed73c98de7e84799ace5f"
+    },
+    {
+      "ref": "085172671f91745e46fc907e6eca1cb3b5380f351d186539be22bcc160386dd5",
+      "url": "https://www.dailylocal.com/2026/11/17/how-to-use-a-leaf-vacuum",
+      "domain": "www.dailylocal.com",
+      "first_seen_at": "2026-11-17T19:45:00+00:00",
+      "title": "How to use a leaf vacuum",
+      "published_at": "2026-11-17T05:24:00+00:00",
+      "titleHash": "9b52a93ed36c6fa5cdce0ac0f7cd1ce69ebe563f46a7390183bb00be513ec31e"
+    },
+    {
+      "ref": "0a3074a568c81f71222a28583ca25d4af83ffbd7c5dc57160a99288375e72054",
+      "url": "https://www.dailylocal.com/2026/11/17/board-of-peace-un-gaza-report",
+      "domain": "www.dailylocal.com",
+      "first_seen_at": "2026-11-17T19:45:00+00:00",
+      "title": "Board of Peace delivers bleak Gaza report, warning of ceasefire collapse",
+      "published_at": "2026-11-17T19:24:00+00:00",
+      "titleHash": "9be471c8072572cd1c94722350c058acd684aab9042d987ecb650c56d360e4de"
+    },
+    {
+      "ref": "2c44f6d6ba1f4562cba25b1c51a1d261f05600f2ba62bcbd8bd3d6ebcebcaeea",
+      "url": "https://www.timesherald.com/2026/11/17/how-to-buy-tech-for-your-parents-and-grandparents",
+      "domain": "www.timesherald.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "How to buy tech for your parents and grandparents",
+      "published_at": "2026-11-17T05:13:00+00:00",
+      "titleHash": "e2f54c6e873642940242dbe9feab9eaef5f21d71e3078f6e9d1e8c0ba70b787f"
+    },
+    {
+      "ref": "04ef6ca943a793f3b590fb82223b5bbca2299bc6697dafe896f44c2771785b08",
+      "url": "https://www.timesherald.com/2026/11/17/glenside-man-sent-to-prison-for-secretly-taking-photos-of-underage-girl",
+      "domain": "www.timesherald.com",
+      "first_seen_at": "2026-11-17T18:15:00+00:00",
+      "title": "Glenside man sent to prison for secretly taking photos of underage girl",
+      "published_at": "2026-11-17T17:53:00+00:00",
+      "titleHash": "5691c7d8c3d486cf95b495e887504bbde70e467891054611353bf5bf7fe4fd39"
+    },
+    {
+      "ref": "1aef31c42b56ea7a0e0d5b21b989e2c15fdd913dca5852147e8054f0f9d2e71d",
+      "url": "https://www.wfmz.com/news/area/lehighvalley/how-to-teach-kids-importance-of-gratitude-this-thanksgiving/article_793182d9-59ca-4db5-8b90-4ff80022f761.html",
+      "domain": "www.wfmz.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "How to teach kids importance of gratitude this Thanksgiving",
+      "published_at": "2026-11-17T13:30:00+00:00",
+      "titleHash": "ce72dd5c9bc025e9e41ca0b6fa6d7af223bae63c826bfa949b036c11f6b53b2f"
+    },
+    {
+      "ref": "0f875faf944e7a1e0407dcd6a6d92668ad45028a03d518e697d48a74c4b6e481",
+      "url": "https://www.wfmz.com/news/area/poconos-coal/carbon-county/blue-mountain-resort-begins-making-snow-ahead-of-ski-season/article_949c7592-9b0e-4f10-9818-4338861cb997.html",
+      "domain": "www.wfmz.com",
+      "first_seen_at": "2026-11-17T18:30:00+00:00",
+      "title": "Blue Mountain Resort begins making snow ahead of ski season",
+      "published_at": "2026-11-17T17:44:00+00:00",
+      "titleHash": "063d60d19963df06fa8cacf4472c7b24096ef2c761d6f65b9492980a7bb4bc40"
+    }
+  ]
+}
