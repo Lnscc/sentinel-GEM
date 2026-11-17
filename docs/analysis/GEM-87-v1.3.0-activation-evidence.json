@@ -1,0 +1,342 @@
+{
+  "schemaVersion" : "story-release-evidence-v2",
+  "requestHash" : "d557aabb9a18f4a19714586bdd8ee6dd78d488b64b40081601e88ae52c35ba85",
+  "evidenceHash" : "5318a70ecc35b72cdda0693980e1fe482c5bbeb58789b47dde2116d08ed1deed",
+  "evidence" : {
+    "candidateVersion" : "story-mvp-title-embedding-24h-v1.3.0",
+    "initialPrecheck" : {
+      "candidateVersionId" : 6,
+      "candidateStatus" : "SHADOW",
+      "activeVersionId" : 5,
+      "activeWatermark" : "2026-11-17T21:34:32.527134Z",
+      "candidateWatermark" : "2026-11-17T21:04:26.782272Z",
+      "targetWatermark" : "2026-11-17T21:34:32.527134Z",
+      "candidateOlder" : true,
+      "missingInputs" : 5247,
+      "staleInputs" : 731,
+      "incompleteEmbeddings" : 0,
+      "processingUnfinished" : false
+    },
+    "finalPrecheck" : {
+      "candidateVersionId" : 6,
+      "candidateStatus" : "SHADOW",
+      "activeVersionId" : 5,
+      "activeWatermark" : "2026-11-17T21:34:32.527134Z",
+      "candidateWatermark" : "2026-11-17T21:34:32.527134Z",
+      "targetWatermark" : "2026-11-17T21:34:32.527134Z",
+      "candidateOlder" : false,
+      "missingInputs" : 0,
+      "staleInputs" : 0,
+      "incompleteEmbeddings" : 0,
+      "processingUnfinished" : false
+    },
+    "holdout" : {
+      "version" : "gem87-independent-holdout-v1.0.0",
+      "provenance" : "New raw GDELT source metadata, firstSeenAt 2026-11-17T18:00:00Z through 2026-11-17T20:00:00Z; seeds 20261117 and 20261118; labelled before predictions; see GEM-87-fresh-holdout-review.md and GEM-87-fresh-holdout-sources-v1.json.",
+      "labelledBy" : "Codex, at the explicit request of Linus; source-headline and URL adjudication",
+      "independenceStatement" : "Version 1.3 and its release gates were frozen before selection. No Story assignments, embedding similarities or candidate predictions for these cases were read before labels were sealed. All article refs and normalized title hashes are disjoint from ART-032, ART-044, ART-045, ART-048, GEM-103 and the GEM-87 component fixture. Previously inspected Nvidia/Huang and known regression event chains were excluded. Labels were assigned from raw source headlines and URLs; ambiguous, liveblog and advice pairs were excluded. These labels must not be used to tune this candidate; any subsequent rule change requires another independent holdout.",
+      "pairs" : [ {
+        "left" : "35e6cc4d9b04dc2c054729bb97b4039e9e161f5eb29640ff5ec9d6931424da21",
+        "right" : "497ff93265e070b8cdf5d23f0120724754410b9c1c3b32c030894452b0e3904d",
+        "sameStory" : true,
+        "rationale" : "Both reports preview the same UConn-Arizona matchup and Dan Hurley visit to Tucson."
+      }, {
+        "left" : "4b75db43642e7bc170b255eebf2407bb0dd19e76fb162b5c5a39c2352f82a8ce",
+        "right" : "5a0a8c67fa33aac418a31b1087e841e8c58810a276a674f3c73f2b749ec8f15b",
+        "sameStory" : true,
+        "rationale" : "Both report the accusation that a Ramsey County deputy was intoxicated on duty."
+      }, {
+        "left" : "02a5544f37a499e1006af2e89931ce361dc808044a4137c8556a0e7d95bd18b1",
+        "right" : "544afd61fcd854963fe45068a5109644068ff7b8b2d817fac97a9f3b91ad6e74",
+        "sameStory" : true,
+        "rationale" : "Both report the same Federal Reserve October industrial-production release with identical figures."
+      }, {
+        "left" : "57d04e320753242c0645d3c4b8c97ae143e02aa46eb19b63947cd90680b8204f",
+        "right" : "b7d8832e9926d82a5713c092f1dae3daef1a94dcc8d856b25dee0f9c3572c8e5",
+        "sameStory" : true,
+        "rationale" : "Both report the Ontario secondary teachers 96 percent strike-mandate vote."
+      }, {
+        "left" : "77c97811a96ee9b8e07c71a0804ebb79585f7b636bfd1e1bdceabc786e029bfc",
+        "right" : "a354952b475d61e9db56da33f4bfd5bee920e9802a4cdccd4a92b49faeb85111",
+        "sameStory" : true,
+        "rationale" : "Both publish the same Credex announcement about monetizing unused cloud and AI credits."
+      }, {
+        "left" : "01053c3427c615a22af95cbc7e9b64edffb1d469e026c5935889747eaf9e9b40",
+        "right" : "0e3552a633f9a6d1fd6452f9c45f716ba782bbe7c701ab8b1b68d4d287827bfe",
+        "sameStory" : true,
+        "rationale" : "Both report the federal review identifying leadership failures in the Grand Canyon lodge fire."
+      }, {
+        "left" : "d73fa6a036bfc8e07226fa2b44524a346eaa8667d768de18cdf1befc1019da76",
+        "right" : "e99241044f8fb25d0deab5808fb7a38c9f301b24c1d0319d70eeadfb73124036",
+        "sameStory" : true,
+        "rationale" : "Both report the same Sorbelicious dessert recall for undeclared peanuts and hazelnuts."
+      }, {
+        "left" : "0bc697f9fb205d69362e3b427f95d5abff5146a11586647e02465a45bddb188c",
+        "right" : "24ae7907ccc9b06cdef1c74652b00d5ecf1c2fcc935574c073d6a8f1346d6977",
+        "sameStory" : true,
+        "rationale" : "Both report the Dodge Center house fire in which a family lost five dogs."
+      }, {
+        "left" : "178e06299776ab6ada5029855681466ec22432ca0c87f1591a26ce7117e11b3d",
+        "right" : "1f4f8c6cd35bd90d4b6ac31dc2c912f2bab30cd15bc55057e226bf37286ccb52",
+        "sameStory" : true,
+        "rationale" : "Both announce construction of the first Hanwha Philly Shipyard vessel in the four-tanker program."
+      }, {
+        "left" : "bf65e501f39e5cbb6f579a3f9362796157781b3527a4273fb35b0e409d38e56c",
+        "right" : "f5273029ac66b67b3f538250676a9341018bf54a6d44307964fb6babb34212d6",
+        "sameStory" : true,
+        "rationale" : "Both report Dan Campbell expressing confidence after the same Aidan Hutchinson knee injury."
+      }, {
+        "left" : "04f1ef6d262ec2bb3bbbaa1fd0042c346fe6b1fd45e17497abfaddbed36c2520",
+        "right" : "f3040fd3370aeacc5294389d2c6e8e99afe3d6dd8a56adef262a8960cd057eac",
+        "sameStory" : true,
+        "rationale" : "Both report Bears receiver Luther Burden clearing concussion protocol."
+      }, {
+        "left" : "5439d1522cee1b655da7e699c3c232e7cff79dfc93e3ba2a9157e49dd2e3cadc",
+        "right" : "948cf7cc1e233b813be632a3a703e4729634f72c8a679d5b30e57a0a64fd6abe",
+        "sameStory" : true,
+        "rationale" : "Both report the death of filmmaker Ray Tintori, Heidi Gardner partner, aged 43."
+      }, {
+        "left" : "1138aa2708349c66237583e31fc4acecd827f646a9ba6eb1f8923388b0163cfe",
+        "right" : "9f3a549fdc9d7d3f617e7223d2f97171b43eccc76a3454c01654fcf875619774",
+        "sameStory" : true,
+        "rationale" : "Both report Dustin May agreeing to move from the Brewers to the White Sox."
+      }, {
+        "left" : "7403db8b4fea3fe6dbf8e89906122c12d0143099268ea6afeb65bf769ee9b6b1",
+        "right" : "bafe9fcb127c1dab7064bf12ce0fbc2973265bd15e9256a1867122f8e8696df6",
+        "sameStory" : true,
+        "rationale" : "Both report the assault on the same 20-year-old Save-on-Foods manager following a theft attempt in Prince George/College Heights."
+      }, {
+        "left" : "35a2b4c1d41f900bc8179ef1726d73ddb3409335d9bedf322eae774bd90f4e32",
+        "right" : "ca9505f4fb7a6014ded187f13b15afe7214cb9b8b45abfc7627dd2517bd40347",
+        "sameStory" : true,
+        "rationale" : "Both report David Beckham lawsuit over fragrance sales in gas stations and discount stores."
+      }, {
+        "left" : "dbaf795afeea11f737c4b74228e3a10d9a019d1d5a45ffee2523023361c2e417",
+        "right" : "f430c2c2e226492f02c82b8cdda0384074c8fd831b976fd09e509d1e09f9ddf3",
+        "sameStory" : true,
+        "rationale" : "Both report injuries from severe turbulence on the same JetBlue flight to Florida."
+      }, {
+        "left" : "59a230e4538c48eea10ae5e6e17f1495c7529156058e001d5ce480a18da8ffae",
+        "right" : "63ba6af326d32ce21463df46da6eccbb8ac4c7c92026e0e968e7d07dda39fcbd",
+        "sameStory" : true,
+        "rationale" : "Both announce Jason Isbell touring with Drive-By Truckers."
+      }, {
+        "left" : "588a3f7fd407b5ddd11407478b47994da4ba6f9531d5a6bf662f5d7c7f405fba",
+        "right" : "ee2d1e5d496f96a2e91a340990417675337682e555e1a9ab90efc23251a7cfeb",
+        "sameStory" : true,
+        "rationale" : "Both report the UK sanctions on companies involved in West Bank settlements."
+      }, {
+        "left" : "17b456961f7c57638ca6d14e5bd52007c8accda5e70cd4fe989f994b91a98ae2",
+        "right" : "284a02d66579291415c6d5f62d65933b63e35aa2fb18c23da70a5d6bc95d6fa3",
+        "sameStory" : true,
+        "rationale" : "Both announce Tiger Woods returning to competition at the Bahamas Hero World Challenge."
+      }, {
+        "left" : "016cd40266ec2c75842d7cc22337b52be07b34995f9f7bce49c2d2ebe98022b9",
+        "right" : "e59ed4ce6431107ec6d358414949a490c587bfabd5bb92d0a7300dbc30437f1d",
+        "sameStory" : true,
+        "rationale" : "Both report the release of the London-set sixth-season Only Murders in the Building trailer."
+      }, {
+        "left" : "ccb4731655f935073951e8d6472bee780ceb09a71931610c716159467f363e1f",
+        "right" : "d94e4560d77e1a7ca1edb79bbf02325a1f0fd4cc610485cf98b9eb3ea069ebb0",
+        "sameStory" : false,
+        "rationale" : "F5 and Veritone are different companies; matching investment-takeaway templates do not identify one publication subject."
+      }, {
+        "left" : "0fe91e26e2e5ebd00f4e45f63abc1b07c266d2952cceae0222d3274756e2bd4d",
+        "right" : "b73974917bf09ff330b9b57f8d68e911392ee23a46b5c6255581fe5d3780ad48",
+        "sameStory" : false,
+        "rationale" : "Radware and AerCap are different companies despite the same long-term-investor title template."
+      }, {
+        "left" : "11fce3d2a421e1999fe4fff8b882d311d84aad68dfea857036e5ae0f67e0ca6b",
+        "right" : "4eb287ff331aa58b588106073a0c97636573bc3a0e64f513c5ee82c638a367d7",
+        "sameStory" : false,
+        "rationale" : "TOMI and AirJoule Technologies are different companies despite the same investor-takeaway template."
+      }, {
+        "left" : "0bff5a259b9e3017143d02a74a6fc36a4d42b784407922bd29c40fda4a8f7fe2",
+        "right" : "c5d08efdc28fc734e74c5749d381065e24283adf4cb2526dae281eae10362ae6",
+        "sameStory" : false,
+        "rationale" : "Beasley and JD.com earnings calls concern different companies."
+      }, {
+        "left" : "0337b3585fd2a62038f8a19a214b7b4f6523c59d08bf3bb3c08f749f733c8d96",
+        "right" : "3a66e816529558e260611fae3cb8c3cd3c7a90e9ae17d6d330b83d7a60e217dd",
+        "sameStory" : false,
+        "rationale" : "The investor notices concern distinct FLNC/Fluence and ADIG securities and investigations, despite sharing the law firm."
+      }, {
+        "left" : "f8aa503769a580a965a3b16f3e5990fb122638cc0d452f1210fe37d4ec3e757c",
+        "right" : "fdf4ed4103255607e7cfef2a5bfc287001ea1c486f524148ee9e87bba880d7db",
+        "sameStory" : false,
+        "rationale" : "The legal notices concern CVRX and Ingredion, different companies, despite sharing the law firm."
+      }, {
+        "left" : "ba8fc1fa27f746ab3af3db4f2e040ed375a9ca2da5852f0ab36da311fe55a05c",
+        "right" : "fee121da9343371140252031b7fdf84b69427641e916bba1696369a86679bded",
+        "sameStory" : false,
+        "rationale" : "Rosalind Eleazar acceptance speech and Florence Pugh speech are separate individual speeches at the same awards series."
+      }, {
+        "left" : "298296e1eaeb40a75813e71e97a0b9b648e2200be5d42fcb9dc63e5d629c2e6f",
+        "right" : "ac91e201098f6dcb44d194a119b75a0a2f30b6be5761ad23c95cc921925ad2da",
+        "sameStory" : false,
+        "rationale" : "Creating a New York AI-safety enforcement unit and California suing OpenAI are separate government actions in different states."
+      }, {
+        "left" : "506350847ca6196cf69a75152d35be83dd04714f24287ffad656f1d669cb53c3",
+        "right" : "d3165056f7734dd24a50adb4c8c1d93ac83f79948a0c8b8ff1ca481ae939b440",
+        "sameStory" : false,
+        "rationale" : "Century Casinos financial restatement/results and Talon Metals quarterly results concern different companies."
+      }, {
+        "left" : "bb5e60c6fa637e395e7306c747674354521767465075b01872c450fb2b60860d",
+        "right" : "ea3dbc6f692e7b60ba39f5b8a0dcb93abd1d6e0403afa67a6e986be88086c837",
+        "sameStory" : false,
+        "rationale" : "Walt Disney Q4 and Similarweb Q3 earnings-call transcripts concern different companies and reporting periods."
+      }, {
+        "left" : "134e51995baf374fa5d12570b7de621e542dade1bdd5d72bd94dce45c497de59",
+        "right" : "26bce5abc7804558a903e9a012c025ae94fde916d7031e33aa2fd02fd9dd86d3",
+        "sameStory" : false,
+        "rationale" : "The hospital cyber incident and Associated Grocers labor strike are distinct events reported by the same local publisher."
+      }, {
+        "left" : "5638542650ab4a7c2515b30b2109ad313449edad72782d87dc9f9fabfe14861c",
+        "right" : "d989fcbd8aadc0999f1bf6d973fd454513d0a01e1798579812264c7f087bcc99",
+        "sameStory" : false,
+        "rationale" : "Axe Compute and Reliance Global earnings-call transcripts concern different companies."
+      }, {
+        "left" : "861061a6d8c8264699fb3c1afbba4048f4a6afd3a7e60a3a0a335d4e0b737e5b",
+        "right" : "9459a27dc1006f3cedd4ba3b3612270cc6aba30c9cf502b18d8ce1130c010ae2",
+        "sameStory" : false,
+        "rationale" : "India-Japan defense talks and South Korea-Japan energy/supply-chain cooperation involve different counterparties and decisions."
+      }, {
+        "left" : "72f522805331e2bf668e66085cd98593c6fad7d5342196d0b598ebb8f66aa519",
+        "right" : "8eb0c3d367a342f2eb5de36f6756d1f3a11742f25eac7f1ffbc1222fccaa8d23",
+        "sameStory" : false,
+        "rationale" : "The Auckland police-officer assault charges and the Missoula robbery/assault charge concern different people and jurisdictions."
+      }, {
+        "left" : "08be0f67b610ab1009ca60d7645710a15f0af8857d718042119afc3e504fed02",
+        "right" : "13efb7431ac947d7869cda5d78b03944b850c79ae5290d1caaa703bf21e425c7",
+        "sameStory" : false,
+        "rationale" : "The Medway officer being struck by a truck and an officer arrest after a Hagen bus-driver shooting concern different incidents and countries."
+      }, {
+        "left" : "c1caf6db69192e0fbc2f5eebb039c4247b28d5fa3ce4afeea452d6043d30b16e",
+        "right" : "ea3938775295c04b1c7085f845c59e53612ff11da06cda65330d862d1b094d2b",
+        "sameStory" : false,
+        "rationale" : "Cambodia reopening an Angkor temple and the US-Thailand trade statement are different events despite sharing a publisher."
+      }, {
+        "left" : "2da4c3d8234885127072e238652d18ae35bc0b9d41b3f26cddd8612c7aa96021",
+        "right" : "a905ff5ddda6577097a5c9319d5314a17d422c96dfb3d94dbfa19179f20ac53c",
+        "sameStory" : false,
+        "rationale" : "The Trowbridge hatchet-related death and M4 erroneous speed-camera checks are different incidents despite sharing a publisher."
+      }, {
+        "left" : "1ba487a5b471066c8f2044543a611f63e7bec7a9e5670d72ff53a29e23bb14c9",
+        "right" : "31d48e099c7af91581caef1d06fa412b9ac81c957fe736e5f07183242f1fd74a",
+        "sameStory" : false,
+        "rationale" : "Indiana public-health investment returns and an Indiana University national-security research hub are separate institutional developments."
+      }, {
+        "left" : "3ddbfce80083f1ab77dcebe28f168e1b539e2196006c6c9430e00fe87125a5f6",
+        "right" : "bbdc04f96d05da3ad3c2ae3e6c14e78135212aed3d26bfbacf20f6d4b936f4f6",
+        "sameStory" : false,
+        "rationale" : "Martin Lewis criticism of an Ofgem charge and the A12 crater/reopening concern different events despite identical publisher suffixes."
+      }, {
+        "left" : "5255909ec0a492ffa6570cf50739b7268b17a8ef0d5b6702df141b795acb3d89",
+        "right" : "dcc80f1de7d14c1d7f646b7677d187ab90450be73884aa8bdd73c09fc61bcc5d",
+        "sameStory" : false,
+        "rationale" : "Awarding a Gothenburg fairway-deepening contract and a bulk-carrier bidding announcement concern different maritime procurement projects."
+      } ],
+      "inputQualityCases" : [ {
+        "id" : "fresh-input-1-exclude",
+        "articleRef" : "056b88a67163206969f53b8c9470ebf4542cbda0a7bc1dcffa22bb3eec751c69",
+        "expectedDisposition" : "EXCLUDE",
+        "expectedExclusionReason" : "ADVICE",
+        "rationale" : "Instructional advice without a GDELT event link."
+      }, {
+        "id" : "fresh-input-1-include",
+        "articleRef" : "5ac41cd416005b4e3f4431590e8828fb71b095264719aca673d9c6b4b8d0b7f7",
+        "expectedDisposition" : "INCLUDE",
+        "expectedExclusionReason" : null,
+        "rationale" : "A specific news development from the same domain as an excluded advice page; a domain-wide exclusion would be wrong."
+      }, {
+        "id" : "fresh-input-2-exclude",
+        "articleRef" : "085172671f91745e46fc907e6eca1cb3b5380f351d186539be22bcc160386dd5",
+        "expectedDisposition" : "EXCLUDE",
+        "expectedExclusionReason" : "ADVICE",
+        "rationale" : "Instructional advice without a GDELT event link."
+      }, {
+        "id" : "fresh-input-2-include",
+        "articleRef" : "0a3074a568c81f71222a28583ca25d4af83ffbd7c5dc57160a99288375e72054",
+        "expectedDisposition" : "INCLUDE",
+        "expectedExclusionReason" : null,
+        "rationale" : "A specific news development from the same domain as an excluded advice page; a domain-wide exclusion would be wrong."
+      }, {
+        "id" : "fresh-input-3-exclude",
+        "articleRef" : "2c44f6d6ba1f4562cba25b1c51a1d261f05600f2ba62bcbd8bd3d6ebcebcaeea",
+        "expectedDisposition" : "EXCLUDE",
+        "expectedExclusionReason" : "ADVICE",
+        "rationale" : "Instructional advice without a GDELT event link."
+      }, {
+        "id" : "fresh-input-3-include",
+        "articleRef" : "04ef6ca943a793f3b590fb82223b5bbca2299bc6697dafe896f44c2771785b08",
+        "expectedDisposition" : "INCLUDE",
+        "expectedExclusionReason" : null,
+        "rationale" : "A specific news development from the same domain as an excluded advice page; a domain-wide exclusion would be wrong."
+      }, {
+        "id" : "fresh-input-4-exclude",
+        "articleRef" : "1aef31c42b56ea7a0e0d5b21b989e2c15fdd913dca5852147e8054f0f9d2e71d",
+        "expectedDisposition" : "EXCLUDE",
+        "expectedExclusionReason" : "ADVICE",
+        "rationale" : "Instructional advice without a GDELT event link."
+      }, {
+        "id" : "fresh-input-4-include",
+        "articleRef" : "0f875faf944e7a1e0407dcd6a6d92668ad45028a03d518e697d48a74c4b6e481",
+        "expectedDisposition" : "INCLUDE",
+        "expectedExclusionReason" : null,
+        "rationale" : "A specific news development from the same domain as an excluded advice page; a domain-wide exclusion would be wrong."
+      } ]
+    },
+    "reviewMetadata" : {
+      "reviewedBy" : "Codex",
+      "document" : "../docs/analysis/GEM-87-fresh-holdout-review.md",
+      "reason" : "Unveraenderten-Kandidaten-vor-autorisierter-Aktivierung-erneut-pruefen"
+    },
+    "review" : {
+      "versionId" : 6,
+      "previousVersionId" : 5,
+      "basisHash" : "dce0134f30f1512075c2d251337fc2516c7ee37a6af05c6784397864514f8c10",
+      "diff" : {
+        "previousStories" : 10028,
+        "candidateStories" : 20181,
+        "previousSingletonShare" : 0.8522138013562026,
+        "candidateSingletonShare" : 0.8338040731381002,
+        "previousMemberships" : 17915,
+        "candidateMemberships" : 35490,
+        "changedMemberships" : 18839,
+        "merges" : 0,
+        "splits" : 172
+      },
+      "evaluation" : {
+        "gateVersion" : "story-release-gates-v2",
+        "holdoutHash" : "bb738a577e334faf65e5c889930c77bb6f9232d4ccdd62dddbd56e44b3644007",
+        "positives" : 20,
+        "negatives" : 20,
+        "truePositives" : 19,
+        "falsePositives" : 0,
+        "falseNegatives" : 1,
+        "precision" : 1.0,
+        "recall" : 0.95,
+        "inputQualityCases" : 8,
+        "passed" : true
+      }
+    },
+    "regression" : {
+      "corpusVersion" : "art045-regression-v1.0.0+gem87-clustering-quality-v1.2.0",
+      "corpusHash" : "a44817ad67bea8a826fdb1123aeb7fccbee7176b72ddbdd796cc653a45969ece",
+      "relationshipCases" : 5,
+      "uncertainExcluded" : 1,
+      "relationshipDeviations" : [ "false-merge-football", "false-merge-controlled-burns", "false-merge-series-c", "missed-merge-goethe-institut", "missed-merge-ceuta" ],
+      "inputQualityCases" : 7,
+      "inputQualityDeviations" : [ ],
+      "componentRelationshipCases" : 28,
+      "componentDeviations" : [ ],
+      "totalDeviations" : 5
+    },
+    "outcome" : "ACTIVE",
+    "verification" : {
+      "activeVersions" : 1,
+      "visibleStories" : 20181,
+      "detailStoryId" : "0050d585-2e8b-39b4-ba29-681adaff2dac"
+    }
+  }
+}

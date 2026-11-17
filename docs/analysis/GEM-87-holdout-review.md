@@ -1,6 +1,8 @@
 # GEM-87: Independent holdout review
 
-Status: review prepared; candidate remains `SHADOW`
+Status: original ART-048 review blocked by missing data; the fresh independent
+holdout passed on 2026-11-17. Version 1.3 was subsequently activated after
+separate explicit authorization.
 
 ## Basis
 
@@ -33,5 +35,19 @@ version 1.3 remains `SHADOW` after evaluation.
 The local review attempts on 2026-11-15 did not complete because the live
 active pipeline advanced while each candidate snapshot was being built. The
 freshness gate rejected both attempts, so no release evidence was produced.
-Run the review again in a controlled window where the active watermark remains
-stable for the duration of candidate snapshot construction.
+The repeat on 2026-11-17 used a controlled window and completed the candidate
+snapshot successfully. Holdout evaluation then stopped: all 40 ART-048 article
+references are absent from the current database. The ten ART-045 relationship
+references are also absent. No holdout quality result is claimed. Restore the
+original evaluation inputs or prepare a new independent holdout before repeating
+the full review; details and partial regression results are in
+`GEM-87-release-decision.md` and `GEM-87-review-20261117.json`.
+
+At Linus's request a new disjoint holdout was subsequently labelled and sealed
+before its predictions were read. The full workflow completed on a stable
+watermark: precision 1.00, recall 0.95, zero input-quality deviations; fixed gates
+passed. See `GEM-87-fresh-holdout-review.md` and
+`GEM-87-fresh-holdout-release-evidence.json`. Historical ART-045 relationship
+coverage is still unavailable. This non-promoting review did not activate the
+candidate. The later authorized activation and live verification are recorded
+in `GEM-87-release-decision.md` and `GEM-87-v1.3.0-activation-evidence.json`.

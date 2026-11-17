@@ -1,0 +1,87 @@
+{
+  "reviewDate": "2026-11-17",
+  "candidateVersion": "story-mvp-title-embedding-24h-v1.3.0",
+  "activeVersion": "story-mvp-title-embedding-24h-v1.2.0",
+  "outcome": "BLOCKED_MISSING_EVALUATION_ARTICLES",
+  "promoted": false,
+  "formalReleaseEvidenceWritten": false,
+  "snapshot": {
+    "watermark": "2026-11-17T20:40:35.767388Z",
+    "status": "SUCCEEDED",
+    "readArticleCount": 29877,
+    "candidateCount": 215195048,
+    "failedArticleCount": 0,
+    "startedAt": "2026-11-17T20:44:21.725167Z",
+    "completedAt": "2026-11-17T20:53:31.136009Z"
+  },
+  "missingInputPreparation": {
+    "processed": 17983,
+    "batches": 180,
+    "failed": 0
+  },
+  "evaluation": {
+    "candidate": {
+      "corpusVersion": "art045-regression-v1.0.0+gem87-clustering-quality-v1.2.0",
+      "corpusHash": "a44817ad67bea8a826fdb1123aeb7fccbee7176b72ddbdd796cc653a45969ece",
+      "relationshipCases": 5,
+      "uncertainExcluded": 1,
+      "relationshipDeviations": [
+        "false-merge-football",
+        "false-merge-controlled-burns",
+        "false-merge-series-c",
+        "missed-merge-goethe-institut",
+        "missed-merge-ceuta"
+      ],
+      "inputQualityCases": 7,
+      "inputQualityDeviations": [],
+      "componentRelationshipCases": 28,
+      "componentDeviations": [],
+      "totalDeviations": 5
+    },
+    "activeBaseline": {
+      "corpusVersion": "art045-regression-v1.0.0+gem87-clustering-quality-v1.2.0",
+      "corpusHash": "a44817ad67bea8a826fdb1123aeb7fccbee7176b72ddbdd796cc653a45969ece",
+      "relationshipCases": 5,
+      "uncertainExcluded": 1,
+      "relationshipDeviations": [
+        "false-merge-football",
+        "false-merge-controlled-burns",
+        "false-merge-series-c",
+        "missed-merge-goethe-institut",
+        "missed-merge-ceuta"
+      ],
+      "inputQualityCases": 7,
+      "inputQualityDeviations": [],
+      "componentRelationshipCases": 28,
+      "componentDeviations": [
+        "quarterly-company-entities:serina:verrica",
+        "key-takeaways-company-entities:acme-takeaways:globex-takeaways",
+        "shared-name-quarterly-entities:nova:nova-therapeutics",
+        "shared-name-quarterly-entities:nova:nova-pharmaceuticals",
+        "shared-name-quarterly-entities:nova:nova-therapeutics-inc",
+        "shared-name-quarterly-entities:nova-therapeutics:nova-pharmaceuticals",
+        "shared-name-quarterly-entities:nova-pharmaceuticals:nova-therapeutics-inc",
+        "shared-name-key-takeaways-entities:alpha-bank:alpha-energy",
+        "shared-name-key-takeaways-entities:alpha-energy:alpha-bank-corp",
+        "zelda-guide-topics:zelda-masks:zelda-songs",
+        "zelda-guide-topics:zelda-masks:zelda-fairies",
+        "zelda-guide-topics:zelda-masks:zelda-equipment",
+        "zelda-guide-topics:zelda-songs:zelda-fairies",
+        "zelda-guide-topics:zelda-songs:zelda-equipment",
+        "zelda-guide-topics:zelda-fairies:zelda-equipment",
+        "generic-and-specific-guide-subjects:all-masks:stone-mask",
+        "generic-and-specific-guide-subjects:all-masks:stone-mask-location",
+        "single-similar-member-is-insufficient:chain-a:chain-c",
+        "single-similar-member-is-insufficient:chain-b:chain-c",
+        "unseen-quarterly-template:orion-quarter:lumen-quarter",
+        "unseen-guide-topics:guide-armor:guide-spells"
+      ],
+      "totalDeviations": 26
+    },
+    "holdoutArticleRefs": 40,
+    "holdoutArticlesPresent": 0,
+    "relationshipArticleRefs": 10,
+    "relationshipArticlesPresent": 0
+  },
+  "limitation": "All 40 ART-048 holdout article refs and all 10 ART-045 relationship article refs are absent from this database. Relationship deviations cannot establish a quality comparison. Component regression uses frozen synthetic vectors; input-quality checks use frozen corpus fallback. No holdout precision or recall is claimed."
+}
