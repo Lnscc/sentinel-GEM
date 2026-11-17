@@ -11,6 +11,13 @@ cd engine
 Der Import startet nach `gdelt.ingestion.initial-delay` und laeuft danach alle
 `gdelt.ingestion.poll-interval`.
 
+`stories.visible-version` steuert sowohl die Story-API als auch die Embedding-Jobs
+und muss zur `ACTIVE`-Version in `story_clustering_versions` passen. Nach einer
+Promotion die Konfiguration aktualisieren und die Engine neu starten. Zur
+Abschlusspruefung die API-Antwort der freigegebenen Version zuordnen und einen
+neu importierten Artikel bis zur sichtbaren Story im aktuellen Zeitfenster verfolgen;
+eine nicht leere Antwort mit alten Stories reicht nicht aus.
+
 Fehlgeschlagene Zeitfenster werden bei spaeteren Polls erneut versucht. Die Anzahl wird ueber
 `gdelt.ingestion.max-failed-windows-per-poll` begrenzt.
 
