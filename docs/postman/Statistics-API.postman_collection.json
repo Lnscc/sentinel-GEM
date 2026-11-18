@@ -1,0 +1,86 @@
+{
+  "info": {
+    "name": "Sentinel-GEM Statistics API",
+    "description": "Statistics contracts; see docs/statistics.md. Uses the baseUrl from Local.postman_environment.json. The 503 branch requires an unavailable database and is otherwise skipped.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Statistik – Standardzeitraum und Vertrag",
+      "request": { "method": "GET", "url": "{{baseUrl}}/statistics" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+        "if (pm.response.code === 200) {",
+        "  const body = pm.response.json();",
+        "  pm.test('Response und Zeitraum sind definiert', () => {",
+        "    pm.expect(body).to.include.all.keys('generatedAt', 'period', 'visibleVersion', 'visibleVersionStatus', 'metrics', 'recentRuns');",
+        "    pm.expect(Date.parse(body.generatedAt)).to.be.a('number').and.not.NaN;",
+        "    pm.expect(Date.parse(body.period.to) - Date.parse(body.period.from)).to.eql(86400000);",
+        "    pm.expect(body.visibleVersion).to.be.a('string');",
+        "    pm.expect(body.metrics).to.be.an('array').that.is.not.empty;",
+        "  });",
+        "  pm.test('Kennzahlen haben Definitionen, Einheiten und passende Zeitbezüge', () => {",
+        "    const ids = new Set();",
+        "    body.metrics.forEach(metric => {",
+        "      pm.expect(metric).to.have.all.keys('id', 'group', 'label', 'value', 'unit', 'scope', 'definition', 'from', 'to', 'unavailableReason');",
+        "      pm.expect(ids.has(metric.id)).to.eql(false); ids.add(metric.id);",
+        "      ['id', 'group', 'label', 'unit', 'definition'].forEach(key => pm.expect(metric[key]).to.be.a('string').that.is.not.empty);",
+        "      pm.expect(['INVENTORY', 'PERIOD', 'RUNTIME']).to.include(metric.scope);",
+        "      if (metric.value === null) pm.expect(metric.unavailableReason).to.be.a('string').that.is.not.empty;",
+        "      else pm.expect(Number.isFinite(metric.value) && metric.value >= 0).to.eql(true);",
+        "      if (metric.scope === 'PERIOD') { pm.expect(metric.from).to.eql(body.period.from); pm.expect(metric.to).to.eql(body.period.to); }",
+        "      if (metric.scope === 'RUNTIME') pm.expect(Date.parse(metric.from)).to.be.at.most(Date.parse(metric.to));",
+        "    });",
+        "    ['articles', 'sources', 'countries', 'stories', 'singletonStories', 'incomingArticles', 'processedArticles', 'embeddingCalls', 'embeddingTokens', 'estimatedEmbeddingCost'].forEach(id => pm.expect(ids.has(id)).to.eql(true));",
+        "  });",
+        "  pm.test('Jüngste Läufe behalten ihren Status und Zeitstempel', () => {",
+        "    pm.expect(body.recentRuns).to.be.an('array');",
+        "    body.recentRuns.forEach(run => {",
+        "      pm.expect(run).to.have.all.keys('kind', 'status', 'startedAt', 'completedAt');",
+        "      pm.expect(['IMPORT', 'STORY']).to.include(run.kind);",
+        "      pm.expect(run.status).to.be.a('string').that.is.not.empty;",
+        "      pm.expect(Date.parse(run.startedAt)).to.be.at.least(Date.parse(body.period.from)).and.below(Date.parse(body.period.to));",
+        "      pm.expect(run.completedAt === null || Number.isFinite(Date.parse(run.completedAt))).to.eql(true);",
+        "    });",
+        "  });",
+        "}",
+        "pm.test('Kein gecachter Bestand', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));",
+        "if (pm.response.code === 503) pm.test('503 enthält verständlichen Fehler statt Nullbestand', () => { const body = pm.response.json(); pm.expect(body).to.have.all.keys('code', 'message'); pm.expect(body.code).to.eql('statistics_unavailable'); pm.expect(body.message).to.be.a('string').that.is.not.empty; });",
+        "else pm.test.skip('503-Vertrag: Datenbank ist für diesen Lauf verfügbar', () => {});"
+      ] } }]
+    },
+    {
+      "name": "Statistik – relativer Zeitraum mit Serverzeit",
+      "request": { "method": "GET", "url": "{{baseUrl}}/statistics?hours=168" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+        "pm.test('Sieben Tage werden von der Serverzeit abgeleitet', () => { const body = pm.response.json(); pm.expect(Date.parse(body.period.to) - Date.parse(body.period.from)).to.eql(168 * 3600000); pm.expect(body.period.to).to.eql(body.generatedAt); });"
+      ] } }]
+    },
+    {
+      "name": "Statistik – expliziter historischer Zeitraum",
+      "request": { "method": "GET", "url": "{{baseUrl}}/statistics?from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+        "pm.test('Zeitraumbezüge bleiben erhalten', () => { const body = pm.response.json(); pm.expect(Date.parse(body.period.from)).to.eql(Date.parse('2026-11-01T00:00:00Z')); pm.expect(Date.parse(body.period.to)).to.eql(Date.parse('2026-11-02T00:00:00Z')); body.metrics.filter(m => m.scope === 'PERIOD').forEach(m => { pm.expect(m.from).to.eql(body.period.from); pm.expect(m.to).to.eql(body.period.to); }); });"
+      ] } }]
+    },
+    {
+      "name": "Ungültige Statistikparameter (400)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+        "pm.test('Stabiler Fehlervertrag', () => { const body = pm.response.json(); pm.expect(body).to.have.all.keys('code', 'message'); pm.expect(body.code).to.eql('invalid_request'); pm.expect(body.message).to.be.a('string').that.is.not.empty; });"
+      ] } }],
+      "item": [
+        { "name": "Unbekannter Parameter", "request": { "method": "GET", "url": "{{baseUrl}}/statistics?unknown=24" } },
+        { "name": "Ungültige Stunden", "request": { "method": "GET", "url": "{{baseUrl}}/statistics?hours=0" } },
+        { "name": "Mehrdeutiger Zeitraum", "request": { "method": "GET", "url": "{{baseUrl}}/statistics?hours=24&from=2026-11-18T00:00:00Z" } },
+        { "name": "Ungültiger Zeitstempel", "request": { "method": "GET", "url": "{{baseUrl}}/statistics?from=invalid" } },
+        { "name": "Leerer Zeitstempel", "request": { "method": "GET", "url": "{{baseUrl}}/statistics?from=" } },
+        { "name": "Umgekehrte Grenzen", "request": { "method": "GET", "url": "{{baseUrl}}/statistics?from=2026-11-02T00:00:00Z&to=2026-11-01T00:00:00Z" } },
+        { "name": "Zeitraum größer als 31 Tage", "request": { "method": "GET", "url": "{{baseUrl}}/statistics?from=2026-01-01T00:00:00Z&to=2026-03-01T00:00:00Z" } },
+        { "name": "Zukunftszeitraum", "request": { "method": "GET", "url": "{{baseUrl}}/statistics?to=2999-01-01T00:00:00Z" } }
+      ]
+    }
+  ]
+}

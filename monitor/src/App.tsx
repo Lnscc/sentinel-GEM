@@ -1,5 +1,6 @@
 import { Box, Typography } from "@mui/material";
 import StoryOverview from "./features/stories/StoryOverview";
+import StatisticsPage from "./features/statistics/StatisticsPage";
 
 export default function App() {
   return (
@@ -11,7 +12,7 @@ export default function App() {
         </Box>
         <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>Globale Ereignisse im Überblick</Typography>
       </Box>
-      <StoryOverview />
+      {/^\/statistics\/?$/.test(window.location.pathname) ? <StatisticsPage /> : <StoryOverview />}
     </Box>
   );
 }

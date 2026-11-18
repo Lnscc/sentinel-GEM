@@ -1,6 +1,8 @@
 package com.example.globalnewsenginev1.stories.embedding;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.globalnewsenginev1.stories.EmbeddingUsageMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class OpenAiEmbeddingClientTests {
 
     private HttpServer server;
+    private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    private final EmbeddingUsageMetrics usage = new EmbeddingUsageMetrics(registry);
 
     @AfterEach
     void stopServer() {
@@ -35,7 +39,7 @@ class OpenAiEmbeddingClientTests {
             assertThat(request).contains("\"model\":\"model\"", "\"dimensions\":2",
                     "\"input\":[\"first\",\"second\"]");
             byte[] response = """
-                    {"data":[
+                    {"usage":{"total_tokens":17},"data":[
                       {"index":1,"embedding":[0.0,1.0]},
                       {"index":0,"embedding":[1.0,0.0]}
                     ]}
@@ -46,6 +50,7 @@ class OpenAiEmbeddingClientTests {
             exchange.close();
         });
         OpenAiEmbeddingClient client = client();
+        registry.counter("stories.embedding.model.calls").increment();
 
         List<EmbeddingClient.EmbeddingResponse> result =
                 client.embed("model", 2, List.of("first", "second"));
@@ -54,6 +59,8 @@ class OpenAiEmbeddingClientTests {
                 .containsExactly(0, 1);
         assertThat(result.getFirst().vector()).containsExactly(1.0f, 0.0f);
         assertThat(result.getFirst().providerRequestId()).isEqualTo("req-123");
+        assertThat(usage.snapshot().tokens()).isEqualTo(17L);
+        assertThat(usage.snapshot().callsWithoutUsage()).isZero();
     }
 
     @Test
@@ -82,7 +89,7 @@ class OpenAiEmbeddingClientTests {
     private OpenAiEmbeddingClient client() {
         return new OpenAiEmbeddingClient(HttpClient.newHttpClient(), new ObjectMapper(),
                 URI.create("http://localhost:" + server.getAddress().getPort() + "/embeddings"),
-                "secret", Duration.ofSeconds(2));
+                "secret", Duration.ofSeconds(2), usage);
     }
 
     private void start(com.sun.net.httpserver.HttpHandler handler) throws IOException {
