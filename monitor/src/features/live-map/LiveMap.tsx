@@ -33,7 +33,12 @@ function removeMarkers(markers: RenderedMarker[]) {
 }
 
 export type MapBounds = { west: number; south: number; east: number; north: number };
-type Props = { stories: Story[]; selectedId?: string; initialBounds?: MapBounds; onSelect: (id: string) => void; onBoundsChange: (bounds: MapBounds) => void };
+type Props = { stories: Story[]; selectedId?: string; initialBounds?: MapBounds; worldViewReset: number; onSelect: (id: string) => void; onBoundsChange: (bounds: MapBounds) => void };
+
+function cameraPosition(map: Map) {
+  const center = map.getCenter();
+  return JSON.stringify([center.lng, center.lat, map.getZoom()]);
+}
 
 function normalizeLongitude(value: number) {
   return ((value + 180) % 360 + 360) % 360 - 180;
@@ -44,9 +49,11 @@ function normalizeBounds(bounds: MapBounds): MapBounds {
   return { ...bounds, west: normalizeLongitude(bounds.west), east: normalizeLongitude(bounds.east) };
 }
 
-export default function LiveMap({ stories, selectedId, initialBounds, onSelect, onBoundsChange }: Props) {
+export default function LiveMap({ stories, selectedId, initialBounds, worldViewReset, onSelect, onBoundsChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map>(null);
+  const globalCamera = useRef<string | undefined>(undefined);
+  const resetting = useRef(false);
   const markersRef = useRef<RenderedMarker[]>([]);
   const markerSignatureRef = useRef("");
   const dataRef = useRef<GeoJSON.FeatureCollection<GeoJSON.Point>>({ type: "FeatureCollection", features: [] });
@@ -77,9 +84,12 @@ export default function LiveMap({ stories, selectedId, initialBounds, onSelect, 
     });
     let renderVersion = 0;
     mapRef.current = map;
+    globalCamera.current = initialBounds ? undefined : cameraPosition(map);
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.getCanvas().setAttribute("aria-label", "Interaktive Weltkarte der aktuellen Ereignisse");
     const reportBounds = () => {
+      if (resetting.current || cameraPosition(map) === globalCamera.current) return;
+      globalCamera.current = undefined;
       const bounds = map.getBounds();
       onBoundsChange(normalizeBounds({ west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() }));
     };
@@ -135,7 +145,6 @@ export default function LiveMap({ stories, selectedId, initialBounds, onSelect, 
       map.on("zoom", renderMarkers);
       map.on("idle", renderMarkers);
       map.on("moveend", reportBounds);
-      reportBounds();
       void renderMarkers();
     });
     return () => {
@@ -146,6 +155,16 @@ export default function LiveMap({ stories, selectedId, initialBounds, onSelect, 
       map.remove();
     };
   }, [onBoundsChange, onSelect]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || worldViewReset === 0) return;
+    resetting.current = true;
+    map.stop();
+    map.jumpTo({ center: [0, 20], zoom: 1.2, bearing: 0, pitch: 0 });
+    globalCamera.current = cameraPosition(map);
+    resetting.current = false;
+  }, [worldViewReset]);
 
   useEffect(() => {
     markerSignatureRef.current = "";
