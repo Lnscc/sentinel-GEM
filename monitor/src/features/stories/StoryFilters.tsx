@@ -12,8 +12,8 @@ export default function StoryFilters({ filters, countries, error, onChange }: Pr
     ?? (filters.country ? { code: filters.country, name: "Land nicht verfügbar" } : null);
 
   return (
-    <Stack component="form" direction="row" spacing={1.25} sx={{ p: 1.25, bgcolor: "background.paper", border: 1, borderColor: "divider", borderRadius: 2, boxShadow: "0 3px 12px rgba(20,45,34,.04)" }} aria-label="Ereignisse filtern" onSubmit={(event) => event.preventDefault()}>
-      <TextField label="Suche" type="search" size="small" value={filters.query} onChange={(event) => set("query", event.target.value)} placeholder="Thema, Ort oder Quelle" sx={{ flex: 1, minWidth: 220 }} />
+    <Stack component="form" direction="row" sx={{ flexWrap: "wrap", gap: 1.25, p: 1.25, bgcolor: "background.paper", border: 1, borderColor: "divider", borderRadius: 2, boxShadow: "0 3px 12px rgba(20,45,34,.04)" }} aria-label="Ereignisse filtern" onSubmit={(event) => event.preventDefault()}>
+      <TextField label="Suche" type="search" size="small" value={filters.query} onChange={(event) => set("query", event.target.value)} placeholder="Thema, Ort oder Quelle" sx={{ flex: "1 1 180px", minWidth: 0 }} />
       <Autocomplete
         options={countries}
         value={selectedCountry}
@@ -24,10 +24,10 @@ export default function StoryFilters({ filters, countries, error, onChange }: Pr
         closeText="Länder schließen"
         isOptionEqualToValue={(option, value) => option.code === value.code}
         noOptionsText="Kein Land gefunden"
-        sx={{ width: 230 }}
+        sx={{ flex: "1 1 200px", minWidth: 0 }}
         renderInput={(params) => <TextField {...params} error={Boolean(error)} helperText={error} label="Land" placeholder="Alle Länder" size="small" />}
       />
-      <TextField select label="Zeitraum" size="small" value={filters.hours} onChange={(event) => set("hours", event.target.value)} sx={{ width: 180 }}>
+      <TextField select label="Zeitraum" size="small" value={filters.hours} onChange={(event) => set("hours", event.target.value)} sx={{ width: 180, flexShrink: 0 }}>
         <MenuItem value="24">Letzte 24 Stunden</MenuItem><MenuItem value="12">Letzte 12 Stunden</MenuItem><MenuItem value="6">Letzte 6 Stunden</MenuItem>
       </TextField>
       <Button type="button" onClick={() => onChange(DEFAULT_FILTERS)}>Filter löschen</Button>

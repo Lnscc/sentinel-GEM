@@ -8,8 +8,8 @@ type Props = {
 
 export default function StoryRefreshStatus({ isLoading, lastLoadedAt, onRefresh }: Props) {
   return (
-    <Stack component="section" direction={{ xs: "column", sm: "row" }} spacing={1}
-      sx={{ alignItems: { sm: "center" }, justifyContent: "space-between", mb: 3 }}
+    <Stack component="section" direction="row"
+      sx={{ flexWrap: "wrap", gap: 1, alignItems: "center", justifyContent: "space-between", mb: 3 }}
       aria-label="Aktualität der Story-Liste">
       <Typography color="text.secondary" aria-live="polite">
         {lastLoadedAt

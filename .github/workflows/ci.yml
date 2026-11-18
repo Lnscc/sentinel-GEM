@@ -106,6 +106,13 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: monitor-ui-failures
+          path: monitor/test-results/
 
   container-build:
     name: Container build

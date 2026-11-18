@@ -27,6 +27,18 @@ $env:VITE_MAP_STYLE_URL = "https://example.com/style.json"
 npm run dev
 ```
 
+## UI regression checks
+
+```powershell
+npx playwright install chromium
+npm run test:ui
+```
+
+The browser checks run against a local Vite server with deterministic API data
+and a local map style. They cover desktop widths from 800 to 1600 CSS pixels,
+long content, filters, keyboard selection, map controls, details, and error states.
+Failure screenshots are written to `test-results`.
+
 ## Production build
 
 ```powershell
