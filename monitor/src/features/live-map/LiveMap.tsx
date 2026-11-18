@@ -84,6 +84,7 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
     });
     let renderVersion = 0;
     mapRef.current = map;
+    const initialCamera = cameraPosition(map);
     globalCamera.current = initialBounds ? undefined : cameraPosition(map);
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.getCanvas().setAttribute("aria-label", "Interaktive Weltkarte der aktuellen Ereignisse");
@@ -145,6 +146,7 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
       map.on("zoom", renderMarkers);
       map.on("idle", renderMarkers);
       map.on("moveend", reportBounds);
+      if (cameraPosition(map) !== initialCamera) reportBounds();
       void renderMarkers();
     });
     return () => {

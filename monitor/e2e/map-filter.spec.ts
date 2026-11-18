@@ -1,5 +1,27 @@
 import { expect, test } from "@playwright/test";
 
+test("übernimmt eine Kartenbewegung vor dem Laden des Kartenstils", async ({ page }) => {
+  let releaseStyle!: () => void;
+  const styleReady = new Promise<void>((resolve) => { releaseStyle = resolve; });
+  let styleRequested = false;
+  await page.route("https://tiles.openfreemap.org/styles/liberty", async (route) => {
+    styleRequested = true;
+    await styleReady;
+    await route.fulfill({ json: { version: 8, sources: {}, layers: [] } });
+  });
+  await page.route("**/api/stories**", (route) => route.fulfill({
+    json: route.request().url().includes("/countries") ? [] : { stories: [], total: 0 },
+  }));
+  await page.goto("/");
+  await expect.poll(() => styleRequested).toBe(true);
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  // Let the camera animation finish while the external style is still blocked.
+  await page.waitForTimeout(600);
+  releaseStyle();
+  await expect(page.getByRole("button", { name: "Zur Weltansicht", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/bounds=/);
+});
+
 test("Kartenausschnitt: Zoom, Verschieben, URL und beide Resets", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.route("https://tiles.openfreemap.org/styles/liberty", (route) => route.fulfill({
