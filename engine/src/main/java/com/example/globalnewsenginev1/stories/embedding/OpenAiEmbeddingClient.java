@@ -2,6 +2,7 @@ package com.example.globalnewsenginev1.stories.embedding;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.globalnewsenginev1.stories.EmbeddingUsageMetrics;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -29,30 +30,28 @@ class OpenAiEmbeddingClient implements EmbeddingClient {
     private final URI endpoint;
     private final String apiKey;
     private final Duration timeout;
+    private final EmbeddingUsageMetrics usageMetrics;
 
     @Autowired
     OpenAiEmbeddingClient(
             @Value("${stories.embeddings.base-url:https://api.openai.com/v1}") URI baseUrl,
             @Value("${stories.embeddings.api-key:}") String apiKey,
-            @Value("${stories.embeddings.timeout:PT30S}") Duration timeout
+            @Value("${stories.embeddings.timeout:PT30S}") Duration timeout,
+            EmbeddingUsageMetrics usageMetrics
     ) {
         this(HttpClient.newBuilder().connectTimeout(timeout).build(), new ObjectMapper(),
                 baseUrl.resolve(baseUrl.toString().endsWith("/") ? "embeddings" : baseUrl + "/embeddings"),
-                apiKey, timeout);
+                apiKey, timeout, usageMetrics);
     }
 
-    OpenAiEmbeddingClient(
-            HttpClient httpClient,
-            ObjectMapper objectMapper,
-            URI endpoint,
-            String apiKey,
-            Duration timeout
-    ) {
+    OpenAiEmbeddingClient(HttpClient httpClient, ObjectMapper objectMapper, URI endpoint,
+                          String apiKey, Duration timeout, EmbeddingUsageMetrics usageMetrics) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.endpoint = endpoint;
         this.apiKey = apiKey;
         this.timeout = timeout;
+        this.usageMetrics = usageMetrics;
     }
 
     @Override
@@ -82,7 +81,11 @@ class OpenAiEmbeddingClient implements EmbeddingClient {
             if (response.statusCode() / 100 != 2) {
                 throw providerError(response, requestId);
             }
-            JsonNode data = objectMapper.readTree(response.body()).path("data");
+            JsonNode bodyJson = objectMapper.readTree(response.body());
+            JsonNode totalTokens = bodyJson.path("usage").path("total_tokens");
+            usageMetrics.recordUsage(totalTokens.isIntegralNumber() && totalTokens.canConvertToLong()
+                    ? totalTokens.longValue() : null);
+            JsonNode data = bodyJson.path("data");
             List<EmbeddingResponse> result = new ArrayList<>();
             for (JsonNode item : data) {
                 int index = item.path("index").asInt(-1);

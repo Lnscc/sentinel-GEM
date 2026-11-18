@@ -89,6 +89,9 @@ jobs:
             --folder "Extraction Health" \
             --folder "Validierung"
 
+          npx --yes newman@6.2.1 run ../docs/postman/Statistics-API.postman_collection.json \
+            --environment ../docs/postman/Local.postman_environment.json
+
   monitor:
     name: Monitor
     runs-on: ubuntu-latest
