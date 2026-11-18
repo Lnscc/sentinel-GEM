@@ -22,6 +22,10 @@ const mapLibre = vi.hoisted(() => {
     addSource(id: string, source: any) { sourceData = source.data; addSource(id, source); }
     addLayer = addLayer;
     easeTo = easeTo;
+    stop() {}
+    jumpTo() { state.bounds = [-180, -90, 180, 90]; handlers.get("moveend")?.(); }
+    getCenter = () => ({ lng: (state.bounds[0] + state.bounds[2]) / 2, lat: (state.bounds[1] + state.bounds[3]) / 2 });
+    getZoom = () => 1;
     getCanvas = () => this.canvas;
     getBounds = () => ({ getWest: () => state.bounds[0], getSouth: () => state.bounds[1], getEast: () => state.bounds[2], getNorth: () => state.bounds[3] });
     getSource = () => ({
@@ -130,7 +134,7 @@ describe("Globales Lagebild", () => {
     const user = userEvent.setup();
     renderApp();
     await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
-    await waitFor(() => expect(listRequests).toBeGreaterThan(1));
+    await waitFor(() => expect(mapLibre.addSource).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByRole("button", { name: "Aktualisieren" })).toBeEnabled());
 
     shouldFail = true;
@@ -406,6 +410,28 @@ describe("Globales Lagebild", () => {
     expect(screen.getByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
     expect(screen.getByText("1 von 1")).toBeInTheDocument();
     expect(new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost").searchParams.get("bounds")).toBe("2,48,3,49");
+  });
+
+  it("setzt den Kartenausschnitt zurück und lädt wieder globale Ergebnisse", async () => {
+    const fetchMock = mockFetch((input) => {
+      const scoped = new URL(String(input), "http://localhost").searchParams.has("bounds");
+      return response({ stories: scoped ? [] : [story, otherStory], total: scoped ? 0 : 2 });
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" });
+    await waitFor(() => expect(mapLibre.addSource).toHaveBeenCalled());
+    mapLibre.state.bounds = [2, 48, 3, 49];
+    act(() => mapLibre.handlers.get("moveend")?.());
+    expect(await screen.findByText(/Kein Ereignis passt.*im aktiven Kartenausschnitt/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zur Weltansicht" }));
+    expect(await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
+    expect(screen.getByText("2 von 2")).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+    expect(new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost").searchParams.has("bounds")).toBe(false);
+    act(() => mapLibre.handlers.get("moveend")?.());
+    expect(screen.queryByText("Kartenausschnitt aktiv")).not.toBeInTheDocument();
   });
 
   it("normalisiert MapLibre-Weltkopien als gültigen Datumsgrenzen-Ausschnitt", async () => {

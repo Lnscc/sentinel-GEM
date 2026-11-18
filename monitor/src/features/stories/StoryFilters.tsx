@@ -2,11 +2,11 @@ import { Autocomplete, Button, MenuItem, Stack, TextField } from "@mui/material"
 
 export type StoryFilterValues = { query: string; hours: string; country: string };
 export type CountryOption = { code: string; name: string };
-type Props = { filters: StoryFilterValues; countries: CountryOption[]; error?: string; onChange: (filters: StoryFilterValues) => void };
+type Props = { filters: StoryFilterValues; countries: CountryOption[]; error?: string; onChange: (filters: StoryFilterValues) => void; onReset: () => void; mapFilterActive: boolean; onWorldView: () => void };
 
 export const DEFAULT_FILTERS: StoryFilterValues = { query: "", hours: "24", country: "" };
 
-export default function StoryFilters({ filters, countries, error, onChange }: Props) {
+export default function StoryFilters({ filters, countries, error, onChange, onReset, mapFilterActive, onWorldView }: Props) {
   const set = (name: keyof StoryFilterValues, value: string) => onChange({ ...filters, [name]: value });
   const selectedCountry = countries.find(({ code }) => code === filters.country)
     ?? (filters.country ? { code: filters.country, name: "Land nicht verfügbar" } : null);
@@ -30,7 +30,8 @@ export default function StoryFilters({ filters, countries, error, onChange }: Pr
       <TextField select label="Zeitraum" size="small" value={filters.hours} onChange={(event) => set("hours", event.target.value)} sx={{ width: 180, flexShrink: 0 }}>
         <MenuItem value="24">Letzte 24 Stunden</MenuItem><MenuItem value="12">Letzte 12 Stunden</MenuItem><MenuItem value="6">Letzte 6 Stunden</MenuItem>
       </TextField>
-      <Button type="button" onClick={() => onChange(DEFAULT_FILTERS)}>Filter löschen</Button>
+      <Button type="button" onClick={onReset}>Filter löschen</Button>
+      {mapFilterActive && <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}><span>Kartenausschnitt aktiv</span><Button type="button" onClick={onWorldView}>Zur Weltansicht</Button></Stack>}
     </Stack>
   );
 }
