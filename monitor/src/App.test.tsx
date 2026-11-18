@@ -105,7 +105,7 @@ describe("Globales Lagebild", () => {
     mapLibre.state.bounds = [2, 48, 15, 55];
     mapLibre.handlers.get("moveend")?.();
     await waitFor(() => expect(listRequests).toBeGreaterThan(1));
-    await user.click(screen.getByRole("heading", { name: "Ein wichtiges Ereignis" }));
+    await user.click(await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" }));
     await screen.findByRole("heading", { name: "Zugehörige Artikel" });
 
     const requestsBeforeRefresh = listRequests;
