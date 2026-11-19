@@ -3,6 +3,8 @@ package com.example.globalnewsenginev1.stories.api;
 import com.example.globalnewsenginev1.stories.query.StoryDetail;
 import com.example.globalnewsenginev1.stories.query.StoryCountry;
 import com.example.globalnewsenginev1.stories.query.StoryPage;
+import com.example.globalnewsenginev1.stories.query.StoryMapPosition;
+import com.example.globalnewsenginev1.stories.query.StoryMapMarker;
 import com.example.globalnewsenginev1.stories.query.StoryQueryService;
 import com.example.globalnewsenginev1.stories.query.StorySearchCriteria;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Arrays;
 
 @RestController
 @RequestMapping("/stories")
@@ -25,6 +28,7 @@ public class StoryController {
     private static final Set<String> LIST_PARAMETERS = Set.of(
             "offset", "limit", "sort", "direction", "from", "to", "q", "domain", "country", "region",
             "bounds");
+    private static final Set<String> MAP_PARAMETERS = Set.of("from", "to", "q", "domain", "country", "region");
 
     private final StoryQueryService queryService;
 
@@ -35,6 +39,44 @@ public class StoryController {
     @GetMapping("/countries")
     public List<StoryCountry> countries() {
         return queryService.countries();
+    }
+
+    @GetMapping("/map-positions")
+    public List<StoryMapPosition> mapPositions(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false, name = "q") String query,
+            @RequestParam(required = false) String domain,
+            @RequestParam(required = false) String country,
+            @RequestParam(required = false) String region,
+            @RequestParam Map<String, String> parameters
+    ) {
+        validateParameters(parameters, MAP_PARAMETERS);
+        return queryService.mapPositions(new StorySearchCriteria(parseInstant("from", from), parseInstant("to", to),
+                query, domain, parseLocationCode("country", country), parseLocationCode("region", region), null));
+    }
+
+    @GetMapping("/map-markers")
+    public List<StoryMapMarker> mapMarkers(
+            @RequestParam(required = false) String ids,
+            @RequestParam Map<String, String> parameters
+    ) {
+        validateParameters(parameters, Set.of("ids"));
+        if (ids == null || ids.isBlank()) throw new IllegalArgumentException("ids must contain UUIDs");
+        String[] values = ids.split(",", -1);
+        if (values.length > StoryQueryService.MAX_MAP_MARKERS) {
+            throw new IllegalArgumentException("ids must not exceed " + StoryQueryService.MAX_MAP_MARKERS + " UUIDs");
+        }
+        List<UUID> parsed = Arrays.stream(values).map(value -> {
+            try {
+                UUID id = UUID.fromString(value);
+                if (!id.toString().equalsIgnoreCase(value)) throw new IllegalArgumentException();
+                return id;
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException("ids must contain comma-separated UUIDs");
+            }
+        }).toList();
+        return queryService.mapMarkers(parsed);
     }
 
     @GetMapping
@@ -52,16 +94,20 @@ public class StoryController {
             @RequestParam(required = false) String bounds,
             @RequestParam Map<String, String> parameters
     ) {
-        parameters.keySet().stream()
-                .filter(parameter -> !LIST_PARAMETERS.contains(parameter))
-                .findFirst()
-                .ifPresent(parameter -> {
-                    throw new IllegalArgumentException("unknown parameter: " + parameter);
-                });
+        validateParameters(parameters, LIST_PARAMETERS);
         return queryService.stories(offset, limit, sort, direction,
                 new StorySearchCriteria(parseInstant("from", from), parseInstant("to", to), query, domain,
                         parseLocationCode("country", country), parseLocationCode("region", region),
                         parseBounds(bounds)));
+    }
+
+    private void validateParameters(Map<String, String> parameters, Set<String> allowed) {
+        parameters.keySet().stream()
+                .filter(parameter -> !allowed.contains(parameter))
+                .findFirst()
+                .ifPresent(parameter -> {
+                    throw new IllegalArgumentException("unknown parameter: " + parameter);
+                });
     }
 
     private StorySearchCriteria.Bounds parseBounds(String value) {

@@ -20,6 +20,7 @@ import java.util.UUID;
 public class StoryQueryService {
 
     public static final int MAX_PAGE_SIZE = 100;
+    public static final int MAX_MAP_MARKERS = 100;
 
     private static final String ARTICLE_COLUMNS = """
             article.id AS article_id,
@@ -101,6 +102,43 @@ public class StoryQueryService {
                         + " AND primary_location.country_code IS NOT NULL AND TRIM(primary_location.country_code) <> ''"
                         + " ORDER BY primary_location.country_code",
                 (rs, row) -> new StoryCountry(rs.getString(1), CountryNames.name(rs.getString(1))), visibleVersion);
+    }
+
+    public List<StoryMapPosition> mapPositions(StorySearchCriteria criteria) {
+        validateCriteria(criteria);
+        if (criteria.bounds() != null) throw new IllegalArgumentException("map positions do not accept bounds");
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(visibleVersion);
+        String filters = filterClause(criteria, parameters);
+        return jdbcTemplate.query("SELECT story.public_id, primary_location.latitude, primary_location.longitude "
+                        + VISIBLE_STORY + filters + """
+                         AND primary_location.latitude BETWEEN -90 AND 90
+                         AND primary_location.longitude BETWEEN -180 AND 180
+                         ORDER BY story.public_id
+                        """,
+                (rs, row) -> new StoryMapPosition(rs.getObject("public_id", UUID.class),
+                        rs.getDouble("latitude"), rs.getDouble("longitude")), parameters.toArray());
+    }
+
+    public List<StoryMapMarker> mapMarkers(List<UUID> ids) {
+        if (ids == null || ids.isEmpty() || ids.size() > MAX_MAP_MARKERS || ids.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new IllegalArgumentException("ids must contain 1 to " + MAX_MAP_MARKERS + " UUIDs");
+        }
+        List<UUID> uniqueIds = ids.stream().distinct().toList();
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(visibleVersion);
+        parameters.addAll(uniqueIds);
+        String placeholders = String.join(",", java.util.Collections.nCopies(uniqueIds.size(), "?"));
+        return jdbcTemplate.query("""
+                SELECT story.public_id, story.representative_title, story.representative_main_image_url
+                FROM stories story
+                JOIN story_clustering_versions version
+                  ON version.id = story.clustering_version_id AND version.version_key = ?
+                WHERE story.state <> 'SUPERSEDED' AND story.public_id IN (
+                """ + placeholders + ") ORDER BY story.public_id",
+                (rs, row) -> new StoryMapMarker(rs.getObject("public_id", UUID.class),
+                        rs.getString("representative_title"), rs.getString("representative_main_image_url")),
+                parameters.toArray());
     }
 
     public StoryPage stories(int offset, int limit, String sort, String direction,
