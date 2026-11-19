@@ -14,7 +14,8 @@ const mapLibre = vi.hoisted(() => {
   let options: any;
   let sourceData: any = { features: [] };
   const getClusterLeaves = vi.fn(() => Promise.resolve(sourceData.features.slice(0, 3)));
-  const state: { queryFeatures: any[] | null; bounds: [number, number, number, number] } = { queryFeatures: null, bounds: [-180, -90, 180, 90] };
+  const getClusterExpansionZoom = vi.fn(() => Promise.resolve(5));
+  const state: { queryFeatures: any[] | null; visibleFeatures: any[] | null; bounds: [number, number, number, number] } = { queryFeatures: null, visibleFeatures: null, bounds: [-180, -90, 180, 90] };
   class MockMap {
     private canvas = document.createElement("canvas");
     readonly container: HTMLElement;
@@ -30,11 +31,13 @@ const mapLibre = vi.hoisted(() => {
     getCanvas = () => this.canvas;
     getBounds = () => ({ getWest: () => state.bounds[0], getSouth: () => state.bounds[1], getEast: () => state.bounds[2], getNorth: () => state.bounds[3] });
     getSource = () => ({
-      getClusterExpansionZoom: () => Promise.resolve(5),
+      getClusterExpansionZoom,
       getClusterLeaves,
-      setData: (data: any) => { sourceData = data; setData(data); },
+      setData: (data: any) => { sourceData = data; setData(data); queueMicrotask(() => handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" })); },
     });
     querySourceFeatures = () => state.queryFeatures ?? sourceData.features;
+    queryRenderedFeatures = () => state.visibleFeatures ?? state.queryFeatures ?? sourceData.features;
+    once(_event: string, handler: () => void) { queueMicrotask(handler); return this; }
     on(event: string, layerOrHandler: string | ((...args: any[]) => any), handler?: (...args: any[]) => any) { handlers.set(typeof layerOrHandler === "string" ? `${event}:${layerOrHandler}` : event, handler ?? layerOrHandler as (...args: any[]) => any); }
     remove = remove;
   }
@@ -44,7 +47,7 @@ const mapLibre = vi.hoisted(() => {
     addTo(map: MockMap) { map.container.append(this.options.element); return this; }
     remove() { this.options.element.remove(); }
   }
-  return { handlers, addSource, addLayer, setData, remove, easeTo, getClusterLeaves, state, get options() { return options; }, MockMap, MockMarker };
+  return { handlers, addSource, addLayer, setData, remove, easeTo, getClusterLeaves, getClusterExpansionZoom, state, get options() { return options; }, MockMap, MockMarker };
 });
 
 vi.mock("maplibre-gl", () => ({ Map: mapLibre.MockMap, Marker: mapLibre.MockMarker, NavigationControl: class {}, setWorkerUrl: vi.fn() }));
@@ -58,14 +61,31 @@ const story = {
 const otherStory = { ...story, id: "story-2", location: { ...story.location, name: "Paris", countryCode: "FR", regionCode: "FR11", latitude: 48.85, longitude: 2.35 }, representativeArticle: { ...story.representativeArticle, domain: "news.fr", title: "Ein anderes Ereignis", mainImageUrl: null } };
 const detail = { ...story, state: "PUBLISHED", representativeArticle: { ...story.representativeArticle, id: 1, canonicalUrl: "https://example.com/1", firstSeenAt: story.effectiveFrom, publishedAt: null }, members: [{ assignmentReason: "representative", article: { id: 1, canonicalUrl: "https://example.com/1", domain: "example.com", firstSeenAt: story.effectiveFrom, title: "Artikel eins", publishedAt: null, mainImageUrl: null } }] };
 const response = (body: unknown, ok = true, status = ok ? 200 : 500) => Promise.resolve({ ok, status, json: () => Promise.resolve(body) } as Response);
-const mockFetch = (implementation: typeof fetch) => vi.spyOn(globalThis, "fetch").mockImplementation((input, init) =>
-  String(input) === "/api/stories/countries"
-    ? response([{ code: "GM", name: "Deutschland" }, { code: "FR", name: "Frankreich" }, { code: "UP", name: "Ukraine" }])
-    : implementation(input, init));
+const mockFetch = (implementation: typeof fetch, mapResponses: Partial<Record<"positions" | "markers", typeof fetch>> = {}) => {
+  let latestList = response({ stories: [], total: 0 });
+  const fixtures = new Map<string, typeof story | typeof otherStory>([story, otherStory].map((value) => [value.id, value]));
+  return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/stories/countries") return response([{ code: "GM", name: "Deutschland" }, { code: "FR", name: "Frankreich" }, { code: "UP", name: "Ukraine" }]);
+    if (url.pathname === "/api/stories/map-positions") return mapResponses.positions?.(input, init) ?? latestList.then(async (result) => {
+      if (!result.ok) return response([]);
+      const page = await result.json();
+      page.stories.forEach((value: typeof story) => fixtures.set(value.id, value));
+      return response(page.stories.filter((value: typeof story) => value.location).map((value: typeof story) => ({ id: value.id, latitude: value.location.latitude, longitude: value.location.longitude })));
+    });
+    if (url.pathname === "/api/stories/map-markers") return mapResponses.markers?.(input, init) ?? response((url.searchParams.get("ids") ?? "").split(",").flatMap((id) => {
+      const value = fixtures.get(id);
+      return value ? [{ id, title: value.representativeArticle.title, imageUrl: value.representativeArticle.mainImageUrl }] : [];
+    }));
+    const result = implementation(input, init);
+    if (url.pathname === "/api/stories") latestList = result;
+    return result;
+  });
+};
 const renderApp = () => render(<ThemeProvider theme={createTheme()}><App /></ThemeProvider>);
 
 describe("Globales Lagebild", () => {
-  beforeEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/"); mapLibre.handlers.clear(); mapLibre.state.queryFeatures = null; mapLibre.state.bounds = [-180, -90, 180, 90]; mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); mapLibre.setData.mockClear(); mapLibre.remove.mockClear(); mapLibre.easeTo.mockClear(); });
+  beforeEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/"); mapLibre.handlers.clear(); mapLibre.state.queryFeatures = null; mapLibre.state.visibleFeatures = null; mapLibre.state.bounds = [-180, -90, 180, 90]; mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); mapLibre.setData.mockClear(); mapLibre.remove.mockClear(); mapLibre.easeTo.mockClear(); mapLibre.getClusterExpansionZoom.mockReset().mockImplementation(() => Promise.resolve(5)); });
   afterEach(cleanup);
 
   it("zeigt Karte und priorisierte Ereignisse aus der bestehenden API", async () => {
@@ -124,6 +144,51 @@ describe("Globales Lagebild", () => {
     expect(await screen.findByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
   });
 
+  it("lädt mehr als 100 Positionen unabhängig von der Liste und nur sichtbare Metadaten", async () => {
+    const positions = [...Array.from({ length: 150 }, (_, index) => ({ id: `hidden-${index}`, latitude: -33, longitude: 151 })), { id: story.id, latitude: 52.52, longitude: 13.405 }];
+    mapLibre.state.visibleFeatures = [{ type: "Feature", geometry: { type: "Point", coordinates: [13.405, 52.52] }, properties: { storyId: story.id } }];
+    const fetchMock = mockFetch(() => response({ stories: [otherStory], total: 500 }), { positions: () => response(positions) });
+    renderApp();
+    const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
+    const source = mapLibre.setData.mock.calls.at(-1)?.[0] ?? mapLibre.addSource.mock.calls.at(-1)?.[1].data;
+    expect(source.features).toHaveLength(151);
+    expect(source.features[0].properties).toEqual({ storyId: "hidden-0" });
+    const sourceWrites = mapLibre.setData.mock.calls.length;
+    const markerCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories/map-markers?"));
+    expect(new URL(String(markerCalls()[0][0]), "http://localhost").searchParams.get("ids")).toBe(story.id);
+    expect(markerCalls().every(([input]) => new URL(String(input), "http://localhost").searchParams.get("ids") === story.id)).toBe(true);
+    const metadataBeforePan = markerCalls().length;
+    expect(screen.getByText("1 von 500")).toBeInTheDocument();
+
+    mapLibre.state.bounds = [10, 50, 15, 55];
+    await act(async () => { mapLibre.handlers.get("moveend")?.(); mapLibre.handlers.get("idle")?.(); });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).startsWith("/api/stories?") && String(input).includes("bounds="))).toBe(true));
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories/map-positions?"))).toHaveLength(1);
+    expect(markerCalls()).toHaveLength(metadataBeforePan);
+    expect(mapLibre.setData).toHaveBeenCalledTimes(sourceWrites);
+    expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
+  });
+
+  it("zeigt Fehler der Kartenpositionen unabhängig von der erfolgreichen Liste", async () => {
+    mockFetch(() => response({ stories: [story], total: 1 }), { positions: () => response({}, false) });
+    renderApp();
+    expect(await screen.findByRole("heading", { name: "Ein wichtiges Ereignis" })).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Kartenereignisse konnten nicht geladen werden");
+    expect(screen.getByRole("alert")).toHaveTextContent("HTTP 500");
+  });
+
+  it("zeigt Metadatenfehler und stellt die Marker beim nächsten erfolgreichen Versuch dar", async () => {
+    let fail = true;
+    mockFetch(() => response({ stories: [story], total: 1 }), { markers: () => fail ? response({}, false) : response([{ id: story.id, title: story.representativeArticle.title, imageUrl: null }]) });
+    renderApp();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Kartenbilder konnten nicht geladen werden");
+    expect(screen.getByRole("heading", { name: "Ein wichtiges Ereignis" })).toBeInTheDocument();
+    fail = false;
+    act(() => mapLibre.handlers.get("idle")?.());
+    expect(await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("behält bei Aktualisierungsfehlern die Daten und bietet einen erneuten Versuch an", async () => {
     let listRequests = 0;
     let shouldFail = false;
@@ -163,14 +228,14 @@ describe("Globales Lagebild", () => {
     await user.type(screen.getByRole("searchbox", { name: "Suche" }), "Paris");
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Ein wichtiges Ereignis" })).not.toBeInTheDocument());
     expect(await screen.findByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
-    expect(new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost").searchParams.get("q")).toBe("Paris");
-    expect(fetchMock.mock.calls.filter(([input]) => new URL(String(input), "http://localhost").searchParams.has("q"))).toHaveLength(1);
+    expect(new URL(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories?")).at(-1)![0] as string, "http://localhost").searchParams.get("q")).toBe("Paris");
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories?") && new URL(String(input), "http://localhost").searchParams.has("q"))).toHaveLength(1);
     await user.click(screen.getByRole("combobox", { name: "Land" }));
     await user.click(screen.getByRole("option", { name: "Frankreich" }));
     await user.click(screen.getByRole("combobox", { name: "Zeitraum" }));
     await user.click(screen.getByRole("option", { name: "Letzte 6 Stunden" }));
     await waitFor(() => {
-      const url = new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost");
+      const url = new URL(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories?")).at(-1)![0] as string, "http://localhost");
       expect(url.searchParams.get("country")).toBe("FR");
     });
     await waitFor(() => {
@@ -319,10 +384,11 @@ describe("Globales Lagebild", () => {
 
     await waitFor(() => expect(mapLibre.addSource).toHaveBeenCalled());
     const removalsBeforeMarkerClick = mapLibre.remove.mock.calls.length;
+    const sourceWritesBeforeMarkerClick = mapLibre.setData.mock.calls.length;
     await user.click(await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" }));
     expect(await screen.findByRole("heading", { name: "Zugehörige Artikel" })).toBeInTheDocument();
     expect(mapLibre.remove).toHaveBeenCalledTimes(removalsBeforeMarkerClick);
-    expect(mapLibre.setData).toHaveBeenCalled();
+    expect(mapLibre.setData).toHaveBeenCalledTimes(sourceWritesBeforeMarkerClick);
   });
 
   it("zeigt Bild-, Fallback- und Cluster-Marker mit ihren Interaktionen", async () => {
@@ -335,6 +401,7 @@ describe("Globales Lagebild", () => {
     renderApp();
 
     const cluster = await screen.findByRole("button", { name: "Cluster mit 3 Ereignissen" });
+    expect(mapLibre.getClusterLeaves).toHaveBeenCalledWith(7, 3, 0);
     expect(cluster.querySelectorAll(".live-map-marker__image")).toHaveLength(3);
     expect(cluster).toHaveTextContent("3");
     await user.click(cluster);
@@ -372,7 +439,7 @@ describe("Globales Lagebild", () => {
     expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
   });
 
-  it("behält Marker während der Ausschnittabfrage und ersetzt nur geänderte Ereignisse", async () => {
+  it("behält die unabhängigen Kartenmarker bei geänderter Ausschnittliste", async () => {
     let release!: (value: Response) => void;
     const pending = new Promise<Response>((resolve) => { release = resolve; });
     const addedStory = { ...otherStory, id: "story-3", representativeArticle: { ...otherStory.representativeArticle, title: "Ein neues Ereignis" } };
@@ -380,7 +447,7 @@ describe("Globales Lagebild", () => {
       ? pending : response({ stories: [story, otherStory], total: 2 }));
     renderApp();
     const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
-    const removedMarker = screen.getByRole("button", { name: "Ereignis: Ein anderes Ereignis" });
+    const otherMarker = screen.getByRole("button", { name: "Ereignis: Ein anderes Ereignis" });
     const image = marker.querySelector("img");
 
     mapLibre.state.bounds = [2, 48, 15, 55];
@@ -395,11 +462,11 @@ describe("Globales Lagebild", () => {
     await act(async () => { mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }); });
     expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
     expect(marker.querySelector("img")).toBe(image);
-    expect(removedMarker).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ereignis: Ein neues Ereignis" })).toBeInTheDocument();
+    expect(otherMarker).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ereignis: Ein neues Ereignis" })).not.toBeInTheDocument();
   });
 
-  it("behält Marker bei Ausschnittfehlern, entfernt sie aber bei einem bestätigten leeren Ergebnis", async () => {
+  it("behält globale Kartenmarker auch bei fehlerhafter oder leerer Ausschnittliste", async () => {
     mockFetch((input) => {
       const bounds = new URL(String(input), "http://localhost").searchParams.get("bounds");
       if (bounds === "2,48,15,55") return response({}, false);
@@ -416,7 +483,7 @@ describe("Globales Lagebild", () => {
     mapLibre.state.bounds = [3, 48, 15, 55];
     act(() => mapLibre.handlers.get("moveend")?.());
     await screen.findByText(/Kein Ereignis passt.*im aktiven Kartenausschnitt/);
-    await waitFor(() => expect(marker).not.toBeInTheDocument());
+    expect(marker).toBeInTheDocument();
     expect(screen.getByText("0 von 0")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -466,9 +533,7 @@ describe("Globales Lagebild", () => {
 
     nextStory = { ...story, representativeArticle: { ...story.representativeArticle, mainImageUrl: "https://images.example.com/updated.jpg" } };
     await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
-    await waitFor(() => expect(mapLibre.setData).toHaveBeenLastCalledWith(expect.objectContaining({
-      features: expect.arrayContaining([expect.objectContaining({ properties: expect.objectContaining({ imageUrl: "https://images.example.com/updated.jpg" }) })]),
-    })));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Aktualisieren" })).toBeEnabled());
     await act(async () => { mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }); });
     expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" }).querySelector("img")).toHaveAttribute("src", "https://images.example.com/updated.jpg");
   });
@@ -491,8 +556,55 @@ describe("Globales Lagebild", () => {
 
     await user.type(screen.getByRole("searchbox", { name: "Suche" }), "Paris");
     await waitFor(() => expect(cluster).not.toBeInTheDocument());
-    await act(async () => { release([{ properties: { imageUrl: story.representativeArticle.mainImageUrl } }]); });
+    await act(async () => { release([{ properties: { storyId: story.id } }]); });
     expect(screen.queryByRole("button", { name: /Cluster mit/ })).not.toBeInTheDocument();
+  });
+
+  it.each(["vor dem Klick", "während der Zoomabfrage", "beim Entfernen der Karte"])("verwirft einen veralteten Cluster-Zoom %s", async (timing) => {
+    mapLibre.state.queryFeatures = [{
+      type: "Feature", geometry: { type: "Point", coordinates: [13.4, 52.5] },
+      properties: { cluster: true, cluster_id: 7, point_count: 2, point_count_abbreviated: "2" },
+    }];
+    let currentId = story.id;
+    let deferMetadata = false;
+    let metadataPending = false;
+    mockFetch(() => response({ stories: [story], total: 1 }), {
+      positions: () => response([{ id: currentId, latitude: 52.52, longitude: 13.405 }]),
+      markers: () => {
+        if (deferMetadata) { metadataPending = true; return new Promise<Response>(() => {}); }
+        return response([{ id: story.id, title: story.representativeArticle.title, imageUrl: null }]);
+      },
+    });
+    const user = userEvent.setup();
+    const view = renderApp();
+    const cluster = await screen.findByRole("button", { name: "Cluster mit 2 Ereignissen" });
+    let releaseZoom!: (zoom: number) => void;
+    if (timing !== "vor dem Klick") {
+      mapLibre.getClusterExpansionZoom.mockImplementationOnce(() => new Promise<number>((resolve) => { releaseZoom = resolve; }));
+      await user.click(cluster);
+      expect(mapLibre.getClusterExpansionZoom).toHaveBeenCalledWith(7);
+    }
+    if (timing === "beim Entfernen der Karte") {
+      view.unmount();
+      await act(async () => { releaseZoom(5); });
+      expect(mapLibre.easeTo).not.toHaveBeenCalled();
+      return;
+    }
+
+    deferMetadata = true;
+    currentId = otherStory.id;
+    mapLibre.state.queryFeatures[0].properties.cluster_id = 8;
+    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
+    await waitFor(() => expect(metadataPending).toBe(true));
+    expect(cluster).toBeInTheDocument();
+    if (timing === "vor dem Klick") {
+      await user.click(cluster);
+      expect(mapLibre.getClusterExpansionZoom).not.toHaveBeenCalled();
+    } else {
+      await act(async () => { releaseZoom(5); });
+      expect(mapLibre.getClusterExpansionZoom).toHaveBeenCalledTimes(1);
+    }
+    expect(mapLibre.easeTo).not.toHaveBeenCalled();
   });
 
   it("rendert ein serverseitiges Suchergebnis nach der MapLibre-Quelldatenverarbeitung", async () => {
@@ -533,7 +645,7 @@ describe("Globales Lagebild", () => {
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Ein wichtiges Ereignis" })).not.toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
     expect(screen.getByText("1 von 1")).toBeInTheDocument();
-    expect(new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost").searchParams.get("bounds")).toBe("2,48,3,49");
+    expect(new URL(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories?")).at(-1)![0] as string, "http://localhost").searchParams.get("bounds")).toBe("2,48,3,49");
   });
 
   it("setzt den Kartenausschnitt zurück und lädt wieder globale Ergebnisse", async () => {
@@ -553,7 +665,7 @@ describe("Globales Lagebild", () => {
     expect(screen.getByRole("heading", { name: "Ein anderes Ereignis" })).toBeInTheDocument();
     expect(screen.getByText("2 von 2")).toBeInTheDocument();
     expect(window.location.search).toBe("");
-    expect(new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost").searchParams.has("bounds")).toBe(false);
+    expect(new URL(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories?")).at(-1)![0] as string, "http://localhost").searchParams.has("bounds")).toBe(false);
     act(() => mapLibre.handlers.get("moveend")?.());
     expect(screen.queryByText("Kartenausschnitt aktiv")).not.toBeInTheDocument();
   });
@@ -566,15 +678,16 @@ describe("Globales Lagebild", () => {
     mapLibre.state.bounds = [170, -20, 190, 20];
     act(() => mapLibre.handlers.get("moveend")?.());
 
-    await waitFor(() => expect(new URL(fetchMock.mock.calls.at(-1)![0] as string, "http://localhost").searchParams.get("bounds")).toBe("170,-20,-170,20"));
+    await waitFor(() => expect(new URL(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories?")).at(-1)![0] as string, "http://localhost").searchParams.get("bounds")).toBe("170,-20,-170,20"));
     expect(new URLSearchParams(window.location.search).get("bounds")).toBe("170,-20,-170,20");
   });
 
   it("bildet Lade-, Leer- und Fehlerzustände mit Produktbegriffen ab", async () => {
     let resolveFetch!: (value: Response) => void;
-    vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise((resolve) => { resolveFetch = resolve; }));
+    const pending = new Promise<Response>((resolve) => { resolveFetch = resolve; });
+    mockFetch(() => pending);
     const view = renderApp();
-    expect(screen.getByRole("status")).toHaveTextContent("Ereignisse werden geladen");
+    expect(screen.getByRole("status")).toHaveTextContent("Kartenereignisse werden geladen");
     resolveFetch(await response({ stories: [], total: 0 }));
     expect(await screen.findByText("Kein Ereignis passt zu diesen Filtern.")).toBeInTheDocument();
     expect(await screen.findByLabelText("Interaktive Weltkarte der aktuellen Ereignisse")).toBeInTheDocument();

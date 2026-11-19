@@ -287,6 +287,24 @@ Mitgliedschaften mit Zuordnungsgrund. Unbekannte oder abgeloeste IDs liefern `40
 weiterverwendeten oeffentlichen ID wird der Stand der konfigurierten Version geliefert.
 Andere Versionen sind nicht produktsichtbar.
 
+`GET /stories/map-positions` liefert alle gueltigen primaeren Kartenpositionen derselben sichtbaren,
+nicht abgeloesten Stories als Array aus `{ "id": "UUID", "latitude": 52.52, "longitude": 13.405 }`.
+`from`, `to`, `q`, `domain`, `country` und `region` haben dieselbe Filtersemantik wie die Liste.
+Das Ergebnis ist nach Story-ID sortiert und hat keine 100er-Grenze. Fehlende, nicht endliche oder
+ausserhalb der geografischen Grenzen liegende Koordinaten werden ausgeschlossen. `bounds`,
+Pagination, Sortierung und unbekannte Parameter liefern `400` statt die Kartenbasis einzuschraenken.
+Der Monitor laedt diese kompakte Basis unabhaengig vom sichtbaren Kartenausschnitt.
+
+`GET /stories/map-markers?ids=UUID,UUID` liefert nur die angeforderten sichtbaren Story-Metadaten
+als Array aus `{ "id": "UUID", "title": "Titel", "imageUrl": null }`, nach Story-ID sortiert.
+Titel und Bild-URL koennen `null` sein. Eine Anfrage muss 1 bis 100 vollstaendige UUIDs enthalten;
+Duplikate werden zusammengefasst. Fehlende, leere, ungueltige oder zu grosse ID-Listen sowie
+unbekannte Parameter liefern `400` mit `{ "code": "invalid_request", "message": "..." }`.
+Unbekannte und abgeloeste IDs sowie IDs anderer Versionen werden ausgelassen. Beide Kartenendpunkte
+liefern bei leerem Ergebnis `200` mit `[]`, ohne Story-Mitgliedschaften oder Artikel-Details zu laden.
+Der Monitor fordert Titel und Bild-URLs erst fuer aktuell dargestellte Einzelmarker und
+Cluster-Vorschaubilder an; die priorisierte Seitenliste bleibt separat auf 100 Treffer begrenzt.
+
 `GET /stories/countries` liefert ein Array aus `{ "code": "GM", "name": "Deutschland" }`.
 Es enthaelt die unterschiedlichen Laender der primaeren Story-Orte im gesamten sichtbaren,
 nicht abgeloesten Datenbestand, unabhaengig von Paginierung, Zeitraum, Suche und Kartenausschnitt.
@@ -297,7 +315,7 @@ Der Monitor sortiert die Namen alphabetisch und uebertraegt die Auswahl als `cou
 Story-API und in die teilbare URL. Das Land umfasst alle primaeren Story-Orte dieses Landes;
 Zeitraum, Textsuche und Kartenausschnitt schraenken die Ergebnisse weiterhin gemeinsam ein.
 
-Beide Endpunkte liefern alle deduplizierten GDELT-ActionGeo-Orte als `locations`. Jeder Ort enthaelt
+Listen- und Detailendpunkt liefern alle deduplizierten GDELT-ActionGeo-Orte als `locations`. Jeder Ort enthaelt
 `name`, `countryCode`, `regionCode`, `latitude`, `longitude`, `source`, die hoechste
 Mention-`confidence` sowie `supportingArticles` und `supportingDomains`. `location` bleibt der
 abwaertskompatible primaere Kartenort und entspricht dem Kandidaten mit der hoechsten Confidence.

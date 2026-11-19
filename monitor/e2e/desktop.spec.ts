@@ -46,6 +46,8 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/stories**", (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/countries")) return route.fulfill({ json: [{ code: "UK", name: country }] });
+    if (url.pathname.endsWith("/map-positions")) return route.fulfill({ json: url.searchParams.get("q") === "leer" ? [] : [{ id: story.id, latitude: story.location.latitude, longitude: story.location.longitude }] });
+    if (url.pathname.endsWith("/map-markers")) return route.fulfill({ json: [{ id: story.id, title, imageUrl: null }] });
     if (url.pathname.endsWith("/desktop-story")) return route.fulfill({ json: {
       ...story, members: [{ article: story.representativeArticle }],
     } });

@@ -191,6 +191,429 @@
       "name": "Stories",
       "item": [
         {
+          "name": "Alle kompakten Kartenpositionen",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-positions?from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-positions"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2020-01-01T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "2030-01-01T00:00:00Z"
+                }
+              ]
+            },
+            "description": "Alle gueltigen primaeren Orte der sichtbaren Version ohne bounds oder Limit. from/to/q/domain/country/region wirken wie in der Story-Liste. Speichert bis zu 100 IDs fuer die folgende Metadatenabfrage."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+                  "const positions = pm.response.json();",
+                  "pm.test('Nur eindeutige IDs und gueltige Koordinaten ohne Paginierung', () => {",
+                  "  pm.expect(positions).to.be.an('array');",
+                  "  pm.expect(new Set(positions.map(position => position.id)).size).to.eql(positions.length);",
+                  "  positions.forEach(position => {",
+                  "    pm.expect(position).to.have.all.keys('id', 'latitude', 'longitude');",
+                  "    pm.expect(position.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(position.latitude).to.be.a('number').and.within(-90, 90);",
+                  "    pm.expect(position.longitude).to.be.a('number').and.within(-180, 180);",
+                  "  });",
+                  "  pm.expect(positions.map(position => position.id)).to.eql(positions.map(position => position.id).sort());",
+                  "});",
+                  "pm.collectionVariables.set('mapMarkerIds', positions.slice(0, 100).map(position => position.id).join(',') || 'ffffffff-ffff-ffff-ffff-ffffffffffff');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenmetadaten fuer angeforderte IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-markers?ids={{mapMarkerIds}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-markers"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "{{mapMarkerIds}}"
+                }
+              ]
+            },
+            "description": "Nur materialisierte Titel/Bild-URLs fuer 1 bis 100 IDs; unbekannte oder nicht sichtbare IDs fehlen im Ergebnis."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Kompakter Metadatenvertrag, auch bei leerem Ergebnis', () => {",
+                  "  const markers = pm.response.json();",
+                  "  const requested = pm.collectionVariables.get('mapMarkerIds').split(',');",
+                  "  pm.expect(markers).to.be.an('array');",
+                  "  pm.expect(new Set(markers.map(marker => marker.id)).size).to.eql(markers.length);",
+                  "  markers.forEach(marker => {",
+                  "    pm.expect(marker).to.have.all.keys('id', 'title', 'imageUrl');",
+                  "    pm.expect(requested).to.include(marker.id);",
+                  "    if (marker.title !== null) pm.expect(marker.title).to.be.a('string');",
+                  "    if (marker.imageUrl !== null) pm.expect(marker.imageUrl).to.be.a('string');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leere Kartenpositionsmenge",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-positions?from=9998-01-01T00:00:00Z&to=9999-01-01T00:00:00Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-positions"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "9998-01-01T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "9999-01-01T00:00:00Z"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Leeres Ergebnis ist 200 mit Array', () => { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.eql([]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fehlende Kartenmetadaten",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-markers?ids=ffffffff-ffff-ffff-ffff-ffffffffffff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-markers"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unbekannte ID liefert 200 mit leerem Array', () => { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.eql([]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenpositionen lehnen Ausschnitt ab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-positions?bounds=-180,-90,180,90",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-positions"
+              ],
+              "query": [
+                {
+                  "key": "bounds",
+                  "value": "-180,-90,180,90"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => { const error = pm.response.json(); pm.expect(error).to.have.all.keys('code', 'message'); pm.expect(error.code).to.eql('invalid_request'); pm.expect(error.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenpositionen lehnen Listenlimit ab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-positions?limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-positions"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => { const error = pm.response.json(); pm.expect(error).to.have.all.keys('code', 'message'); pm.expect(error.code).to.eql('invalid_request'); pm.expect(error.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenpositionen lehnen ungueltige Filter ab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-positions?from=not-an-instant",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-positions"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "not-an-instant"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => { const error = pm.response.json(); pm.expect(error).to.have.all.keys('code', 'message'); pm.expect(error.code).to.eql('invalid_request'); pm.expect(error.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenmetadaten brauchen IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-markers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-markers"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => { const error = pm.response.json(); pm.expect(error).to.have.all.keys('code', 'message'); pm.expect(error.code).to.eql('invalid_request'); pm.expect(error.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenmetadaten lehnen ungueltige UUID ab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-markers?ids=1-1-1-1-1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-markers"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "1-1-1-1-1"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => { const error = pm.response.json(); pm.expect(error).to.have.all.keys('code', 'message'); pm.expect(error.code).to.eql('invalid_request'); pm.expect(error.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenmetadaten lehnen mehr als 100 IDs ab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-markers?ids={{oversizedMapMarkerIds}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-markers"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "{{oversizedMapMarkerIds}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('oversizedMapMarkerIds', Array(101).fill('ffffffff-ffff-ffff-ffff-ffffffffffff').join(','));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => { const error = pm.response.json(); pm.expect(error).to.have.all.keys('code', 'message'); pm.expect(error.code).to.eql('invalid_request'); pm.expect(error.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenmetadaten lehnen unbekannte Parameter ab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories/map-markers?ids=ffffffff-ffff-ffff-ffff-ffffffffffff&limit=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stories",
+                "map-markers"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status ist 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Fehlervertrag ist stabil', () => { const error = pm.response.json(); pm.expect(error).to.have.all.keys('code', 'message'); pm.expect(error.code).to.eql('invalid_request'); pm.expect(error.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Verfuegbare Story-Laender",
           "request": {
             "method": "GET",

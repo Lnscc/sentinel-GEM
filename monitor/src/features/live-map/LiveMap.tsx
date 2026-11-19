@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { Box } from "@mui/material";
+import { Alert, Box } from "@mui/material";
 import { Map, Marker, NavigationControl, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import type { Story } from "../stories/storyTypes";
 import { ClusterMapMarker, StoryMapMarker } from "./MapMarkers";
+import createMapMarkerLoader from "./mapMarkerLoader";
+import type { StoryMapPosition } from "./mapTypes";
 
 setWorkerUrl(workerUrl);
 const SOURCE = "stories";
 const CLUSTERS = "story-cluster-hit-area";
 const POINTS = "story-point-hit-area";
 
-function hasValidLocation(story: Story) {
-  const location = story.location;
-  return location && Number.isFinite(location.latitude) && Number.isFinite(location.longitude)
-    && Math.abs(location.latitude) <= 90 && Math.abs(location.longitude) <= 180;
+function hasValidLocation(position: StoryMapPosition) {
+  return Number.isFinite(position.latitude) && Number.isFinite(position.longitude)
+    && Math.abs(position.latitude) <= 90 && Math.abs(position.longitude) <= 180;
 }
 
 type RenderedMarker = { marker: Marker; root: Root; signature: string };
@@ -29,11 +29,11 @@ function createMarker(content: ReactNode, coordinates: [number, number], signatu
 }
 
 function removeMarkers(markers: RenderedMarker[]) {
-  markers.forEach(({ marker, root }) => { marker.remove(); root.unmount(); });
+  markers.forEach(({ marker, root }) => { marker.remove(); queueMicrotask(() => root.unmount()); });
 }
 
 export type MapBounds = { west: number; south: number; east: number; north: number };
-type Props = { stories: Story[]; selectedId?: string; initialBounds?: MapBounds; worldViewReset: number; onSelect: (id: string) => void; onBoundsChange: (bounds: MapBounds) => void };
+type Props = { positions: StoryMapPosition[]; selectedId?: string; initialBounds?: MapBounds; worldViewReset: number; onSelect: (id: string) => void; onBoundsChange: (bounds: MapBounds) => void };
 
 function cameraPosition(map: Map) {
   const center = map.getCenter();
@@ -49,26 +49,26 @@ function normalizeBounds(bounds: MapBounds): MapBounds {
   return { ...bounds, west: normalizeLongitude(bounds.west), east: normalizeLongitude(bounds.east) };
 }
 
-export default function LiveMap({ stories, selectedId, initialBounds, worldViewReset, onSelect, onBoundsChange }: Props) {
+export default function LiveMap({ positions, selectedId, initialBounds, worldViewReset, onSelect, onBoundsChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map>(null);
   const globalCamera = useRef<string | undefined>(undefined);
   const resetting = useRef(false);
   const markersRef = useRef<RenderedMarker[]>([]);
   const renderVersion = useRef(0);
+  const markerLoader = useRef<ReturnType<typeof createMapMarkerLoader> | null>(null);
+  const renderMarkersRef = useRef<(() => Promise<void>) | null>(null);
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+  const [markerError, setMarkerError] = useState<string>();
   const dataRef = useRef<GeoJSON.FeatureCollection<GeoJSON.Point>>({ type: "FeatureCollection", features: [] });
-  const locatedStories = useMemo(() => stories.filter(hasValidLocation), [stories]);
+  const locatedPositions = useMemo(() => positions.filter(hasValidLocation), [positions]);
   dataRef.current = {
     type: "FeatureCollection",
-    features: locatedStories.map((story) => ({
+    features: locatedPositions.map((position) => ({
       type: "Feature",
-      geometry: { type: "Point", coordinates: [story.location!.longitude, story.location!.latitude] },
-      properties: {
-        storyId: story.id,
-        title: story.representativeArticle.title,
-        imageUrl: story.representativeArticle.mainImageUrl,
-        selected: story.id === selectedId,
-      },
+      geometry: { type: "Point", coordinates: [position.longitude, position.latitude] },
+      properties: { storyId: position.id },
     })),
   };
 
@@ -97,56 +97,84 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
     const renderMarkers = async () => {
       const version = ++renderVersion.current;
       const source = map.getSource(SOURCE) as GeoJSONSource | undefined;
-      if (!source) return;
-      const features = dataRef.current.features.length ? map.querySourceFeatures(SOURCE) : [];
+      const loader = markerLoader.current;
+      if (!source || !loader) return;
+      const features = dataRef.current.features.length ? map.queryRenderedFeatures(undefined, { layers: [CLUSTERS, POINTS] }) : [];
       const unique = features.filter((feature, index) => {
         const key = feature.properties.cluster ? `cluster-${feature.properties.cluster_id}` : `story-${feature.properties.storyId}`;
         return features.findIndex((candidate) => (candidate.properties.cluster ? `cluster-${candidate.properties.cluster_id}` : `story-${candidate.properties.storyId}`) === key) === index;
       });
       const created: RenderedMarker[] = [];
-      const markerFor = (content: ReactNode, coordinates: [number, number], markerSignature: string, anchor?: "bottom") => {
-        const existing = markersRef.current.find((marker) => marker.signature === markerSignature);
-        if (existing) {
-          flushSync(() => existing.root.render(content));
-          return existing;
-        }
-        const marker = createMarker(content, coordinates, markerSignature, anchor);
-        created.push(marker);
-        return marker;
-      };
-      const next = await Promise.all(unique.map(async (feature) => {
-        if (feature.geometry.type !== "Point") return null;
-        const coordinates = feature.geometry.coordinates as [number, number];
-        if (feature.properties.cluster) {
-          const clusterId = Number(feature.properties.cluster_id);
-          const leaves = await source.getClusterLeaves(clusterId, 3, 0);
-          if (version !== renderVersion.current) return null;
+      try {
+        const markerFor = (content: ReactNode, coordinates: [number, number], markerSignature: string, anchor?: "bottom") => {
+          const existing = markersRef.current.find((marker) => marker.signature === markerSignature);
+          if (existing) {
+            flushSync(() => existing.root.render(content));
+            return existing;
+          }
+          const marker = createMarker(content, coordinates, markerSignature, anchor);
+          created.push(marker);
+          return marker;
+        };
+        const entries = (await Promise.all(unique.map(async (feature) => {
+          if (feature.geometry.type !== "Point") return null;
+          const coordinates = feature.geometry.coordinates as [number, number];
+          if (feature.properties.cluster) {
+            const clusterId = Number(feature.properties.cluster_id);
+            const leaves = await source.getClusterLeaves(clusterId, 3, 0);
+            return { feature, coordinates, clusterId, ids: leaves.map((leaf) => String(leaf.properties?.storyId)) };
+          }
+          return { feature, coordinates, clusterId: undefined, ids: [String(feature.properties.storyId)] };
+        }))).filter((entry) => entry !== null);
+        if (version !== renderVersion.current) return;
+        const details = await loader.load(entries.flatMap((entry) => entry.ids));
+        if (version !== renderVersion.current) return;
+        const next = entries.map(({ feature, coordinates, clusterId, ids }) => {
+          if (clusterId !== undefined) {
+            const imageUrls = ids.map((id) => details.get(id)?.imageUrl);
+            return markerFor(
+              <ClusterMapMarker
+                imageUrls={imageUrls}
+                count={String(feature.properties.point_count_abbreviated)}
+                onClick={async () => {
+                  if (loader !== markerLoader.current) return;
+                  try {
+                    const zoom = await source.getClusterExpansionZoom(clusterId);
+                    if (loader === markerLoader.current) map.easeTo({ center: coordinates, zoom });
+                  } catch (reason: unknown) {
+                    if (loader === markerLoader.current) setMarkerError(reason instanceof Error ? reason.message : "Unbekannter Fehler");
+                  }
+                }}
+              />,
+              coordinates,
+              JSON.stringify(["cluster", feature.geometry, feature.properties.point_count, feature.properties.point_count_abbreviated, imageUrls]),
+            );
+          }
+          const detail = details.get(ids[0]);
+          if (!detail) return null;
+          const selected = detail.id === selectedIdRef.current;
           return markerFor(
-            <ClusterMapMarker
-              imageUrls={leaves.map((leaf) => leaf.properties?.imageUrl)}
-              count={String(feature.properties.point_count_abbreviated)}
-              onClick={async () => map.easeTo({ center: coordinates, zoom: await source.getClusterExpansionZoom(clusterId) })}
-            />,
+            <StoryMapMarker title={detail.title || "Unbenanntes Ereignis"} imageUrl={detail.imageUrl} selected={selected} onClick={() => onSelect(detail.id)} />,
             coordinates,
-            JSON.stringify(["cluster", feature.geometry, feature.properties.point_count, feature.properties.point_count_abbreviated, leaves.map((leaf) => leaf.properties?.imageUrl)]),
+            JSON.stringify(["story", feature.geometry, detail, selected]),
+            "bottom",
           );
-        }
-        return markerFor(
-          <StoryMapMarker title={String(feature.properties.title)} imageUrl={feature.properties.imageUrl} selected={Boolean(feature.properties.selected)} onClick={() => onSelect(String(feature.properties.storyId))} />,
-          coordinates,
-          JSON.stringify(["story", feature.geometry, feature.properties]),
-          "bottom",
-        );
-      }));
-      const rendered = next.filter((marker): marker is RenderedMarker => marker !== null);
-      if (version !== renderVersion.current) { removeMarkers(created); return; }
-      rendered.forEach((entry) => { if (!markersRef.current.includes(entry)) entry.marker.addTo(map); });
-      removeMarkers(markersRef.current.filter((entry) => !rendered.includes(entry)));
-      markersRef.current = rendered;
+        });
+        const rendered = next.filter((marker): marker is RenderedMarker => marker !== null);
+        if (version !== renderVersion.current) { removeMarkers(created); return; }
+        rendered.forEach((entry) => { if (!markersRef.current.includes(entry)) entry.marker.addTo(map); });
+        removeMarkers(markersRef.current.filter((entry) => !rendered.includes(entry)));
+        markersRef.current = rendered;
+        setMarkerError(undefined);
+      } catch (reason: unknown) {
+        removeMarkers(created);
+        if (version === renderVersion.current) setMarkerError(reason instanceof Error ? reason.message : "Unbekannter Fehler");
+      }
     };
+    renderMarkersRef.current = renderMarkers;
 
     map.on("sourcedata", (event) => {
-      if (event.sourceId === SOURCE && event.sourceDataType === "content") void renderMarkers();
+      if (event.sourceId === SOURCE && event.sourceDataType === "content") map.once("render", () => void renderMarkers());
     });
 
     map.on("load", () => {
@@ -161,6 +189,9 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
     });
     return () => {
       renderVersion.current++;
+      markerLoader.current?.abort();
+      markerLoader.current = null;
+      renderMarkersRef.current = null;
       removeMarkers(markersRef.current);
       markersRef.current = [];
       mapRef.current = null;
@@ -180,13 +211,21 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
 
   useEffect(() => {
     renderVersion.current++;
+    markerLoader.current?.abort();
+    markerLoader.current = createMapMarkerLoader();
+    setMarkerError(undefined);
     (mapRef.current?.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(dataRef.current);
     if (dataRef.current.features.length === 0) {
       const staleMarkers = markersRef.current;
       markersRef.current = [];
       queueMicrotask(() => removeMarkers(staleMarkers));
     }
-  }, [locatedStories, selectedId]);
+  }, [locatedPositions]);
 
-  return <Box ref={container} sx={{ position: "absolute", inset: 0, "& .maplibregl-map": { fontFamily: "inherit" } }} />;
+  useEffect(() => { void renderMarkersRef.current?.(); }, [selectedId]);
+
+  return <>
+    <Box ref={container} sx={{ position: "absolute", inset: 0, "& .maplibregl-map": { fontFamily: "inherit" } }} />
+    {markerError && <Alert severity="error" sx={{ position: "absolute", bottom: 16, left: 16, right: 56, zIndex: 2 }}>Die Kartenbilder konnten nicht geladen werden. {markerError}</Alert>}
+  </>;
 }

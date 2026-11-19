@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -67,6 +69,99 @@ class StoryQueryServiceTests {
                     supporting_articles INTEGER, supporting_domains INTEGER)
                 """);
         service = new StoryQueryService(jdbc, "visible-version");
+    }
+
+    @Test
+    void returnsAllValidPrimaryMapPositionsBeyondTheListLimitWithoutReadingArticleDetails() {
+        assertThat(service.mapPositions(StorySearchCriteria.defaults())).isEmpty();
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedVersion(2, "other-version", "SHADOW");
+        seedArticle(1, "a", "2026-09-01T10:00:00Z");
+        for (int i = 1; i <= 102; i++) {
+            seedStory(i, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z");
+            seedLocation(i, "Berlin", "GM", "GM16", 52, 13, 100, 1, 1);
+        }
+        seedLocation(1, 2, "Secondary", "FR", "FR11", 48, 2, 90, 1, 1);
+        for (int i = 103; i <= 110; i++) {
+            seedStory(i, i == 104 ? 2 : 1, "a", i == 103 ? "SUPERSEDED" : "ACTIVE", "2026-09-01T10:00:00Z");
+        }
+        seedLocation(103, "Old", "GM", "GM16", 52, 13, 100, 1, 1);
+        seedLocation(104, "Other version", "GM", "GM16", 52, 13, 100, 1, 1);
+        seedLocation(106, "Invalid latitude", "GM", "GM16", 91, 13, 100, 1, 1);
+        seedLocation(107, "Invalid longitude", "GM", "GM16", 52, -181, 100, 1, 1);
+        seedLocation(108, "Null coordinate", "GM", "GM16", 52, 13, 100, 1, 1);
+        jdbc.update("UPDATE story_locations SET latitude = NULL WHERE story_id = ?", new UUID(0, 108));
+        seedLocation(109, 2, "Only secondary", "GM", "GM16", 52, 13, 100, 1, 1);
+        seedLocation(110, "Not finite", "GM", "GM16", Double.NaN, Double.POSITIVE_INFINITY, 100, 1, 1);
+        jdbc.execute("DROP TABLE story_memberships");
+        jdbc.execute("DROP TABLE gdelt_gkg");
+        jdbc.execute("DROP TABLE gdelt_events");
+
+        List<StoryMapPosition> positions = service.mapPositions(StorySearchCriteria.defaults());
+        assertThat(positions).hasSize(102);
+        assertThat(positions).extracting(StoryMapPosition::id)
+                .containsExactlyElementsOf(java.util.stream.LongStream.rangeClosed(1, 102)
+                        .mapToObj(id -> new UUID(1, id)).toList());
+        assertThat(positions).allSatisfy(position -> {
+            assertThat(position.latitude()).isEqualTo(52);
+            assertThat(position.longitude()).isEqualTo(13);
+        });
+    }
+
+    @Test
+    void appliesTheSameSearchTimeCountryRegionAndDomainFiltersToMapPositions() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedArticle(1, "a", "publisher.example", "2026-09-01T10:00:00Z");
+        seedArticle(2, "b", "member.example", "2026-09-01T10:00:00Z");
+        UUID included = seedStory(1, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z", "2026-09-01T12:00:00Z");
+        seedLocation(1, "Berlin", "GM", "GM16", 52, 13, 100, 1, 1);
+        seedMember(1, 1, 2, 1, "MATCHED_COMPONENT");
+        seedStory(2, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z", "2026-09-01T12:00:00Z");
+        seedLocation(2, "Paris", "FR", "FR11", 48, 2, 100, 1, 1);
+        seedStory(3, 1, "a", "ACTIVE", "2026-08-01T10:00:00Z", "2026-08-01T12:00:00Z");
+        seedLocation(3, "Berlin", "GM", "GM16", 52, 13, 100, 1, 1);
+        StorySearchCriteria criteria = new StorySearchCriteria(Instant.parse("2026-09-01T12:00:00Z"),
+                Instant.parse("2026-09-02T00:00:00Z"), "BERLIN", "member.example", "GM", "GM16", null);
+
+        assertThat(service.mapPositions(criteria)).containsExactly(new StoryMapPosition(included, 52, 13));
+        assertThat(service.mapPositions(criteria)).extracting(StoryMapPosition::id)
+                .containsExactlyElementsOf(service.stories(0, 100, "priority", "desc", criteria).stories()
+                        .stream().map(StorySummary::id).toList());
+        assertThat(service.mapPositions(new StorySearchCriteria(null, Instant.parse("2026-09-01T10:00:00Z"),
+                null, null, "FR", null, null))).isEmpty();
+        assertThatIllegalArgumentException().isThrownBy(() -> service.mapPositions(
+                new StorySearchCriteria(null, null, null, null, null, null, new StorySearchCriteria.Bounds(-180, -90, 180, 90))));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.mapPositions(
+                new StorySearchCriteria(null, null, "x".repeat(201), null, null, null, null)));
+    }
+
+    @Test
+    void returnsOnlyRequestedVisibleMarkerMetadataInBoundedBatchesWithoutDetails() {
+        seedVersion(1, "visible-version", "ACTIVE");
+        seedVersion(2, "other-version", "SHADOW");
+        seedArticle(1, "a", "2026-09-01T10:00:00Z");
+        List<UUID> ids = new ArrayList<>();
+        for (int i = 1; i <= 100; i++) {
+            ids.add(seedStory(i, 1, "a", "ACTIVE", "2026-09-01T10:00:00Z"));
+        }
+        UUID superseded = seedStory(101, 1, "a", "SUPERSEDED", "2026-09-01T10:00:00Z");
+        UUID otherVersion = seedStory(102, 2, "a", "ACTIVE", "2026-09-01T10:00:00Z");
+        jdbc.update("UPDATE stories SET representative_title = 'Published title', representative_main_image_url = 'https://example.org/map.jpg' WHERE public_id = ?", ids.getFirst());
+        jdbc.execute("DROP TABLE story_locations");
+        jdbc.execute("DROP TABLE story_memberships");
+        jdbc.execute("DROP TABLE gdelt_gkg");
+
+        assertThat(service.mapMarkers(ids)).hasSize(100);
+        assertThat(service.mapMarkers(List.of(ids.getFirst(), ids.getFirst(), superseded, otherVersion, new UUID(9, 9))))
+                .containsExactly(new StoryMapMarker(ids.getFirst(), "Published title", "https://example.org/map.jpg"));
+        assertThat(service.mapMarkers(List.of(ids.get(1))))
+                .containsExactly(new StoryMapMarker(ids.get(1), null, null));
+        assertThat(service.mapMarkers(List.of(new UUID(9, 9)))).isEmpty();
+        assertThatIllegalArgumentException().isThrownBy(() -> service.mapMarkers(List.of()));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.mapMarkers(null));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.mapMarkers(java.util.Arrays.asList((UUID) null)));
+        ids.add(superseded);
+        assertThatIllegalArgumentException().isThrownBy(() -> service.mapMarkers(ids));
     }
 
     @Test

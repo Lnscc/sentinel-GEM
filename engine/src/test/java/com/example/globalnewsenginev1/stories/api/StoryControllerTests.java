@@ -4,6 +4,8 @@ import com.example.globalnewsenginev1.stories.query.StoryArticle;
 import com.example.globalnewsenginev1.stories.query.StoryCountry;
 import com.example.globalnewsenginev1.stories.query.StoryDetail;
 import com.example.globalnewsenginev1.stories.query.StoryLocation;
+import com.example.globalnewsenginev1.stories.query.StoryMapPosition;
+import com.example.globalnewsenginev1.stories.query.StoryMapMarker;
 import com.example.globalnewsenginev1.stories.query.StoryMember;
 import com.example.globalnewsenginev1.stories.query.StoryPage;
 import com.example.globalnewsenginev1.stories.query.StoryQueryService;
@@ -38,6 +40,63 @@ class StoryControllerTests {
         mockMvc = standaloneSetup(new StoryController(queryService))
                 .setControllerAdvice(new StoryApiExceptionHandler())
                 .build();
+    }
+
+    @Test
+    void returnsCompactMapPositionsWithExplicitFiltersAndNoViewportOrPagination() throws Exception {
+        UUID id = new UUID(1, 1);
+        queryService.positions = List.of(new StoryMapPosition(id, 52.52, 13.405));
+        mockMvc.perform(get("/stories/map-positions").param("from", "2026-09-01T00:00:00Z")
+                        .param("to", "2026-09-02T00:00:00Z").param("q", "Berlin")
+                        .param("domain", "example.org").param("country", "GM").param("region", "GM16"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id.toString()))
+                .andExpect(jsonPath("$[0].latitude").value(52.52))
+                .andExpect(jsonPath("$[0].longitude").value(13.405))
+                .andExpect(jsonPath("$[0].length()").value(3));
+        assertThat(queryService.criteria).isEqualTo(new StorySearchCriteria(
+                Instant.parse("2026-09-01T00:00:00Z"), Instant.parse("2026-09-02T00:00:00Z"),
+                "Berlin", "example.org", "GM", "GM16", null));
+        queryService.positions = List.of();
+        mockMvc.perform(get("/stories/map-positions"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+        for (String parameter : List.of("bounds", "limit", "offset", "sort", "unexpected")) {
+            mockMvc.perform(get("/stories/map-positions").param(parameter, "1"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("invalid_request"));
+        }
+        mockMvc.perform(get("/stories/map-positions").param("from", "invalid"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("invalid_request"));
+        mockMvc.perform(get("/stories/map-positions").param("country", "GM!"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("invalid_request"));
+    }
+
+    @Test
+    void returnsCompactMapMetadataOnlyForAValidBoundedIdBatch() throws Exception {
+        UUID id = new UUID(1, 1);
+        queryService.markers = List.of(new StoryMapMarker(id, "Headline", null));
+        mockMvc.perform(get("/stories/map-markers").param("ids", id + "," + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id.toString()))
+                .andExpect(jsonPath("$[0].title").value("Headline"))
+                .andExpect(jsonPath("$[0].imageUrl").isEmpty())
+                .andExpect(jsonPath("$[0].length()").value(3));
+        assertThat(queryService.markerIds).containsExactly(id, id);
+        String hundredIds = String.join(",", java.util.Collections.nCopies(100, id.toString()));
+        mockMvc.perform(get("/stories/map-markers").param("ids", hundredIds)).andExpect(status().isOk());
+        assertThat(queryService.markerIds).hasSize(100);
+        queryService.markers = List.of();
+        mockMvc.perform(get("/stories/map-markers").param("ids", new UUID(9, 9).toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+        mockMvc.perform(get("/stories/map-markers"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("invalid_request"));
+        for (String invalid : List.of("", "not-a-uuid", "1-1-1-1-1", id + ",", hundredIds + "," + id)) {
+            mockMvc.perform(get("/stories/map-markers").param("ids", invalid))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("invalid_request"))
+                    .andExpect(jsonPath("$.message").isString());
+        }
+        mockMvc.perform(get("/stories/map-markers").param("ids", id.toString()).param("bounds", "0,0,1,1"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("invalid_request"));
     }
 
     @Test
@@ -157,10 +216,25 @@ class StoryControllerTests {
     private static class StubStoryQueryService extends StoryQueryService {
         private StoryPage page;
         private StorySearchCriteria criteria;
+        private List<StoryMapPosition> positions = List.of();
+        private List<StoryMapMarker> markers = List.of();
+        private List<UUID> markerIds;
         private final Map<UUID, StoryDetail> details = new HashMap<>();
 
         StubStoryQueryService() {
             super(new JdbcTemplate(), "unused");
+        }
+
+        @Override
+        public List<StoryMapPosition> mapPositions(StorySearchCriteria criteria) {
+            this.criteria = criteria;
+            return positions;
+        }
+
+        @Override
+        public List<StoryMapMarker> mapMarkers(List<UUID> ids) {
+            markerIds = ids;
+            return markers;
         }
 
         @Override
