@@ -17,7 +17,7 @@ export default function StoryOverview() {
   const [selectedId, setSelectedId] = useState<string | undefined>(initialUrlState.selectedId);
   const [mapBounds, setMapBounds] = useState<MapBounds | undefined>(initialUrlState.mapBounds);
   const [worldViewReset, setWorldViewReset] = useState(0);
-  const { page, countries, countriesError, error, isLoading, lastLoadedAt, refresh } = useStories(filters, mapBounds);
+  const { page, mapStories, countries, countriesError, error, isLoading, lastLoadedAt, refresh } = useStories(filters, mapBounds);
 
   useLagebildUrlSync({ filters, mapBounds, selectedId });
 
@@ -45,7 +45,7 @@ export default function StoryOverview() {
 
       <Paper component="section" aria-label="Globales Lagebild" variant="outlined" sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 360px)", flex: 1, minHeight: 0, overflow: "hidden", borderRadius: 2.5, boxShadow: "0 16px 40px rgba(20,45,34,.09)" }}>
         <Box component="section" aria-label="Weltkarte" sx={{ position: "relative", minWidth: 0, minHeight: 0, bgcolor: "#dbeae3" }}>
-          {!page && isLoading && !lastLoadedAt ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={stories} selectedId={selectedId} initialBounds={initialUrlState.mapBounds} worldViewReset={worldViewReset} onSelect={select} onBoundsChange={changeBounds} />}
+          {!page && isLoading && !lastLoadedAt ? <StateMessage>Ereignisse werden geladen …</StateMessage> : <LiveMap stories={mapStories} selectedId={selectedId} initialBounds={initialUrlState.mapBounds} worldViewReset={worldViewReset} onSelect={select} onBoundsChange={changeBounds} />}
         </Box>
         <Box component="aside" aria-label="Ereignisse und Details" sx={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, borderLeft: 1, borderColor: "divider", overflow: "hidden" }}>
           {selectedId ? (

@@ -19,13 +19,13 @@ function hasValidLocation(story: Story) {
     && Math.abs(location.latitude) <= 90 && Math.abs(location.longitude) <= 180;
 }
 
-type RenderedMarker = { marker: Marker; root: Root };
+type RenderedMarker = { marker: Marker; root: Root; signature: string };
 
-function createMarker(content: ReactNode, coordinates: [number, number], anchor?: "bottom") {
+function createMarker(content: ReactNode, coordinates: [number, number], signature: string, anchor?: "bottom") {
   const element = document.createElement("div");
   const root = createRoot(element);
   flushSync(() => root.render(content));
-  return { marker: new Marker({ element, anchor }).setLngLat(coordinates), root };
+  return { marker: new Marker({ element, anchor }).setLngLat(coordinates), root, signature };
 }
 
 function removeMarkers(markers: RenderedMarker[]) {
@@ -55,7 +55,7 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
   const globalCamera = useRef<string | undefined>(undefined);
   const resetting = useRef(false);
   const markersRef = useRef<RenderedMarker[]>([]);
-  const markerSignatureRef = useRef("");
+  const renderVersion = useRef(0);
   const dataRef = useRef<GeoJSON.FeatureCollection<GeoJSON.Point>>({ type: "FeatureCollection", features: [] });
   const locatedStories = useMemo(() => stories.filter(hasValidLocation), [stories]);
   dataRef.current = {
@@ -82,7 +82,6 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
       minZoom: 1,
       bounds: initialBounds ? [[initialBounds.west, initialBounds.south], [initialBounds.east, initialBounds.north]] : undefined,
     });
-    let renderVersion = 0;
     mapRef.current = map;
     const initialCamera = cameraPosition(map);
     globalCamera.current = initialBounds ? undefined : cameraPosition(map);
@@ -96,43 +95,54 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
     };
 
     const renderMarkers = async () => {
-      const version = ++renderVersion;
+      const version = ++renderVersion.current;
       const source = map.getSource(SOURCE) as GeoJSONSource | undefined;
       if (!source) return;
-      const features = map.querySourceFeatures(SOURCE);
+      const features = dataRef.current.features.length ? map.querySourceFeatures(SOURCE) : [];
       const unique = features.filter((feature, index) => {
         const key = feature.properties.cluster ? `cluster-${feature.properties.cluster_id}` : `story-${feature.properties.storyId}`;
         return features.findIndex((candidate) => (candidate.properties.cluster ? `cluster-${candidate.properties.cluster_id}` : `story-${candidate.properties.storyId}`) === key) === index;
       });
-      const signature = JSON.stringify(unique.map(({ geometry, properties }) => [geometry, properties]));
-      if (signature === markerSignatureRef.current) return;
+      const created: RenderedMarker[] = [];
+      const markerFor = (content: ReactNode, coordinates: [number, number], markerSignature: string, anchor?: "bottom") => {
+        const existing = markersRef.current.find((marker) => marker.signature === markerSignature);
+        if (existing) {
+          flushSync(() => existing.root.render(content));
+          return existing;
+        }
+        const marker = createMarker(content, coordinates, markerSignature, anchor);
+        created.push(marker);
+        return marker;
+      };
       const next = await Promise.all(unique.map(async (feature) => {
         if (feature.geometry.type !== "Point") return null;
         const coordinates = feature.geometry.coordinates as [number, number];
         if (feature.properties.cluster) {
           const clusterId = Number(feature.properties.cluster_id);
           const leaves = await source.getClusterLeaves(clusterId, 3, 0);
-          return createMarker(
+          if (version !== renderVersion.current) return null;
+          return markerFor(
             <ClusterMapMarker
               imageUrls={leaves.map((leaf) => leaf.properties?.imageUrl)}
               count={String(feature.properties.point_count_abbreviated)}
               onClick={async () => map.easeTo({ center: coordinates, zoom: await source.getClusterExpansionZoom(clusterId) })}
             />,
             coordinates,
+            JSON.stringify(["cluster", feature.geometry, feature.properties.point_count, feature.properties.point_count_abbreviated, leaves.map((leaf) => leaf.properties?.imageUrl)]),
           );
         }
-        return createMarker(
+        return markerFor(
           <StoryMapMarker title={String(feature.properties.title)} imageUrl={feature.properties.imageUrl} selected={Boolean(feature.properties.selected)} onClick={() => onSelect(String(feature.properties.storyId))} />,
           coordinates,
+          JSON.stringify(["story", feature.geometry, feature.properties]),
           "bottom",
         );
       }));
       const rendered = next.filter((marker): marker is RenderedMarker => marker !== null);
-      if (version !== renderVersion) { removeMarkers(rendered); return; }
-      rendered.forEach(({ marker }) => marker.addTo(map));
-      removeMarkers(markersRef.current);
+      if (version !== renderVersion.current) { removeMarkers(created); return; }
+      rendered.forEach((entry) => { if (!markersRef.current.includes(entry)) entry.marker.addTo(map); });
+      removeMarkers(markersRef.current.filter((entry) => !rendered.includes(entry)));
       markersRef.current = rendered;
-      markerSignatureRef.current = signature;
     };
 
     map.on("sourcedata", (event) => {
@@ -143,14 +153,14 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
       map.addSource(SOURCE, { type: "geojson", cluster: true, clusterMaxZoom: 10, clusterRadius: 64, data: dataRef.current });
       map.addLayer({ id: CLUSTERS, type: "circle", source: SOURCE, filter: ["has", "point_count"], paint: { "circle-opacity": 0, "circle-radius": 1 } });
       map.addLayer({ id: POINTS, type: "circle", source: SOURCE, filter: ["!", ["has", "point_count"]], paint: { "circle-opacity": 0, "circle-radius": 1 } });
-      map.on("zoom", renderMarkers);
-      map.on("idle", renderMarkers);
+      map.on("zoom", () => void renderMarkers());
+      map.on("idle", () => void renderMarkers());
       map.on("moveend", reportBounds);
       if (cameraPosition(map) !== initialCamera) reportBounds();
       void renderMarkers();
     });
     return () => {
-      renderVersion++;
+      renderVersion.current++;
       removeMarkers(markersRef.current);
       markersRef.current = [];
       mapRef.current = null;
@@ -169,7 +179,7 @@ export default function LiveMap({ stories, selectedId, initialBounds, worldViewR
   }, [worldViewReset]);
 
   useEffect(() => {
-    markerSignatureRef.current = "";
+    renderVersion.current++;
     (mapRef.current?.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(dataRef.current);
     if (dataRef.current.features.length === 0) {
       const staleMarkers = markersRef.current;

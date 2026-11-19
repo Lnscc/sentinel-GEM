@@ -12,6 +12,7 @@ export default function useStories(filters: StoryFilterValues, mapBounds?: MapBo
   const bounds = mapBounds && [mapBounds.west, mapBounds.south, mapBounds.east, mapBounds.north]
     .map((value) => Number(value.toFixed(5))).join(",");
   const visibleScope = JSON.stringify([filters.hours, queryValue, filters.country.trim(), bounds]);
+  const filterScope = JSON.stringify([filters.hours, queryValue, filters.country.trim()]);
   const [page, setPage] = useState<StoryPage>();
   const [debouncedQuery, setDebouncedQuery] = useState(queryValue);
   const [error, setError] = useState<string>();
@@ -20,7 +21,7 @@ export default function useStories(filters: StoryFilterValues, mapBounds?: MapBo
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const pageScope = useRef<string | undefined>(undefined);
-  const pageCache = useRef<{ scope: string; page: StoryPage } | undefined>(undefined);
+  const pageCache = useRef<{ scope: string; filterScope: string; page: StoryPage } | undefined>(undefined);
 
   const [countriesError, setCountriesError] = useState<string>();
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function useStories(filters: StoryFilterValues, mapBounds?: MapBo
       .then((nextPage) => {
         if (controller.signal.aborted) return;
         pageScope.current = scope;
-        pageCache.current = { scope, page: nextPage };
+        pageCache.current = { scope, filterScope, page: nextPage };
         setPage(nextPage);
         setLastLoadedAt(new Date());
       })
@@ -92,7 +93,8 @@ export default function useStories(filters: StoryFilterValues, mapBounds?: MapBo
       .finally(() => { if (!controller.signal.aborted) setIsLoading(false); });
 
     return () => controller.abort();
-  }, [bounds, debouncedQuery, filters.hours, filters.country, queryValue, refreshKey]);
+  }, [bounds, debouncedQuery, filters.hours, filters.country, queryValue, filterScope, refreshKey]);
 
-  return { page, countries, countriesError, error, isLoading, lastLoadedAt, refresh: () => setRefreshKey((key) => key + 1) };
+  const mapStories = pageCache.current?.filterScope === filterScope ? pageCache.current.page.stories : [];
+  return { page, mapStories, countries, countriesError, error, isLoading, lastLoadedAt, refresh: () => setRefreshKey((key) => key + 1) };
 }
