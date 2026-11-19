@@ -13,6 +13,7 @@ const mapLibre = vi.hoisted(() => {
   const easeTo = vi.fn();
   let options: any;
   let sourceData: any = { features: [] };
+  const getClusterLeaves = vi.fn(() => Promise.resolve(sourceData.features.slice(0, 3)));
   const state: { queryFeatures: any[] | null; bounds: [number, number, number, number] } = { queryFeatures: null, bounds: [-180, -90, 180, 90] };
   class MockMap {
     private canvas = document.createElement("canvas");
@@ -30,7 +31,7 @@ const mapLibre = vi.hoisted(() => {
     getBounds = () => ({ getWest: () => state.bounds[0], getSouth: () => state.bounds[1], getEast: () => state.bounds[2], getNorth: () => state.bounds[3] });
     getSource = () => ({
       getClusterExpansionZoom: () => Promise.resolve(5),
-      getClusterLeaves: () => Promise.resolve(sourceData.features.slice(0, 3)),
+      getClusterLeaves,
       setData: (data: any) => { sourceData = data; setData(data); },
     });
     querySourceFeatures = () => state.queryFeatures ?? sourceData.features;
@@ -43,7 +44,7 @@ const mapLibre = vi.hoisted(() => {
     addTo(map: MockMap) { map.container.append(this.options.element); return this; }
     remove() { this.options.element.remove(); }
   }
-  return { handlers, addSource, addLayer, setData, remove, easeTo, state, get options() { return options; }, MockMap, MockMarker };
+  return { handlers, addSource, addLayer, setData, remove, easeTo, getClusterLeaves, state, get options() { return options; }, MockMap, MockMarker };
 });
 
 vi.mock("maplibre-gl", () => ({ Map: mapLibre.MockMap, Marker: mapLibre.MockMarker, NavigationControl: class {}, setWorkerUrl: vi.fn() }));
@@ -369,6 +370,129 @@ describe("Globales Lagebild", () => {
 
     mapLibre.handlers.get("zoom")?.();
     expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
+  });
+
+  it("behält Marker während der Ausschnittabfrage und ersetzt nur geänderte Ereignisse", async () => {
+    let release!: (value: Response) => void;
+    const pending = new Promise<Response>((resolve) => { release = resolve; });
+    const addedStory = { ...otherStory, id: "story-3", representativeArticle: { ...otherStory.representativeArticle, title: "Ein neues Ereignis" } };
+    mockFetch((input) => new URL(String(input), "http://localhost").searchParams.has("bounds")
+      ? pending : response({ stories: [story, otherStory], total: 2 }));
+    renderApp();
+    const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
+    const removedMarker = screen.getByRole("button", { name: "Ereignis: Ein anderes Ereignis" });
+    const image = marker.querySelector("img");
+
+    mapLibre.state.bounds = [2, 48, 15, 55];
+    act(() => mapLibre.handlers.get("moveend")?.());
+    await waitFor(() => expect(within(screen.getByRole("list", { name: "Gefilterte Ereignisse" })).queryAllByRole("listitem")).toHaveLength(0));
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
+    expect(marker.querySelector("img")).toBe(image);
+
+    await act(async () => { release(await response({ stories: [story, addedStory], total: 2 })); });
+    await screen.findByRole("heading", { name: "Ein neues Ereignis" });
+    await act(async () => { mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }); });
+    expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
+    expect(marker.querySelector("img")).toBe(image);
+    expect(removedMarker).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ereignis: Ein neues Ereignis" })).toBeInTheDocument();
+  });
+
+  it("behält Marker bei Ausschnittfehlern, entfernt sie aber bei einem bestätigten leeren Ergebnis", async () => {
+    mockFetch((input) => {
+      const bounds = new URL(String(input), "http://localhost").searchParams.get("bounds");
+      if (bounds === "2,48,15,55") return response({}, false);
+      return response({ stories: bounds ? [] : [story], total: bounds ? 0 : 1 });
+    });
+    renderApp();
+    const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
+    mapLibre.state.bounds = [2, 48, 15, 55];
+    act(() => mapLibre.handlers.get("moveend")?.());
+    expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 500");
+    expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
+    expect(within(screen.getByRole("list", { name: "Gefilterte Ereignisse" })).queryAllByRole("listitem")).toHaveLength(0);
+
+    mapLibre.state.bounds = [3, 48, 15, 55];
+    act(() => mapLibre.handlers.get("moveend")?.());
+    await screen.findByText(/Kein Ereignis passt.*im aktiven Kartenausschnitt/);
+    await waitFor(() => expect(marker).not.toBeInTheDocument());
+    expect(screen.getByText("0 von 0")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it.each(["Suche", "Land", "Zeitraum"])("entfernt bisherige Kartenmarker sofort bei geändertem Filter %s", async (filter) => {
+    let requests = 0;
+    mockFetch(() => ++requests === 1 ? response({ stories: [story], total: 1 }) : new Promise<Response>(() => {}));
+    const user = userEvent.setup();
+    renderApp();
+    const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
+    if (filter === "Suche") {
+      await user.type(screen.getByRole("searchbox", { name: "Suche" }), "Paris");
+    } else {
+      await user.click(screen.getByRole("combobox", { name: filter }));
+      await user.click(screen.getByRole("option", { name: filter === "Land" ? "Frankreich" : "Letzte 6 Stunden" }));
+    }
+    await waitFor(() => expect(marker).not.toBeInTheDocument());
+    expect(within(screen.getByRole("list", { name: "Gefilterte Ereignisse" })).queryAllByRole("listitem")).toHaveLength(0);
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("verwendet unveränderte Cluster wieder und aktualisiert Vorschaubilder bei gleicher Cluster-ID", async () => {
+    mapLibre.state.queryFeatures = [{
+      type: "Feature", geometry: { type: "Point", coordinates: [13.4, 52.5] },
+      properties: { cluster: true, cluster_id: 7, point_count: 2, point_count_abbreviated: "2" },
+    }];
+    let nextStory = story;
+    mockFetch(() => response({ stories: [nextStory, otherStory], total: 2 }));
+    const user = userEvent.setup();
+    renderApp();
+    const cluster = await screen.findByRole("button", { name: "Cluster mit 2 Ereignissen" });
+    const image = cluster.querySelector("img");
+    await act(async () => { mapLibre.handlers.get("idle")?.(); });
+    expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" })).toBe(cluster);
+    expect(cluster.querySelector("img")).toBe(image);
+
+    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Aktualisieren" })).toBeEnabled());
+    await act(async () => { mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }); });
+    expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" })).toBe(cluster);
+    expect(cluster.querySelector("img")).toBe(image);
+
+    mapLibre.state.queryFeatures![0].properties.cluster_id = 8;
+    await act(async () => { mapLibre.handlers.get("zoom")?.(); });
+    expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" })).toBe(cluster);
+    expect(cluster.querySelector("img")).toBe(image);
+
+    nextStory = { ...story, representativeArticle: { ...story.representativeArticle, mainImageUrl: "https://images.example.com/updated.jpg" } };
+    await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
+    await waitFor(() => expect(mapLibre.setData).toHaveBeenLastCalledWith(expect.objectContaining({
+      features: expect.arrayContaining([expect.objectContaining({ properties: expect.objectContaining({ imageUrl: "https://images.example.com/updated.jpg" }) })]),
+    })));
+    await act(async () => { mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }); });
+    expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" }).querySelector("img")).toHaveAttribute("src", "https://images.example.com/updated.jpg");
+  });
+
+  it("stellt nach einem Filterwechsel keine veralteten asynchronen Cluster wieder her", async () => {
+    mapLibre.state.queryFeatures = [{
+      type: "Feature", geometry: { type: "Point", coordinates: [13.4, 52.5] },
+      properties: { cluster: true, cluster_id: 7, point_count: 2, point_count_abbreviated: "2" },
+    }];
+    let requests = 0;
+    mockFetch(() => ++requests === 1 ? response({ stories: [story], total: 1 }) : new Promise<Response>(() => {}));
+    const user = userEvent.setup();
+    renderApp();
+    const cluster = await screen.findByRole("button", { name: "Cluster mit 2 Ereignissen" });
+    let release!: (leaves: any[]) => void;
+    mapLibre.getClusterLeaves.mockImplementationOnce(() => new Promise<any[]>((resolve) => { release = resolve; }));
+    mapLibre.state.queryFeatures[0].properties.cluster_id = 8;
+    act(() => mapLibre.handlers.get("zoom")?.());
+    expect(release).toBeDefined();
+
+    await user.type(screen.getByRole("searchbox", { name: "Suche" }), "Paris");
+    await waitFor(() => expect(cluster).not.toBeInTheDocument());
+    await act(async () => { release([{ properties: { imageUrl: story.representativeArticle.mainImageUrl } }]); });
+    expect(screen.queryByRole("button", { name: /Cluster mit/ })).not.toBeInTheDocument();
   });
 
   it("rendert ein serverseitiges Suchergebnis nach der MapLibre-Quelldatenverarbeitung", async () => {
