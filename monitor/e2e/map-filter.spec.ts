@@ -10,7 +10,7 @@ test("übernimmt eine Kartenbewegung vor dem Laden des Kartenstils", async ({ pa
     await route.fulfill({ json: { version: 8, sources: {}, layers: [] } });
   });
   await page.route("**/api/stories**", (route) => route.fulfill({
-    json: route.request().url().includes("/countries") ? [] : { stories: [], total: 0 },
+    json: /\/(countries|map-positions|map-markers)/.test(route.request().url()) ? [] : { stories: [], total: 0 },
   }));
   await page.goto("/");
   await expect.poll(() => styleRequested).toBe(true);
@@ -31,6 +31,7 @@ test("Kartenausschnitt: Zoom, Verschieben, URL und beide Resets", async ({ page 
   await page.route("**/api/stories**", (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/countries")) return route.fulfill({ json: [{ code: "GM", name: "Deutschland" }] });
+    if (/\/(map-positions|map-markers)$/.test(url.pathname)) return route.fulfill({ json: [] });
     requests.push(url);
     return route.fulfill({ json: { stories: [], total: 0 } });
   });
