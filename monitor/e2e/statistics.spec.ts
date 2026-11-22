@@ -17,6 +17,31 @@ const report = {
   recentRuns: [{ kind: "IMPORT", status: "COMPLETED", startedAt: "2026-11-18T11:55:00Z", completedAt: "2026-11-18T11:56:00Z" }, { kind: "STORY", status: "RUNNING", startedAt: "2026-11-18T11:57:00Z", completedAt: null }],
 };
 
+test("Hauptmenü öffnet Statistik per Tastatur und markiert den aktuellen Bereich", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 750 });
+  await page.route("**/api/explore/**", (route) => route.fulfill({
+    json: route.request().url().includes("/countries")
+      ? []
+      : { items: [], total: 0, page: 1, pageSize: 50, availableFrom: null, availableTo: null },
+  }));
+  await page.route("**/api/statistics?**", (route) => route.fulfill({ json: report }));
+
+  await page.goto("/explore");
+  const menu = page.getByRole("navigation", { name: "Hauptnavigation" });
+  const explore = menu.getByRole("link", { name: "Explore" });
+  const statistics = menu.getByRole("link", { name: "Statistik" });
+  await expect(menu.getByRole("link", { name: "Lagebild" })).toHaveAttribute("href", "/");
+  await expect(explore).toHaveAttribute("aria-current", "page");
+  await explore.focus();
+  await page.keyboard.press("Tab");
+  await expect(statistics).toBeFocused();
+  await expect(statistics).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Statistik", exact: true })).toBeVisible();
+  await expect(statistics).toHaveAttribute("aria-current", "page");
+  await expect(explore).not.toHaveAttribute("aria-current");
+});
+
 for (const width of [800, 1280]) {
   test(`Statistik direkt bei ${width}px öffnen und aktualisieren`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });

@@ -24,9 +24,9 @@ export type StoryLocation = {
 export type Article = {
   id: number;
   canonicalUrl: string;
-  domain: string;
+  domain: string | null;
   firstSeenAt: string;
-  title: string;
+  title: string | null;
   publishedAt: string | null;
   mainImageUrl: string | null;
 };

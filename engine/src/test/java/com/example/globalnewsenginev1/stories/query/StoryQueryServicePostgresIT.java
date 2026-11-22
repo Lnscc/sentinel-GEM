@@ -9,7 +9,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -159,6 +162,106 @@ class StoryQueryServicePostgresIT {
 
         assertThat(filtered.total()).isOne();
         assertThat(filtered.stories()).extracting(StorySummary::id).containsExactly(expected);
+    }
+
+    @Test
+    void exploresLocationlessStoriesAndMatchesOverlappingStoryIntervals() {
+        jdbc.update("INSERT INTO story_clustering_versions VALUES (1, 'visible-version', 'ACTIVE'), (2, 'old', 'RETIRED')");
+        jdbc.execute("""
+                INSERT INTO stories (
+                    id, public_id, clustering_version_id, state, effective_from, effective_to,
+                    representative_title, representative_domain, member_count)
+                SELECT
+                    ('10000000-0000-0000-0000-' || LPAD(number::text, 12, '0'))::uuid,
+                    ('20000000-0000-0000-0000-' || LPAD(number::text, 12, '0'))::uuid,
+                    CASE WHEN number = 123 THEN 2 ELSE 1 END,
+                    CASE WHEN number = 124 THEN 'SUPERSEDED' ELSE 'ACTIVE' END,
+                    TIMESTAMPTZ '2026-09-01T09:00:00Z',
+                    CASE WHEN number = 122 THEN TIMESTAMPTZ '2026-09-01T11:59:59Z'
+                         ELSE TIMESTAMPTZ '2026-09-01T12:00:00Z' END,
+                    CASE WHEN number = 121 THEN 'Percent %_ report (İstanbul)' ELSE 'Ordinary story' END,
+                    'representative.org', 2
+                FROM generate_series(1, 124) AS number
+                """);
+        UUID internal = UUID.fromString("10000000-0000-0000-0000-000000000121");
+        UUID publicId = UUID.fromString("20000000-0000-0000-0000-000000000121");
+        jdbc.update("INSERT INTO articles VALUES (1, 'https://source.org/a', 'one', 'source.org', ?)",
+                time("2026-09-01T10:00:00Z"));
+        jdbc.update("INSERT INTO story_memberships VALUES (?, 1, 1, 1, 'CURRENT')", internal);
+        jdbc.update("INSERT INTO story_locations (story_id, rank, name, country_code) VALUES (?, 1, 'Berlin', 'GM')",
+                internal);
+
+        ExploreQueryService service = explorer();
+        var defaultPage = service.stories("24h", null, null, null, 1);
+        assertThat(defaultPage.total()).isEqualTo(121);
+        assertThat(defaultPage.items()).hasSize(50);
+        assertThat(defaultPage.items().getFirst().locationName()).isNull();
+        assertThat(defaultPage.availableFrom()).isEqualTo(Instant.parse("2026-09-01T09:00:00Z"));
+        var thirdPage = service.stories("24h", null, null, null, 3);
+        assertThat(thirdPage.items()).hasSize(21);
+        assertThat(thirdPage.items().getLast().id()).isEqualTo(publicId);
+        assertThat(service.stories("24h", null, null, null, 4).total()).isEqualTo(121);
+        assertThat(service.stories("24h", null, null, null, 4).items()).isEmpty();
+        assertThat(service.stories("all", null, null, null, 1).total()).isEqualTo(122);
+        assertThat(service.stories("24h", "  PERCENT %_  ", "GM", "source.org", 1).items())
+                .extracting(ExploreQueryService.StoryResult::id).containsExactly(publicId);
+        assertThat(service.stories("24h", "İSTANBUL", null, null, 1).items())
+                .extracting(ExploreQueryService.StoryResult::id).containsExactly(publicId);
+        assertThat(service.stories("24h", null, null, "representative.org", 1).total()).isZero();
+        assertThat(service.countries("stories")).containsExactly(new StoryCountry("GM", "Deutschland"));
+    }
+
+    @Test
+    void exploresUnassignedArticlesAndFiltersOnlyTheirRecordedGkgCountries() {
+        jdbc.update("INSERT INTO story_clustering_versions VALUES (1, 'visible-version', 'ACTIVE'), (2, 'old', 'RETIRED')");
+        jdbc.update("""
+                INSERT INTO articles (id, canonical_url, domain, first_seen_at) VALUES
+                  (1, 'https://unassigned.org/first', 'unassigned.org', ?),
+                  (2, 'https://source.org/second', 'source.org', ?),
+                  (3, 'https://source.org/old', 'source.org', ?)
+                """, time("2026-09-02T10:00:00Z"), time("2026-09-02T10:00:00Z"), time("2026-08-01T10:00:00Z"));
+        jdbc.update("""
+                INSERT INTO gdelt_gkg (id, article_id, source_timestamp, page_title, locations) VALUES
+                (1, 2, ?, 'Article %_ title', '[{"name":"Berlin","countryCode":"GM"},
+                                                 {"name":"Amsterdam","countryCode":"NL"},
+                                                 {"name":"Berlin","countryCode":"GM"}]'::jsonb),
+                (2, 3, ?, null, '[{"name":"Paris","countryCode":"FR"}]'::jsonb),
+                (3, null, ?, null, '[{"name":"London","countryCode":"UK"}]'::jsonb)
+                """, time("2026-09-02T10:00:00Z"), time("2026-08-01T10:00:00Z"), time("2026-09-02T10:00:00Z"));
+        UUID internal = new UUID(1, 1);
+        UUID publicId = new UUID(2, 2);
+        UUID oldStory = new UUID(3, 3);
+        jdbc.update("""
+                INSERT INTO stories (id, public_id, clustering_version_id, state)
+                VALUES (?, ?, 1, 'ACTIVE'), (?, ?, 2, 'ACTIVE')
+                """, internal, publicId, oldStory, new UUID(4, 4));
+        jdbc.update("""
+                INSERT INTO story_memberships VALUES (?, 2, 1, 1, 'OLD'), (?, 1, 1, NULL, 'PAST'),
+                    (?, 1, 2, 1, 'CURRENT')
+                """, oldStory, internal, internal);
+
+        ExploreQueryService service = explorer();
+        var page = service.articles("24h", null, null, null, 1);
+        assertThat(page.items()).extracting(ExploreQueryService.ArticleResult::id).containsExactly(1L, 2L);
+        assertThat(page.items().getFirst().storyId()).isNull();
+        assertThat(page.items().getFirst().title()).isNull();
+        assertThat(page.items().getFirst().mentionedCountries()).isEmpty();
+        assertThat(page.items().getLast().storyId()).isEqualTo(publicId);
+        assertThat(page.availableFrom()).isEqualTo(Instant.parse("2026-08-01T10:00:00Z"));
+        assertThat(service.articles("24h", "  AMSTERDAM  ", "GM", "source.org", 1).items())
+                .extracting(ExploreQueryService.ArticleResult::id).containsExactly(2L);
+        assertThat(service.articles("24h", "%_", null, null, 1).items().getFirst().mentionedCountries())
+                .extracting(StoryCountry::code).containsExactly("GM", "NL");
+        assertThat(service.articles("24h", "unassigned.org/FIRST", null, null, 1).items())
+                .extracting(ExploreQueryService.ArticleResult::id).containsExactly(1L);
+        assertThat(service.articles("all", null, "FR", null, 1).items())
+                .extracting(ExploreQueryService.ArticleResult::id).containsExactly(3L);
+        assertThat(service.countries("articles")).extracting(StoryCountry::code).containsExactly("FR", "GM", "NL");
+    }
+
+    private ExploreQueryService explorer() {
+        return new ExploreQueryService(jdbc, "visible-version",
+                Clock.fixed(Instant.parse("2026-09-02T12:00:00Z"), ZoneOffset.UTC));
     }
 
     private OffsetDateTime time(String value) {

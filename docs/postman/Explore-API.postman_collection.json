@@ -1,0 +1,95 @@
+{
+  "info": {
+    "name": "Sentinel-GEM Explore API",
+    "description": "Search contracts for the News Explorer. Import Local.postman_environment.json to set baseUrl.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Search pages (200)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+        "if (pm.response.code === 200) {",
+        "  const body = pm.response.json();",
+        "  const stories = pm.request.url.path.includes('stories');",
+        "  const page = Number(pm.request.url.query.get('page') || 1);",
+        "  const time = stories ? 'lastSeenAt' : 'firstSeenAt';",
+        "  const date = value => typeof value === 'string' && Number.isFinite(Date.parse(value));",
+        "  pm.test('Page and available corpus contract', () => {",
+        "    pm.expect(body).to.include.all.keys('items', 'total', 'page', 'pageSize', 'availableFrom', 'availableTo');",
+        "    pm.expect(body.page).to.eql(page);",
+        "    pm.expect(body.pageSize).to.eql(50);",
+        "    pm.expect(Number.isSafeInteger(body.total) && body.total >= 0).to.eql(true);",
+        "    pm.expect(body.items).to.be.an('array').with.lengthOf(Math.max(0, Math.min(50, body.total - 50 * (page - 1))));",
+        "    pm.expect((body.availableFrom === null && body.availableTo === null) || (date(body.availableFrom) && date(body.availableTo) && Date.parse(body.availableFrom) <= Date.parse(body.availableTo))).to.eql(true);",
+        "  });",
+        "  pm.test('Result fields and newest-first order', () => {",
+        "    const ids = new Set();",
+        "    body.items.forEach((item, index) => {",
+        "      pm.expect(item).to.include.all.keys(...(stories",
+        "        ? ['id', 'title', 'domain', 'startedAt', 'lastSeenAt', 'articleCount', 'locationName', 'countryCode']",
+        "        : ['id', 'title', 'url', 'domain', 'firstSeenAt', 'mentionedCountries', 'storyId']));",
+        "      pm.expect(item.id).not.to.eql(null);",
+        "      pm.expect(ids.has(item.id)).to.eql(false);",
+        "      ids.add(item.id);",
+        "      pm.expect(date(item[time])).to.eql(true);",
+        "      if (index > 0) pm.expect(Date.parse(item[time])).to.be.at.most(Date.parse(body.items[index - 1][time]));",
+        "      if (stories) {",
+        "        pm.expect(date(item.startedAt)).to.eql(true);",
+        "        pm.expect(item.articleCount).to.be.a('number').and.at.least(0);",
+        "      } else {",
+        "        pm.expect(item.url).to.be.a('string');",
+        "        pm.expect(item.mentionedCountries).to.be.an('array');",
+        "        item.mentionedCountries.forEach(country => pm.expect(country).to.have.all.keys('code', 'name'));",
+        "      }",
+        "    });",
+        "  });",
+        "}"
+      ] } }],
+      "item": [
+        { "name": "Stories, server default period", "request": { "method": "GET", "url": "{{baseUrl}}/explore/stories" } },
+        { "name": "Articles, stored corpus", "request": { "method": "GET", "url": "{{baseUrl}}/explore/articles?period=all" } },
+        { "name": "Stories, beyond the last page", "request": { "method": "GET", "url": "{{baseUrl}}/explore/stories?period=all&page=100000000" } },
+        { "name": "Articles, combined filters and literal characters", "request": { "method": "GET", "url": "{{baseUrl}}/explore/articles?q=%25_%5C&country=US&domain=example.com&period=7d" } }
+      ]
+    },
+    {
+      "name": "Countries (200)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+        "pm.test('Each country has a unique code and a readable name', () => {",
+        "  const countries = pm.response.json();",
+        "  pm.expect(countries).to.be.an('array');",
+        "  pm.expect(new Set(countries.map(country => country.code)).size).to.eql(countries.length);",
+        "  countries.forEach(country => {",
+        "    pm.expect(country).to.have.all.keys('code', 'name');",
+        "    pm.expect(country.code).to.be.a('string').that.is.not.empty;",
+        "    pm.expect(country.name).to.be.a('string').that.is.not.empty;",
+        "  });",
+        "});"
+      ] } }],
+      "item": [
+        { "name": "Story countries", "request": { "method": "GET", "url": "{{baseUrl}}/explore/countries?view=stories" } },
+        { "name": "Article countries", "request": { "method": "GET", "url": "{{baseUrl}}/explore/countries?view=articles" } }
+      ]
+    },
+    {
+      "name": "Invalid parameters (400)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+        "pm.test('Stable error code and a readable message', () => {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body).to.have.all.keys('code', 'message');",
+        "  pm.expect(body.code).to.eql('invalid_request');",
+        "  pm.expect(body.message).to.be.a('string').that.is.not.empty;",
+        "});"
+      ] } }],
+      "item": [
+        { "name": "Invalid period", "request": { "method": "GET", "url": "{{baseUrl}}/explore/stories?period=week" } },
+        { "name": "Page zero", "request": { "method": "GET", "url": "{{baseUrl}}/explore/articles?page=0" } },
+        { "name": "Noninteger page", "request": { "method": "GET", "url": "{{baseUrl}}/explore/stories?page=1.5" } },
+        { "name": "Unknown country view", "request": { "method": "GET", "url": "{{baseUrl}}/explore/countries?view=map" } }
+      ]
+    }
+  ]
+}
