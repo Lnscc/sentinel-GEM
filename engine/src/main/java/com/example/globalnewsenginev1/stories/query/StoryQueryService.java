@@ -48,7 +48,7 @@ public class StoryQueryService {
             story.representative_main_image_url AS main_image_url
             """;
 
-    private static final String VISIBLE_STORY = """
+    static final String VISIBLE_STORY = """
             FROM stories story
             JOIN story_clustering_versions version
               ON version.id = story.clustering_version_id AND version.version_key = ?
@@ -56,6 +56,10 @@ public class StoryQueryService {
               ON primary_location.story_id = story.id AND primary_location.rank = 1
             WHERE story.state <> 'SUPERSEDED'
             """;
+
+    static final String STORY_COUNTRIES = "SELECT DISTINCT primary_location.country_code " + VISIBLE_STORY
+            + " AND primary_location.country_code IS NOT NULL AND TRIM(primary_location.country_code) <> ''"
+            + " ORDER BY primary_location.country_code";
 
     private static final String STORY_SELECT = """
             SELECT story.public_id, story.state, story.effective_from, story.effective_to,
@@ -98,9 +102,7 @@ public class StoryQueryService {
     }
 
     public List<StoryCountry> countries() {
-        return jdbcTemplate.query("SELECT DISTINCT primary_location.country_code " + VISIBLE_STORY
-                        + " AND primary_location.country_code IS NOT NULL AND TRIM(primary_location.country_code) <> ''"
-                        + " ORDER BY primary_location.country_code",
+        return jdbcTemplate.query(STORY_COUNTRIES,
                 (rs, row) -> new StoryCountry(rs.getString(1), CountryNames.name(rs.getString(1))), visibleVersion);
     }
 
@@ -184,6 +186,10 @@ public class StoryQueryService {
     }
 
     private String filterClause(StorySearchCriteria criteria, List<Object> parameters) {
+        return filterClause(criteria, parameters, false);
+    }
+
+    static String filterClause(StorySearchCriteria criteria, List<Object> parameters, boolean lowerInDatabase) {
         StringBuilder filters = new StringBuilder();
         if (criteria.from() != null) {
             filters.append(" AND story.effective_to >= ?");
@@ -194,14 +200,16 @@ public class StoryQueryService {
             parameters.add(Timestamp.from(criteria.to()));
         }
         if (criteria.query() != null && !criteria.query().isBlank()) {
-            String pattern = "%" + escapeLike(criteria.query().trim().toLowerCase(Locale.ROOT)) + "%";
+            String query = criteria.query().trim();
+            String pattern = "%" + escapeLike(lowerInDatabase ? query : query.toLowerCase(Locale.ROOT)) + "%";
+            String patternParameter = lowerInDatabase ? "LOWER(?)" : "?";
             filters.append("""
-                     AND (LOWER(COALESCE(story.representative_title, '')) LIKE ? ESCAPE '\\'
-                       OR LOWER(COALESCE(story.representative_domain, '')) LIKE ? ESCAPE '\\'
-                       OR LOWER(COALESCE(primary_location.name, '')) LIKE ? ESCAPE '\\'
-                       OR LOWER(COALESCE(primary_location.country_code, '')) LIKE ? ESCAPE '\\'
-                       OR LOWER(COALESCE(primary_location.region_code, '')) LIKE ? ESCAPE '\\')
-                    """);
+                     AND (LOWER(COALESCE(story.representative_title, '')) LIKE %1$s ESCAPE '\\'
+                       OR LOWER(COALESCE(story.representative_domain, '')) LIKE %1$s ESCAPE '\\'
+                       OR LOWER(COALESCE(primary_location.name, '')) LIKE %1$s ESCAPE '\\'
+                       OR LOWER(COALESCE(primary_location.country_code, '')) LIKE %1$s ESCAPE '\\'
+                       OR LOWER(COALESCE(primary_location.region_code, '')) LIKE %1$s ESCAPE '\\')
+                    """.formatted(patternParameter));
             parameters.addAll(java.util.Collections.nCopies(5, pattern));
         }
         if (criteria.domain() != null && !criteria.domain().isBlank()) {
@@ -241,7 +249,7 @@ public class StoryQueryService {
         return filters.toString();
     }
 
-    private String escapeLike(String value) {
+    private static String escapeLike(String value) {
         return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 

@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-@RestControllerAdvice(assignableTypes = StoryController.class)
+@RestControllerAdvice(assignableTypes = {StoryController.class, ExploreController.class})
 public class StoryApiExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)

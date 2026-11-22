@@ -60,4 +60,20 @@ describe("StoryDetails", () => {
       "https://example.org/source",
     );
   });
+
+  it("kennzeichnet fehlende Titel und Quellen und erhält den Link zum Original", () => {
+    useStoryDetailsMock.mockReturnValue({
+      story: {
+        ...story,
+        representativeArticle: { ...story.representativeArticle, title: null, domain: null },
+        members: story.members.map((member) => ({ ...member, article: { ...member.article, title: null, domain: null } })),
+      },
+    });
+
+    const { getByRole, getByText } = render(<StoryDetails id={story.id} onBack={() => undefined} />);
+    expect(getByRole("heading", { name: "Story ohne Titel" })).toBeVisible();
+    expect(getByText("Quelle unbekannt", { exact: true })).toBeVisible();
+    expect(getByRole("link", { name: /https:\/\/example\.org\/source: externe Quelle öffnen/ }))
+      .toHaveAttribute("href", "https://example.org/source");
+  });
 });

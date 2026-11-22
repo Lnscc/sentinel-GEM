@@ -92,6 +92,9 @@ jobs:
           npx --yes newman@6.2.1 run ../docs/postman/Statistics-API.postman_collection.json \
             --environment ../docs/postman/Local.postman_environment.json
 
+          npx --yes newman@6.2.1 run ../docs/postman/Explore-API.postman_collection.json \
+            --environment ../docs/postman/Local.postman_environment.json
+
   monitor:
     name: Monitor
     runs-on: ubuntu-latest
@@ -143,8 +146,9 @@ jobs:
         run: |
           set -euo pipefail
           git diff --check "$BASE_SHA" "$HEAD_SHA"
-          python -m json.tool docs/postman/Article-API.postman_collection.json > /dev/null
-          python -m json.tool docs/postman/Local.postman_environment.json > /dev/null
+          for file in docs/postman/*.json; do
+            python -m json.tool "$file" > /dev/null
+          done
 
           if [[ "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
             exit 0
@@ -156,8 +160,8 @@ jobs:
             | grep -Ev 'QueryService\.java$' || true)"
           if [[ -n "$contract_files" ]] \
             && ! printf '%s\n' "$changed_files" \
-              | grep -Fxq 'docs/postman/Article-API.postman_collection.json'; then
-            echo "REST API code changed without updating the Postman collection."
+              | grep -Eq '^docs/postman/[^/]+\.postman_collection\.json$'; then
+            echo "REST API code changed without updating a Postman collection."
             printf '%s\n' "$contract_files"
             exit 1
           fi
