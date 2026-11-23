@@ -37,7 +37,4 @@ curl --fail --silent --show-error --max-time 5 --output /dev/null \
   'http://127.0.0.1:3000/api/articles?limit=1'
 "${compose[@]}" ps
 
-# Keep recent release images for rollback. Docker preserves images in use.
-docker image prune --all --force --filter label=io.sentinel-gem.vps=true --filter until=168h ||
-  echo 'Could not remove old Sentinel GEM release images.' >&2
 df -h /

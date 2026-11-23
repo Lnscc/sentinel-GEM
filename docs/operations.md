@@ -35,10 +35,10 @@ erreichbar. PostgreSQL und die Engine bleiben im Compose-Netzwerk.
 
 ### Speicherbelegung
 
-Release-Images werden in der CI gebaut. Nach erfolgreichem Start räumt Docker
-ungenutzte Sentinel-GEM-Release-Images auf, die älter als sieben Tage sind.
-Der VPS braucht vor der Übertragung mindestens 10 GiB frei. Die lokalen
-Container-Logs sind pro Container auf drei Dateien zu je 10 MB begrenzt.
+Release-Images werden in der CI gebaut. Vor jeder Übertragung räumt Docker
+ungenutzte Sentinel-GEM-Release-Images auf und prüft, ob mindestens 10 GiB
+frei sind. Images laufender und gestoppter Container bleiben erhalten. Die
+lokalen Container-Logs sind auf drei Dateien zu je 10 MB pro Container begrenzt.
 
 Bei 80 % Plattenbelegung `df -h /` und `docker system df -v` prüfen.
 Die Datenbankgröße separat verfolgen, denn die Payload-Retention weiter

@@ -199,7 +199,14 @@ jobs:
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts"
             -o ConnectTimeout=10 "deploy@$VPS_HOST")
 
-          "${ssh_vps[@]}" 'set -e; available=$(df -Pk / | awk "NR==2 {print \$4}"); if [ "$available" -lt 10485760 ]; then echo "Deployment requires 10 GiB of free disk space." >&2; exit 1; fi'
+          "${ssh_vps[@]}" 'bash -se' <<'VPS_PREFLIGHT'
+          docker image prune --all --force --filter label=io.sentinel-gem.vps=true
+          available=$(df -Pk / | awk 'NR==2 {print $4}')
+          if [ "$available" -lt 10485760 ]; then
+            echo "Deployment requires 10 GiB of free disk space." >&2
+            exit 1
+          fi
+          VPS_PREFLIGHT
           docker image save "sentinel-gem-vps-engine:$GITHUB_SHA" "sentinel-gem-vps-monitor:$GITHUB_SHA" |
             gzip -1 | "${ssh_vps[@]}" 'bash -o pipefail -c "gzip -dc | docker image load"'
           "${ssh_vps[@]}" "bash -s -- $GITHUB_SHA" < deploy/vps.sh
