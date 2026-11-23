@@ -70,6 +70,11 @@ export default function LiveMap({ positions, selectedId, initialBounds, worldVie
   const [markerError, setMarkerError] = useState<string>();
   const dataRef = useRef<GeoJSON.FeatureCollection<GeoJSON.Point>>({ type: "FeatureCollection", features: [] });
   const locatedPositions = useMemo(() => positions.filter(hasValidLocation), [positions]);
+  const storyCoordinates = useMemo(() => new Map(locatedPositions.map(
+    ({ id, longitude, latitude }) => [id, [longitude, latitude] as [number, number]],
+  )), [locatedPositions]);
+  const storyCoordinatesRef = useRef(storyCoordinates);
+  storyCoordinatesRef.current = storyCoordinates;
   dataRef.current = {
     type: "FeatureCollection",
     features: locatedPositions.map((position) => ({
@@ -130,25 +135,28 @@ export default function LiveMap({ positions, selectedId, initialBounds, worldVie
       const { lng: centerLongitude } = map.getCenter();
       // Rendered-feature queries omit points in the tile buffer beyond the tile edge.
       const features = map.querySourceFeatures(SOURCE);
-      const unique = new Map<string, (typeof features)[number]>();
+      const unique = new Map<string, { feature: (typeof features)[number]; coordinates: [number, number] }>();
       for (const feature of features) {
         if (feature.geometry.type !== "Point") continue;
-        const [longitude, latitude] = feature.geometry.coordinates;
+        const isCluster = !!feature.properties.cluster;
+        const coordinates = isCluster
+          ? feature.geometry.coordinates as [number, number]
+          : storyCoordinatesRef.current.get(String(feature.properties.storyId));
+        if (!coordinates) continue;
+        const [longitude, latitude] = coordinates;
         const { x, y } = map.project([centerLongitude + normalizeLongitude(longitude - centerLongitude), latitude]);
         if (x < -MARKER_PADDING || x > clientWidth + MARKER_PADDING || y < -MARKER_PADDING || y > clientHeight + MARKER_PADDING) continue;
-        const key = feature.properties.cluster ? `cluster-${feature.properties.cluster_id}` : `story-${feature.properties.storyId}`;
-        if (!unique.has(key)) unique.set(key, feature);
+        const id = isCluster ? `cluster-${feature.properties.cluster_id}` : `story-${feature.properties.storyId}`;
+        if (!unique.has(id)) unique.set(id, { feature, coordinates });
       }
-      const key = JSON.stringify([selectedIdRef.current, [...unique.keys()].sort()]);
+      const key = JSON.stringify([selectedIdRef.current, [...unique.keys()].sort().map((id) => [id, unique.get(id)?.coordinates])]);
       if (lastQuery?.loader === loader && lastQuery.key === key) return;
       if (lastQuery?.loader !== loader) clusterLeaves.clear();
       lastQuery = { loader, key };
       const version = ++renderVersion.current;
       const created: RenderedMarker[] = [];
       try {
-        const entries = (await Promise.all([...unique.values()].map(async (feature) => {
-          if (feature.geometry.type !== "Point") return null;
-          const coordinates = feature.geometry.coordinates as [number, number];
+        const entries = await Promise.all([...unique.values()].map(async ({ feature, coordinates }) => {
           if (feature.properties.cluster) {
             const clusterId = Number(feature.properties.cluster_id);
             const leaves = clusterLeaves.get(clusterId) ?? source.getClusterLeaves(clusterId, 3, 0)
@@ -157,7 +165,7 @@ export default function LiveMap({ positions, selectedId, initialBounds, worldVie
             return { feature, coordinates, clusterId, ids: await leaves };
           }
           return { feature, coordinates, clusterId: undefined, ids: [String(feature.properties.storyId)] };
-        }))).filter((entry) => entry !== null);
+        }));
         if (version !== renderVersion.current) return;
         const renderLoaded = () => {
           const details = loader.cache;
@@ -195,7 +203,7 @@ export default function LiveMap({ positions, selectedId, initialBounds, worldVie
                   }}
                 />,
                 coordinates,
-                JSON.stringify(["cluster", feature.geometry, feature.properties.point_count, feature.properties.point_count_abbreviated, imageUrls]),
+                JSON.stringify(["cluster", coordinates, feature.properties.point_count, feature.properties.point_count_abbreviated, imageUrls]),
                 clusterId,
               );
             }
@@ -205,7 +213,7 @@ export default function LiveMap({ positions, selectedId, initialBounds, worldVie
             return markerFor(
               <StoryMapMarker title={detail.title || "Unbenanntes Ereignis"} imageUrl={detail.imageUrl} selected={selected} onClick={() => onSelect(detail.id)} />,
               coordinates,
-              JSON.stringify(["story", feature.geometry, detail, selected]),
+              JSON.stringify(["story", coordinates, detail, selected]),
             );
           });
           const rendered = new Set(next.filter((marker): marker is RenderedMarker => marker !== null));

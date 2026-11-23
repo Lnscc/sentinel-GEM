@@ -11,6 +11,7 @@ const mapLibre = vi.hoisted(() => {
   const setData = vi.fn();
   const remove = vi.fn();
   const easeTo = vi.fn();
+  const setMarkerCoordinates = vi.fn();
   let options: any;
   let sourceData: any = { features: [] };
   const getClusterLeaves = vi.fn(() => Promise.resolve(sourceData.features.slice(0, 3)));
@@ -43,12 +44,12 @@ const mapLibre = vi.hoisted(() => {
   }
   class MockMarker {
     constructor(private options: { element: HTMLElement }) {}
-    setLngLat() { return this; }
+    setLngLat(coordinates: [number, number]) { setMarkerCoordinates(coordinates); return this; }
     getElement() { return this.options.element; }
     addTo(map: MockMap) { map.container.append(this.options.element); return this; }
     remove() { this.options.element.remove(); }
   }
-  return { handlers, addSource, addLayer, setData, remove, easeTo, getClusterLeaves, getClusterExpansionZoom, state, get options() { return options; }, MockMap, MockMarker };
+  return { handlers, addSource, addLayer, setData, remove, easeTo, setMarkerCoordinates, getClusterLeaves, getClusterExpansionZoom, state, get options() { return options; }, MockMap, MockMarker };
 });
 
 vi.mock("maplibre-gl", () => ({ Map: mapLibre.MockMap, Marker: mapLibre.MockMarker, NavigationControl: class {}, setWorkerUrl: vi.fn() }));
@@ -87,6 +88,7 @@ const renderApp = () => render(<ThemeProvider theme={createTheme()}><App /></The
 
 describe("Globales Lagebild", () => {
   beforeEach(() => {
+    mapLibre.setMarkerCoordinates.mockClear();
     vi.stubGlobal("IntersectionObserver", class {
       observe(target: HTMLElement) { target.inert = false; }
       unobserve() {}
@@ -157,10 +159,11 @@ describe("Globales Lagebild", () => {
 
   it("lädt mehr als 100 Positionen unabhängig von der Liste und nur sichtbare Metadaten", async () => {
     const positions = [...Array.from({ length: 150 }, (_, index) => ({ id: `hidden-${index}`, latitude: -33, longitude: 151 })), { id: story.id, latitude: 52.52, longitude: 13.405 }];
-    mapLibre.state.visibleFeatures = [{ type: "Feature", geometry: { type: "Point", coordinates: [13.405, 52.52] }, properties: { storyId: story.id } }];
+    mapLibre.state.visibleFeatures = [{ type: "Feature", geometry: { type: "Point", coordinates: [13.4, 52.5] }, properties: { storyId: story.id } }];
     const fetchMock = mockFetch(() => response({ stories: [otherStory], total: 500 }), { positions: () => response(positions) });
     renderApp();
     const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
+    expect(mapLibre.setMarkerCoordinates).toHaveBeenLastCalledWith([13.405, 52.52]);
     const source = mapLibre.setData.mock.calls.at(-1)?.[0] ?? mapLibre.addSource.mock.calls.at(-1)?.[1].data;
     expect(source.features).toHaveLength(151);
     expect(source.features[0].properties).toEqual({ storyId: "hidden-0" });
@@ -439,6 +442,9 @@ describe("Globales Lagebild", () => {
     mockFetch(() => response({ stories: [story, otherStory], total: 2 }));
     renderApp();
     await screen.findByRole("button", { name: "Cluster mit 2 Ereignissen" });
+    mapLibre.state.queryFeatures[0].geometry.coordinates = [13.42, 52.54];
+    act(() => mapLibre.handlers.get("render")?.());
+    await waitFor(() => expect(mapLibre.setMarkerCoordinates).toHaveBeenLastCalledWith([13.42, 52.54]));
 
     mapLibre.state.queryFeatures = null;
     mapLibre.handlers.get("render")?.();
