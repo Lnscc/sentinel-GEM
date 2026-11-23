@@ -21,6 +21,38 @@ eine nicht leere Antwort mit alten Stories reicht nicht aus.
 Fehlgeschlagene Zeitfenster werden bei spaeteren Polls erneut versucht. Die Anzahl wird ueber
 `gdelt.ingestion.max-failed-windows-per-poll` begrenzt.
 
+## VPS-Deployment
+
+Ein Push auf den Branch `deploy` startet die CI. Nach grünen Tests und
+Vertragsprüfungen baut GitHub die Release-Images und überträgt sie per SSH.
+Der VPS prüft den Commit gegen den aktuellen Branch, startet Compose mit
+`compose.vps.yaml` und prüft Monitor und API. Die GitHub-Umgebung `vps`
+enthält die SSH-Secrets und ist auf den Branch `deploy` beschränkt.
+
+Der Deploy-Benutzer hält `.env` im Verzeichnis `~/sentinel-gem-vps`.
+Der Monitor ist auf den lokalen Ports 4000 und 3000 für den Host-Proxy
+erreichbar. PostgreSQL und die Engine bleiben im Compose-Netzwerk.
+
+### Speicherbelegung
+
+Release-Images werden in der CI gebaut. Nach erfolgreichem Start räumt Docker
+ungenutzte Sentinel-GEM-Release-Images auf, die älter als sieben Tage sind.
+Der VPS braucht vor der Übertragung mindestens 10 GiB frei. Die lokalen
+Container-Logs sind pro Container auf drei Dateien zu je 10 MB begrenzt.
+
+Bei 80 % Plattenbelegung `df -h /` und `docker system df -v` prüfen.
+Die Datenbankgröße separat verfolgen, denn die Payload-Retention weiter
+unten begrenzt weder normalisierte Daten noch Fehlerhistorie.
+
+```bash
+cd ~/sentinel-gem-vps
+DEPLOY_SHA=$(git rev-parse HEAD) docker compose -f compose.yaml -f compose.vps.yaml \
+  exec postgres psql -U gne -d gne -c "SELECT pg_size_pretty(pg_database_size(current_database()));"
+```
+
+Das systemd-Journal lässt sich auf dem Host über `SystemMaxUse=512M`
+in einer journald-Konfigurationsdatei begrenzen. Das erfordert Admin-Zugriff.
+
 ## Payload-Retention
 
 Der Retention-Job loescht erfolgreich verarbeitete Payloads standardmaessig sieben Tage nach
