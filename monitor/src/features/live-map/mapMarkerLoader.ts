@@ -6,6 +6,7 @@ export default function createMapMarkerLoader() {
   const pending = new Map<string, Promise<void>>();
 
   return {
+    cache,
     abort: () => controller.abort(),
     async load(ids: string[]) {
       const unique = [...new Set(ids)];
