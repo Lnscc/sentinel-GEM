@@ -1,5 +1,68 @@
 import { expect, test } from "@playwright/test";
 
+test("lädt Markerdetails und Bilder am Kartenrand beim Ziehen vor", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route("https://tiles.openfreemap.org/styles/liberty", (route) => route.fulfill({
+    json: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#dbeae3" } }] },
+  }));
+
+  const positions = [
+    { id: "near", latitude: 1.5, longitude: 0.6 },
+    { id: "refill", latitude: -1.5, longitude: 2.3 },
+    { id: "distant", latitude: 0, longitude: 70 },
+  ];
+  const metadataRequests: string[] = [];
+  const loadedImages: string[] = [];
+  await page.route("https://images.example.com/**", async (route) => {
+    await route.fulfill({
+      contentType: "image/svg+xml",
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="82" height="50"><rect width="82" height="50" fill="#13795b"/></svg>',
+    });
+    loadedImages.push(new URL(route.request().url()).pathname);
+  });
+  await page.route("**/api/stories**", (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/countries")) return route.fulfill({ json: [] });
+    if (url.pathname.endsWith("/map-positions")) return route.fulfill({ json: positions });
+    if (url.pathname.endsWith("/map-markers")) {
+      const ids = (url.searchParams.get("ids") ?? "").split(",");
+      metadataRequests.push(...ids);
+      return route.fulfill({
+        json: positions.filter(({ id }) => ids.includes(id)).map(({ id }) => ({ id, title: id, imageUrl: `https://images.example.com/${id}.svg` })),
+      });
+    }
+    return route.fulfill({ json: { stories: [], total: 0 } });
+  });
+
+  // These bounds fit horizontally and put the first marker across the tile boundary at longitude zero.
+  await page.goto("/?bounds=-20.2,-2,-0.2,2");
+  const nearMarker = page.getByRole("button", { name: "Ereignis: near", exact: true });
+  const refillMarker = page.getByRole("button", { name: "Ereignis: refill", exact: true });
+  await expect.poll(() => loadedImages).toEqual(["/near.svg"]);
+  expect(metadataRequests).toEqual(["near"]);
+  await expect(nearMarker).not.toBeInViewport({ ratio: .5 });
+
+  const canvas = await page.getByRole("region", { name: "Weltkarte" }).locator("canvas").boundingBox();
+  if (!canvas) throw new Error("Kartenfläche fehlt");
+  const x = canvas.x + canvas.width * .8;
+  const y = canvas.y + canvas.height * .76;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 57, y, { steps: 12 });
+  await expect(nearMarker).toBeInViewport({ ratio: .5 });
+  await expect.poll(() => nearMarker.locator("img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(82);
+  await expect.poll(() => loadedImages).toEqual(["/near.svg", "/refill.svg"]);
+  await expect(refillMarker).not.toBeInViewport({ ratio: .5 });
+
+  await page.mouse.move(x - 145, y, { steps: 12 });
+  await expect(refillMarker).toBeInViewport({ ratio: .5 });
+  await expect.poll(() => refillMarker.locator("img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(82);
+  await page.mouse.up();
+
+  expect(metadataRequests).toEqual(["near", "refill"]);
+  expect(loadedImages).toEqual(["/near.svg", "/refill.svg"]);
+});
+
 for (const scenario of ["identische Antwort", "geänderte Liste", "unveränderter Cluster", "mehr als 100 Positionen"]) {
   test(`Marker bleiben beim Verschieben erhalten (${scenario})`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 800 });

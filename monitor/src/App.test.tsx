@@ -11,6 +11,7 @@ const mapLibre = vi.hoisted(() => {
   const setData = vi.fn();
   const remove = vi.fn();
   const easeTo = vi.fn();
+  const setMarkerCoordinates = vi.fn();
   let options: any;
   let sourceData: any = { features: [] };
   const getClusterLeaves = vi.fn(() => Promise.resolve(sourceData.features.slice(0, 3)));
@@ -30,24 +31,25 @@ const mapLibre = vi.hoisted(() => {
     getZoom = () => 1;
     getCanvas = () => this.canvas;
     getBounds = () => ({ getWest: () => state.bounds[0], getSouth: () => state.bounds[1], getEast: () => state.bounds[2], getNorth: () => state.bounds[3] });
+    isSourceLoaded = () => true;
     getSource = () => ({
       getClusterExpansionZoom,
       getClusterLeaves,
-      setData: (data: any) => { sourceData = data; setData(data); queueMicrotask(() => handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" })); },
+      setData: (data: any) => { sourceData = data; setData(data); queueMicrotask(() => handlers.get("render")?.()); },
     });
-    querySourceFeatures = () => state.queryFeatures ?? sourceData.features;
-    queryRenderedFeatures = () => state.visibleFeatures ?? state.queryFeatures ?? sourceData.features;
-    once(_event: string, handler: () => void) { queueMicrotask(handler); return this; }
+    project = () => ({ x: 0, y: 0 });
+    querySourceFeatures = () => state.visibleFeatures ?? state.queryFeatures ?? sourceData.features;
     on(event: string, layerOrHandler: string | ((...args: any[]) => any), handler?: (...args: any[]) => any) { handlers.set(typeof layerOrHandler === "string" ? `${event}:${layerOrHandler}` : event, handler ?? layerOrHandler as (...args: any[]) => any); }
     remove = remove;
   }
   class MockMarker {
     constructor(private options: { element: HTMLElement }) {}
-    setLngLat() { return this; }
+    setLngLat(coordinates: [number, number]) { setMarkerCoordinates(coordinates); return this; }
+    getElement() { return this.options.element; }
     addTo(map: MockMap) { map.container.append(this.options.element); return this; }
     remove() { this.options.element.remove(); }
   }
-  return { handlers, addSource, addLayer, setData, remove, easeTo, getClusterLeaves, getClusterExpansionZoom, state, get options() { return options; }, MockMap, MockMarker };
+  return { handlers, addSource, addLayer, setData, remove, easeTo, setMarkerCoordinates, getClusterLeaves, getClusterExpansionZoom, state, get options() { return options; }, MockMap, MockMarker };
 });
 
 vi.mock("maplibre-gl", () => ({ Map: mapLibre.MockMap, Marker: mapLibre.MockMarker, NavigationControl: class {}, setWorkerUrl: vi.fn() }));
@@ -85,8 +87,19 @@ const mockFetch = (implementation: typeof fetch, mapResponses: Partial<Record<"p
 const renderApp = () => render(<ThemeProvider theme={createTheme()}><App /></ThemeProvider>);
 
 describe("Globales Lagebild", () => {
+  beforeEach(() => {
+    mapLibre.setMarkerCoordinates.mockClear();
+    vi.stubGlobal("IntersectionObserver", class {
+      observe(target: HTMLElement) { target.inert = false; }
+      unobserve() {}
+      disconnect() {}
+    });
+  });
   beforeEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/"); mapLibre.handlers.clear(); mapLibre.state.queryFeatures = null; mapLibre.state.visibleFeatures = null; mapLibre.state.bounds = [-180, -90, 180, 90]; mapLibre.addSource.mockClear(); mapLibre.addLayer.mockClear(); mapLibre.setData.mockClear(); mapLibre.remove.mockClear(); mapLibre.easeTo.mockClear(); mapLibre.getClusterExpansionZoom.mockReset().mockImplementation(() => Promise.resolve(5)); });
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it("zeigt Karte und priorisierte Ereignisse aus der bestehenden API", async () => {
     const fetchMock = mockFetch(() => response({ stories: [story, otherStory], total: 2 }));
@@ -146,10 +159,11 @@ describe("Globales Lagebild", () => {
 
   it("lädt mehr als 100 Positionen unabhängig von der Liste und nur sichtbare Metadaten", async () => {
     const positions = [...Array.from({ length: 150 }, (_, index) => ({ id: `hidden-${index}`, latitude: -33, longitude: 151 })), { id: story.id, latitude: 52.52, longitude: 13.405 }];
-    mapLibre.state.visibleFeatures = [{ type: "Feature", geometry: { type: "Point", coordinates: [13.405, 52.52] }, properties: { storyId: story.id } }];
+    mapLibre.state.visibleFeatures = [{ type: "Feature", geometry: { type: "Point", coordinates: [13.4, 52.5] }, properties: { storyId: story.id } }];
     const fetchMock = mockFetch(() => response({ stories: [otherStory], total: 500 }), { positions: () => response(positions) });
     renderApp();
     const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
+    expect(mapLibre.setMarkerCoordinates).toHaveBeenLastCalledWith([13.405, 52.52]);
     const source = mapLibre.setData.mock.calls.at(-1)?.[0] ?? mapLibre.addSource.mock.calls.at(-1)?.[1].data;
     expect(source.features).toHaveLength(151);
     expect(source.features[0].properties).toEqual({ storyId: "hidden-0" });
@@ -161,7 +175,7 @@ describe("Globales Lagebild", () => {
     expect(screen.getByText("1 von 500")).toBeInTheDocument();
 
     mapLibre.state.bounds = [10, 50, 15, 55];
-    await act(async () => { mapLibre.handlers.get("moveend")?.(); mapLibre.handlers.get("idle")?.(); });
+    await act(async () => { mapLibre.handlers.get("moveend")?.(); mapLibre.handlers.get("render")?.(); });
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).startsWith("/api/stories?") && String(input).includes("bounds="))).toBe(true));
     expect(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/stories/map-positions?"))).toHaveLength(1);
     expect(markerCalls()).toHaveLength(metadataBeforePan);
@@ -184,7 +198,7 @@ describe("Globales Lagebild", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Kartenbilder konnten nicht geladen werden");
     expect(screen.getByRole("heading", { name: "Ein wichtiges Ereignis" })).toBeInTheDocument();
     fail = false;
-    act(() => mapLibre.handlers.get("idle")?.());
+    act(() => mapLibre.handlers.get("render")?.());
     expect(await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -408,7 +422,7 @@ describe("Globales Lagebild", () => {
     await waitFor(() => expect(mapLibre.easeTo).toHaveBeenCalledWith({ center: [13.4, 52.5], zoom: 5 }));
 
     mapLibre.state.queryFeatures = null;
-    mapLibre.handlers.get("idle")?.();
+    mapLibre.handlers.get("render")?.();
     const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
     expect(marker.querySelector(".live-map-marker__image")).toBeInTheDocument();
     expect(marker.querySelector("img")).toHaveAttribute("src", "https://images.example.com/story.jpg");
@@ -416,7 +430,7 @@ describe("Globales Lagebild", () => {
     expect(screen.getByRole("button", { name: "Ereignis: Ein anderes Ereignis" }).querySelector("img")).toBeNull();
     await user.click(marker);
     await screen.findByRole("heading", { name: "Zugehörige Artikel" });
-    mapLibre.handlers.get("idle")?.();
+    mapLibre.handlers.get("render")?.();
     await waitFor(() => expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toHaveClass("is-selected"));
   });
 
@@ -428,14 +442,17 @@ describe("Globales Lagebild", () => {
     mockFetch(() => response({ stories: [story, otherStory], total: 2 }));
     renderApp();
     await screen.findByRole("button", { name: "Cluster mit 2 Ereignissen" });
+    mapLibre.state.queryFeatures[0].geometry.coordinates = [13.42, 52.54];
+    act(() => mapLibre.handlers.get("render")?.());
+    await waitFor(() => expect(mapLibre.setMarkerCoordinates).toHaveBeenLastCalledWith([13.42, 52.54]));
 
     mapLibre.state.queryFeatures = null;
-    mapLibre.handlers.get("zoom")?.();
+    mapLibre.handlers.get("render")?.();
 
     const marker = await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" });
     expect(screen.queryByRole("button", { name: "Cluster mit 2 Ereignissen" })).not.toBeInTheDocument();
 
-    mapLibre.handlers.get("zoom")?.();
+    mapLibre.handlers.get("render")?.();
     expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
   });
 
@@ -459,7 +476,7 @@ describe("Globales Lagebild", () => {
 
     await act(async () => { release(await response({ stories: [story, addedStory], total: 2 })); });
     await screen.findByRole("heading", { name: "Ein neues Ereignis" });
-    await act(async () => { mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }); });
+    await act(async () => { mapLibre.handlers.get("render")?.(); });
     expect(screen.getByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBe(marker);
     expect(marker.querySelector("img")).toBe(image);
     expect(otherMarker).toBeInTheDocument();
@@ -516,26 +533,26 @@ describe("Globales Lagebild", () => {
     renderApp();
     const cluster = await screen.findByRole("button", { name: "Cluster mit 2 Ereignissen" });
     const image = cluster.querySelector("img");
-    await act(async () => { mapLibre.handlers.get("idle")?.(); });
+    await act(async () => { mapLibre.handlers.get("render")?.(); });
     expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" })).toBe(cluster);
     expect(cluster.querySelector("img")).toBe(image);
 
     await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Aktualisieren" })).toBeEnabled());
-    await act(async () => { mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }); });
+    await act(async () => { mapLibre.handlers.get("render")?.(); });
     expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" })).toBe(cluster);
     expect(cluster.querySelector("img")).toBe(image);
 
     mapLibre.state.queryFeatures![0].properties.cluster_id = 8;
-    await act(async () => { mapLibre.handlers.get("zoom")?.(); });
+    await act(async () => { mapLibre.handlers.get("render")?.(); });
     expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" })).toBe(cluster);
     expect(cluster.querySelector("img")).toBe(image);
 
     nextStory = { ...story, representativeArticle: { ...story.representativeArticle, mainImageUrl: "https://images.example.com/updated.jpg" } };
     await user.click(screen.getByRole("button", { name: "Aktualisieren" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Aktualisieren" })).toBeEnabled());
-    await act(async () => { mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }); });
-    expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" }).querySelector("img")).toHaveAttribute("src", "https://images.example.com/updated.jpg");
+    await act(async () => { mapLibre.handlers.get("render")?.(); });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Cluster mit 2 Ereignissen" }).querySelector("img")).toHaveAttribute("src", "https://images.example.com/updated.jpg"));
   });
 
   it("stellt nach einem Filterwechsel keine veralteten asynchronen Cluster wieder her", async () => {
@@ -551,8 +568,8 @@ describe("Globales Lagebild", () => {
     let release!: (leaves: any[]) => void;
     mapLibre.getClusterLeaves.mockImplementationOnce(() => new Promise<any[]>((resolve) => { release = resolve; }));
     mapLibre.state.queryFeatures[0].properties.cluster_id = 8;
-    act(() => mapLibre.handlers.get("zoom")?.());
-    expect(release).toBeDefined();
+    act(() => mapLibre.handlers.get("render")?.());
+    await waitFor(() => expect(release).toBeDefined());
 
     await user.type(screen.getByRole("searchbox", { name: "Suche" }), "Paris");
     await waitFor(() => expect(cluster).not.toBeInTheDocument());
@@ -619,7 +636,7 @@ describe("Globales Lagebild", () => {
     expect(screen.queryByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).not.toBeInTheDocument();
 
     mapLibre.state.queryFeatures = null;
-    act(() => mapLibre.handlers.get("sourcedata")?.({ sourceId: "stories", sourceDataType: "content" }));
+    act(() => mapLibre.handlers.get("render")?.());
 
     expect(await screen.findByRole("button", { name: "Ereignis: Ein wichtiges Ereignis" })).toBeInTheDocument();
   });
