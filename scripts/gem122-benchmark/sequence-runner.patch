@@ -1,0 +1,83 @@
+--- a/engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StorySnapshotBenchmarkCommand.java
++++ b/engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StorySnapshotBenchmarkCommand.java
+@@ -9,0 +10 @@
++import org.springframework.jdbc.core.JdbcTemplate;
+@@ -11,0 +13,3 @@
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardCopyOption;
+@@ -22,0 +27 @@
++    private final JdbcTemplate jdbc;
+@@ -25 +30 @@
+-                                  ConfigurableApplicationContext context) {
++                                  ConfigurableApplicationContext context, JdbcTemplate jdbc) {
+@@ -28,0 +34 @@
++        this.jdbc = jdbc;
+@@ -32 +38 @@
+-    public void run(ApplicationArguments arguments) {
++    public void run(ApplicationArguments arguments) throws Exception {
+@@ -34,0 +41,5 @@
++            String sequenceDirectory = environment.getProperty("stories.snapshots.benchmark.sequence-dir");
++            if (sequenceDirectory != null) {
++                runSequence(Path.of(sequenceDirectory));
++                return;
++            }
+@@ -48,0 +60,58 @@
++
++    private void runSequence(Path directory) throws Exception {
++        Files.createDirectories(directory);
++        for (int step = 0; ; step++) {
++            String name = "step-" + step;
++            Path sql = directory.resolve(name + ".sql");
++            Path watermarkFile = directory.resolve(name + ".watermark");
++            long waitStarted = System.nanoTime();
++            while (!Files.exists(sql) || !Files.exists(watermarkFile)) {
++                if (Files.exists(directory.resolve(name + ".stop"))) return;
++                if (System.nanoTime() - waitStarted > Duration.ofMinutes(15).toNanos()) {
++                    throw new IllegalStateException("Timed out waiting for " + name);
++                }
++                Thread.sleep(200);
++            }
++            if (Files.exists(directory.resolve(name + ".stop"))) return;
++            Instant watermark = Instant.parse(Files.readString(watermarkFile).trim());
++            Instant startedAt = Instant.now();
++            long started = 0;
++            String resultJson;
++            try {
++                // Frozen clone setup is deliberately outside the measured processing interval.
++                jdbc.execute(Files.readString(sql));
++                startedAt = Instant.now();
++                started = System.nanoTime();
++                StorySnapshotService.ProcessingResult result = service.process(
++                        StorySnapshotService.RunMode.INCREMENTAL, watermark, 1);
++                long elapsedMs = (System.nanoTime() - started) / 1_000_000;
++                Instant completedAt = Instant.now();
++                resultJson = """
++                        {"step":%d,"watermark":"%s","startedAt":"%s","completedAt":"%s",
++                        "elapsedMs":%d,"selected":%d,"succeeded":%d,"reused":%d,"failed":%d}
++                        """.formatted(step, watermark, startedAt, completedAt, elapsedMs,
++                        result.selectedVersions(), result.succeededVersions(), result.reusedVersions(),
++                        result.failedVersions());
++                LOGGER.info("Story sequence step completed: step={}, watermark={}, elapsedMs={}, succeeded={}, reused={}, failed={}",
++                        step, watermark, elapsedMs, result.succeededVersions(), result.reusedVersions(), result.failedVersions());
++            } catch (Exception exception) {
++                long elapsedMs = started == 0 ? 0 : (System.nanoTime() - started) / 1_000_000;
++                resultJson = """
++                        {"step":%d,"watermark":"%s","startedAt":"%s","completedAt":"%s",
++                        "elapsedMs":%d,"error":"%s"}
++                        """.formatted(step, watermark, startedAt, Instant.now(), elapsedMs,
++                        exception.getClass().getSimpleName());
++                writeResult(directory, name, resultJson);
++                throw exception;
++            }
++            writeResult(directory, name, resultJson);
++        }
++    }
++
++    private static void writeResult(Path directory, String name, String result) throws Exception {
++        Path temporary = directory.resolve(name + ".result.tmp");
++        Files.writeString(temporary, result);
++        Files.move(temporary, directory.resolve(name + ".result.json"),
++                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
++    }
++

@@ -81,8 +81,10 @@ public class StoryPartitionService {
         inputs.forEach(input -> inputByRef.put(input.articleRef(), input));
         Map<String, Object> groupByRef = new HashMap<>();
         Map<UUID, String> representativeByStory = new HashMap<>();
+        Set<Object> affectedGroups = new HashSet<>();
         for (var assignment : existingAssignments) {
             representativeByStory.put(assignment.storyId(), assignment.representativeArticleRef());
+            if (changedArticleRefs.contains(assignment.articleRef())) affectedGroups.add(assignment.storyId());
             if (!changedArticleRefs.contains(assignment.articleRef())
                     && inputByRef.containsKey(assignment.articleRef())) {
                 groupByRef.put(assignment.articleRef(), assignment.storyId());
@@ -106,6 +108,7 @@ public class StoryPartitionService {
                 return group != null && coherent(rules, input, membersByGroup.get(group), search);
             });
             Object group = match == null ? input.articleRef() : groupByRef.get(match.articleRef());
+            affectedGroups.add(group);
             groupByRef.put(input.articleRef(), group);
             membersByGroup.computeIfAbsent(group, ignored -> new ArrayList<>()).add(input);
         }
@@ -113,7 +116,9 @@ public class StoryPartitionService {
         Map<Object, List<StorySnapshotRepository.SnapshotInput>> groups = new LinkedHashMap<>();
         for (var input : inputs) {
             Object group = groupByRef.computeIfAbsent(input.articleRef(), ignored -> input.articleRef());
-            groups.computeIfAbsent(group, ignored -> new ArrayList<>()).add(input);
+            if (affectedGroups.contains(group)) {
+                groups.computeIfAbsent(group, ignored -> new ArrayList<>()).add(input);
+            }
         }
         List<Component> components = new ArrayList<>();
         for (var entry : groups.entrySet()) {

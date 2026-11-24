@@ -1,0 +1,1675 @@
+{
+  "generatedAt": "2026-11-24T21:54:58.567224+00:00",
+  "scope": "Local isolated constrained replay; not a VPS capacity proof",
+  "baselineCommit": "7e6eef62ef10677e613aad0d0087d28c5b09ceac",
+  "transfer": {
+    "bytes": 1200724369,
+    "sha256": "73c738ae40a0136b55b4383a46a31c0b0c94cdece3efff0d60288babb302001b",
+    "verifiedAtUtc": "2026-11-24T21:04:31.123217+00:00",
+    "explicitUserAuthorization": true,
+    "vpsWork": "rate-limited existing-file transfer only"
+  },
+  "environment": {
+    "docker": {
+      "ServerVersion": "29.9.1",
+      "OperatingSystem": "Docker Desktop",
+      "OSType": "linux",
+      "Architecture": "x86_64",
+      "NCPU": 24,
+      "MemTotal": 16322293760,
+      "CgroupDriver": "cgroupfs",
+      "CgroupVersion": "2",
+      "KernelVersion": "6.6.87.2-microsoft-standard-WSL2"
+    },
+    "engineImageId": "sha256:6b730c459e848365a3d23545c14a0f4df7f5d361119f791e1c308da7595bed6c",
+    "postgresImageId": "sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d",
+    "postgresVersion": "PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+    "cpu": {
+      "name": "AMD Ryzen 9 9900X 12-Core Processor",
+      "cores": 12,
+      "logicalProcessors": 24,
+      "reportedMaxMHz": 4400
+    },
+    "windowsInitialFreeKiB": 9506028,
+    "windowsVisibleKiB": 32676224,
+    "bounds": {
+      "engineCpu": 1,
+      "postgresCpu": 1,
+      "engineMemoryBytes": 2147483648,
+      "postgresMemoryBytes": 2147483648,
+      "containerSwapBytes": 0,
+      "javaHeapMiB": 1024
+    }
+  },
+  "artifacts": [
+    {
+      "variant": "before",
+      "bytes": 64225253,
+      "sha256": "b0d8e30449a6ddde387aff338075f8cf648d8dedf37bfe1b3406576b36a169f5"
+    },
+    {
+      "variant": "after",
+      "bytes": 64229819,
+      "sha256": "8d5d334511f53b766096edcddfddd55f8708645715e37c055746668a337deb82"
+    }
+  ],
+  "verification": {
+    "accepted": true,
+    "scope": "Local constrained Docker replay; not a VPS production measurement",
+    "correctness": {
+      "passed": true,
+      "errors": []
+    },
+    "performance": {
+      "before": {
+        "passed": true,
+        "errors": [],
+        "measurement": {
+          "variant": "before",
+          "firstStep": 1,
+          "steps": [
+            {
+              "step": 1,
+              "watermark": "2026-11-24T08:00:00Z",
+              "startedAt": "2026-11-24T21:28:32.832524712Z",
+              "completedAt": "2026-11-24T21:32:01.026228329Z",
+              "elapsedMs": 208201,
+              "processingWithinBudget": true,
+              "published": true,
+              "selected": 1,
+              "succeeded": 1,
+              "reused": 0,
+              "failed": 0,
+              "phases": {
+                "snapshot": 82,
+                "loadMs": 7455,
+                "compareMs": 38916,
+                "publishMs": 161827,
+                "candidates": 50289652
+              },
+              "api": {
+                "articles": {
+                  "requests": 208,
+                  "failures": 0,
+                  "p50Ms": 5.979587,
+                  "p95Ms": 7.695662,
+                  "maxMs": 98.349239
+                },
+                "stories": {
+                  "requests": 208,
+                  "failures": 0,
+                  "p50Ms": 41.993383,
+                  "p95Ms": 55.577589,
+                  "maxMs": 140.67639
+                }
+              },
+              "scheduledAt": "2026-11-24T21:28:32.351707+00:00",
+              "completionLagMs": 208674.521,
+              "releaseBudgetPassed": true
+            },
+            {
+              "step": 2,
+              "watermark": "2026-11-24T08:05:00Z",
+              "startedAt": "2026-11-24T21:33:32.753481479Z",
+              "completedAt": "2026-11-24T21:36:40.866748845Z",
+              "elapsedMs": 188120,
+              "processingWithinBudget": true,
+              "published": true,
+              "selected": 1,
+              "succeeded": 1,
+              "reused": 0,
+              "failed": 0,
+              "phases": {
+                "snapshot": 83,
+                "loadMs": 6737,
+                "compareMs": 39104,
+                "publishMs": 142277,
+                "candidates": 51361123
+              },
+              "api": {
+                "articles": {
+                  "requests": 189,
+                  "failures": 0,
+                  "p50Ms": 5.036709,
+                  "p95Ms": 6.486115,
+                  "maxMs": 23.21441
+                },
+                "stories": {
+                  "requests": 189,
+                  "failures": 0,
+                  "p50Ms": 39.088981,
+                  "p95Ms": 57.166569,
+                  "maxMs": 79.830494
+                }
+              },
+              "scheduledAt": "2026-11-24T21:33:32.351707+00:00",
+              "completionLagMs": 188515.041,
+              "releaseBudgetPassed": true
+            },
+            {
+              "step": 3,
+              "watermark": "2026-11-24T08:10:00Z",
+              "startedAt": "2026-11-24T21:38:33.793448088Z",
+              "completedAt": "2026-11-24T21:41:21.346610508Z",
+              "elapsedMs": 167559,
+              "processingWithinBudget": true,
+              "published": true,
+              "selected": 1,
+              "succeeded": 1,
+              "reused": 0,
+              "failed": 0,
+              "phases": {
+                "snapshot": 84,
+                "loadMs": 8563,
+                "compareMs": 38765,
+                "publishMs": 120229,
+                "candidates": 52372358
+              },
+              "api": {
+                "articles": {
+                  "requests": 168,
+                  "failures": 0,
+                  "p50Ms": 4.793799,
+                  "p95Ms": 5.672713,
+                  "maxMs": 7.160826
+                },
+                "stories": {
+                  "requests": 168,
+                  "failures": 0,
+                  "p50Ms": 36.209262,
+                  "p95Ms": 49.440879,
+                  "maxMs": 209.024922
+                }
+              },
+              "scheduledAt": "2026-11-24T21:38:32.351707+00:00",
+              "completionLagMs": 168994.903,
+              "releaseBudgetPassed": true
+            }
+          ],
+          "apiMeasuredWindow": {
+            "articles": {
+              "requests": 768,
+              "failures": 0,
+              "p50Ms": 5.075899,
+              "p95Ms": 7.041689,
+              "maxMs": 98.349239
+            },
+            "stories": {
+              "requests": 768,
+              "failures": 0,
+              "p50Ms": 38.632448,
+              "p95Ms": 53.875176,
+              "maxMs": 209.024922
+            }
+          },
+          "backlogAtReleases": [
+            {
+              "step": 1,
+              "releasedAt": "2026-11-24T21:28:32.351707+00:00",
+              "unfinishedEarlierIntervals": 0,
+              "pendingIncludingRelease": 1
+            },
+            {
+              "step": 2,
+              "releasedAt": "2026-11-24T21:33:32.351707+00:00",
+              "unfinishedEarlierIntervals": 0,
+              "pendingIncludingRelease": 1
+            },
+            {
+              "step": 3,
+              "releasedAt": "2026-11-24T21:38:32.351707+00:00",
+              "unfinishedEarlierIntervals": 0,
+              "pendingIncludingRelease": 1
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "after": {
+        "passed": true,
+        "errors": [],
+        "measurement": {
+          "variant": "after",
+          "firstStep": 1,
+          "steps": [
+            {
+              "step": 1,
+              "watermark": "2026-11-24T08:00:00Z",
+              "startedAt": "2026-11-24T21:42:26.710996820Z",
+              "completedAt": "2026-11-24T21:43:14.517572352Z",
+              "elapsedMs": 47808,
+              "processingWithinBudget": true,
+              "published": true,
+              "selected": 1,
+              "succeeded": 1,
+              "reused": 0,
+              "failed": 0,
+              "phases": {
+                "snapshot": 82,
+                "loadMs": 6665,
+                "compareMs": 37105,
+                "publishMs": 4036,
+                "candidates": 50289652
+              },
+              "api": {
+                "articles": {
+                  "requests": 48,
+                  "failures": 0,
+                  "p50Ms": 6.50877,
+                  "p95Ms": 7.908894,
+                  "maxMs": 63.022718
+                },
+                "stories": {
+                  "requests": 48,
+                  "failures": 0,
+                  "p50Ms": 37.872995,
+                  "p95Ms": 67.473532,
+                  "maxMs": 134.543634
+                }
+              },
+              "scheduledAt": "2026-11-24T21:42:26.077364+00:00",
+              "completionLagMs": 48440.208,
+              "releaseBudgetPassed": true
+            },
+            {
+              "step": 2,
+              "watermark": "2026-11-24T08:05:00Z",
+              "startedAt": "2026-11-24T21:47:26.504911362Z",
+              "completedAt": "2026-11-24T21:48:12.363062045Z",
+              "elapsedMs": 45860,
+              "processingWithinBudget": true,
+              "published": true,
+              "selected": 1,
+              "succeeded": 1,
+              "reused": 0,
+              "failed": 0,
+              "phases": {
+                "snapshot": 83,
+                "loadMs": 6450,
+                "compareMs": 37297,
+                "publishMs": 2111,
+                "candidates": 51361123
+              },
+              "api": {
+                "articles": {
+                  "requests": 45,
+                  "failures": 0,
+                  "p50Ms": 5.184854,
+                  "p95Ms": 6.733498,
+                  "maxMs": 6.90957
+                },
+                "stories": {
+                  "requests": 46,
+                  "failures": 0,
+                  "p50Ms": 36.901234,
+                  "p95Ms": 48.140946,
+                  "maxMs": 49.181647
+                }
+              },
+              "scheduledAt": "2026-11-24T21:47:26.077364+00:00",
+              "completionLagMs": 46285.698,
+              "releaseBudgetPassed": true
+            },
+            {
+              "step": 3,
+              "watermark": "2026-11-24T08:10:00Z",
+              "startedAt": "2026-11-24T21:52:26.481002732Z",
+              "completedAt": "2026-11-24T21:53:09.836852518Z",
+              "elapsedMs": 43357,
+              "processingWithinBudget": true,
+              "published": true,
+              "selected": 1,
+              "succeeded": 1,
+              "reused": 0,
+              "failed": 0,
+              "phases": {
+                "snapshot": 84,
+                "loadMs": 6242,
+                "compareMs": 35208,
+                "publishMs": 1904,
+                "candidates": 52372358
+              },
+              "api": {
+                "articles": {
+                  "requests": 44,
+                  "failures": 0,
+                  "p50Ms": 4.711735,
+                  "p95Ms": 6.420138,
+                  "maxMs": 7.876987
+                },
+                "stories": {
+                  "requests": 44,
+                  "failures": 0,
+                  "p50Ms": 36.797814,
+                  "p95Ms": 64.871247,
+                  "maxMs": 70.041916
+                }
+              },
+              "scheduledAt": "2026-11-24T21:52:26.077364+00:00",
+              "completionLagMs": 43759.488,
+              "releaseBudgetPassed": true
+            }
+          ],
+          "apiMeasuredWindow": {
+            "articles": {
+              "requests": 643,
+              "failures": 0,
+              "p50Ms": 5.130144,
+              "p95Ms": 6.90957,
+              "maxMs": 63.022718
+            },
+            "stories": {
+              "requests": 643,
+              "failures": 0,
+              "p50Ms": 35.616238,
+              "p95Ms": 45.644203,
+              "maxMs": 134.543634
+            }
+          },
+          "backlogAtReleases": [
+            {
+              "step": 1,
+              "releasedAt": "2026-11-24T21:42:26.077364+00:00",
+              "unfinishedEarlierIntervals": 0,
+              "pendingIncludingRelease": 1
+            },
+            {
+              "step": 2,
+              "releasedAt": "2026-11-24T21:47:26.077364+00:00",
+              "unfinishedEarlierIntervals": 0,
+              "pendingIncludingRelease": 1
+            },
+            {
+              "step": 3,
+              "releasedAt": "2026-11-24T21:52:26.077364+00:00",
+              "unfinishedEarlierIntervals": 0,
+              "pendingIncludingRelease": 1
+            }
+          ],
+          "warnings": []
+        }
+      }
+    },
+    "warnings": []
+  },
+  "retry": {
+    "before": {
+      "state": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0
+      },
+      "summary": [
+        [
+          "1",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "publishCommitsBefore": 84,
+      "publishCommitsAfter": 84,
+      "exportsUnchanged": true,
+      "snapshotInputHashUnchanged": true,
+      "snapshotMembersUnchanged": true,
+      "duplicateMemberships": 0,
+      "passed": true
+    },
+    "after": {
+      "state": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0
+      },
+      "summary": [
+        [
+          "1",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "publishCommitsBefore": 84,
+      "publishCommitsAfter": 84,
+      "exportsUnchanged": true,
+      "snapshotInputHashUnchanged": true,
+      "snapshotMembersUnchanged": true,
+      "duplicateMemberships": 0,
+      "passed": true
+    }
+  },
+  "variants": {
+    "before": {
+      "runner": {
+        "variant": "before",
+        "database": "gem122_before",
+        "startedAt": "2026-11-24T21:25:08.614651+00:00",
+        "success": true,
+        "environment": "Windows-local-Docker",
+        "dockerEndpoint": "npipe:////./pipe/dockerDesktopLinuxEngine",
+        "image": "sha256:6b730c459e848365a3d23545c14a0f4df7f5d361119f791e1c308da7595bed6c",
+        "jarSha256": "b0d8e30449a6ddde387aff338075f8cf648d8dedf37bfe1b3406576b36a169f5",
+        "basisSnapshot": 79,
+        "postgresLimits": {
+          "NanoCpus": 1000000000,
+          "Memory": 2147483648,
+          "MemorySwap": 2147483648,
+          "PidsLimit": null
+        },
+        "apiEndpoint": "http://gem122-local-before:8080",
+        "hostPortsPublished": false,
+        "probeClassSha256": "d156ee24453ddeb9b6ec3613a507765ba6e19311a923c290ce2ecb94c827a1bb",
+        "engineLimits": {
+          "NanoCpus": 1000000000,
+          "Memory": 2147483648,
+          "MemorySwap": 2147483648,
+          "PidsLimit": 256
+        },
+        "probeLimits": {
+          "NanoCpus": 250000000,
+          "Memory": 134217728,
+          "MemorySwap": 134217728,
+          "PidsLimit": 128
+        },
+        "forcedProbeStop": false,
+        "finalProbeState": {
+          "Running": false,
+          "OOMKilled": false,
+          "ExitCode": 0
+        },
+        "forcedEngineStop": false,
+        "finalEngineState": {
+          "Running": false,
+          "OOMKilled": false,
+          "ExitCode": 0
+        },
+        "completedAt": "2026-11-24T21:41:33.026163+00:00"
+      },
+      "preflight": {
+        "basisSnapshot": 79,
+        "basisSnapshotExists": true,
+        "basisMembers": 50175,
+        "omittedCurrentMembers": 0,
+        "historicalBasisFallbackRefs": 22,
+        "environment": {
+          "postgresVersion": "PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+          "postgresSettings": {
+            "checkpoint_timeout": "300",
+            "client_encoding": "UTF8",
+            "DateStyle": "ISO, MDY",
+            "default_statistics_target": "100",
+            "default_transaction_isolation": "read committed",
+            "effective_cache_size": "524288",
+            "effective_io_concurrency": "1",
+            "fsync": "on",
+            "full_page_writes": "on",
+            "jit": "on",
+            "maintenance_work_mem": "65536",
+            "max_connections": "100",
+            "max_parallel_workers": "8",
+            "max_parallel_workers_per_gather": "2",
+            "max_worker_processes": "8",
+            "random_page_cost": "4",
+            "seq_page_cost": "1",
+            "server_encoding": "UTF8",
+            "server_version_num": "170011",
+            "shared_buffers": "16384",
+            "synchronous_commit": "on",
+            "TimeZone": "Etc/UTC",
+            "track_io_timing": "off",
+            "work_mem": "4096"
+          },
+          "clusteringVersion": {
+            "version_key": "story-mvp-title-embedding-24h-v1.1.0",
+            "embedding_dimension": 1536,
+            "candidate_window_hours": 24,
+            "candidate_similarity_threshold": 0.7,
+            "candidate_search_mode": "exact-cosine-radius-v1",
+            "component_rule_version": "medoid-radius-agglomerative-v1",
+            "pair_decision_rule_version": "cosine-070-time24-v1",
+            "title_normalization_version": "art031-title-nfkc-ws-v1",
+            "generic_title_rule_version": "art031-generic-title-v1",
+            "input_eligibility_rule_version": "navigation-service-exact-path-title-v1",
+            "embedding_model_id": "text-embedding-3-small",
+            "embedding_model_version": "openai:text-embedding-3-small@2026-07-20",
+            "candidate_time_rule_version": "published-at-else-first-seen-v1",
+            "feature_normalization_versions": "none-v1"
+          }
+        }
+      },
+      "releases": [
+        {
+          "step": 1,
+          "releasedAt": "2026-11-24T21:28:32.354342+00:00",
+          "latenessMs": 0.0
+        },
+        {
+          "step": 2,
+          "releasedAt": "2026-11-24T21:33:32.350474+00:00",
+          "latenessMs": 0.0
+        },
+        {
+          "step": 3,
+          "releasedAt": "2026-11-24T21:38:32.345744+00:00",
+          "latenessMs": 0.0
+        }
+      ],
+      "steps": {
+        "0": {
+          "result": {
+            "step": 0,
+            "watermark": "2026-11-24T07:55:00.000001Z",
+            "startedAt": "2026-11-24T21:25:28.373648256Z",
+            "completedAt": "2026-11-24T21:28:25.189717140Z",
+            "elapsedMs": 176822,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0
+          },
+          "database": {
+            "database": "gem122_before",
+            "latestRun": {
+              "id": 81,
+              "run_mode": "INCREMENTAL",
+              "status": "SUCCEEDED",
+              "read_article_count": 51587,
+              "changed_article_count": 0,
+              "skipped_article_count": 0,
+              "failed_article_count": 0,
+              "candidate_count": 0,
+              "started_at": "2026-11-24T21:25:28.375889+00:00",
+              "completed_at": "2026-11-24T21:28:25.182263+00:00"
+            },
+            "latestPublishedWatermark": "2026-11-24T07:55:00.000001+00:00",
+            "totals": {
+              "articles": 71228,
+              "currentInputs": 51589,
+              "readyInputs": 51438,
+              "stories": 24068,
+              "memberships": 51438,
+              "duplicateMemberships": 0,
+              "databaseBytes": 2011666099
+            },
+            "exports": {
+              "memberships": {
+                "sha256": "27d7b77277de40e4d782a00af427ad080401f219eb957f7568aa24cdf3cac6c1",
+                "bytes": 8693022
+              },
+              "stories": {
+                "sha256": "bb9aae7d28ec84f99feedf20dc786f57cee0cadc312da6841c413cbf8bb20280",
+                "bytes": 6379137
+              },
+              "locations": {
+                "sha256": "4037ae3717436f5d478bbd28519826c48cbb66977a2adb579db61858a29bd3a7",
+                "bytes": 1566143
+              }
+            },
+            "snapshotMatchesStep": true,
+            "snapshotInputHash": "fc06ed17ca3d5fccab6dad177b4f18998c0c94a8a95593e78c830a315476af61",
+            "snapshotMembers": {
+              "snapshotId": 81,
+              "watermark": "2026-11-24T07:55:00.000001+00:00",
+              "count": 51587,
+              "compacted": false,
+              "sha256": "c90fea32146006e07e5b06b82ed5cdfb146a141b516c19a13d62cf5e903d2efc",
+              "bytes": 14076054
+            }
+          }
+        },
+        "1": {
+          "result": {
+            "step": 1,
+            "watermark": "2026-11-24T08:00:00Z",
+            "startedAt": "2026-11-24T21:28:32.832524712Z",
+            "completedAt": "2026-11-24T21:32:01.026228329Z",
+            "elapsedMs": 208201,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0
+          },
+          "database": {
+            "database": "gem122_before",
+            "latestRun": {
+              "id": 82,
+              "run_mode": "INCREMENTAL",
+              "status": "SUCCEEDED",
+              "read_article_count": 52587,
+              "changed_article_count": 988,
+              "skipped_article_count": 0,
+              "failed_article_count": 0,
+              "candidate_count": 50289652,
+              "started_at": "2026-11-24T21:28:32.833148+00:00",
+              "completed_at": "2026-11-24T21:32:01.020513+00:00"
+            },
+            "latestPublishedWatermark": "2026-11-24T08:00:00+00:00",
+            "totals": {
+              "articles": 71228,
+              "currentInputs": 52589,
+              "readyInputs": 52426,
+              "stories": 24572,
+              "memberships": 52426,
+              "duplicateMemberships": 0,
+              "databaseBytes": 2044901043
+            },
+            "exports": {
+              "memberships": {
+                "sha256": "927c37be2ed4c8c1d864af6fac6d0239a68614e6fea3dd74521aff8e1f7c2a2e",
+                "bytes": 8859994
+              },
+              "stories": {
+                "sha256": "ccb4a8252fc1b1fef7a0dd0553d91d0fb03553dde225f3569786732a1c812347",
+                "bytes": 6512722
+              },
+              "locations": {
+                "sha256": "bec80cd9aa8155408692f58a86554e786c37f8dcad768d9aa544f2b483b4b084",
+                "bytes": 1610206
+              }
+            },
+            "snapshotMatchesStep": true,
+            "snapshotInputHash": "81ca12b53f61c00950c9d3327ad5773a1ec38a7b298fb83fb4e5e3becf535bc8",
+            "snapshotMembers": {
+              "snapshotId": 82,
+              "watermark": "2026-11-24T08:00:00+00:00",
+              "count": 52587,
+              "compacted": false,
+              "sha256": "9dea3c9154af13b6d5a75770daca5508fba820c440d4e344b42747c89c606490",
+              "bytes": 14346893
+            }
+          }
+        },
+        "2": {
+          "result": {
+            "step": 2,
+            "watermark": "2026-11-24T08:05:00Z",
+            "startedAt": "2026-11-24T21:33:32.753481479Z",
+            "completedAt": "2026-11-24T21:36:40.866748845Z",
+            "elapsedMs": 188120,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0
+          },
+          "database": {
+            "database": "gem122_before",
+            "latestRun": {
+              "id": 83,
+              "run_mode": "INCREMENTAL",
+              "status": "SUCCEEDED",
+              "read_article_count": 53587,
+              "changed_article_count": 996,
+              "skipped_article_count": 0,
+              "failed_article_count": 0,
+              "candidate_count": 51361123,
+              "started_at": "2026-11-24T21:33:32.75418+00:00",
+              "completed_at": "2026-11-24T21:36:40.8612+00:00"
+            },
+            "latestPublishedWatermark": "2026-11-24T08:05:00+00:00",
+            "totals": {
+              "articles": 71228,
+              "currentInputs": 53589,
+              "readyInputs": 53422,
+              "stories": 25031,
+              "memberships": 53422,
+              "duplicateMemberships": 0,
+              "databaseBytes": 2080904883
+            },
+            "exports": {
+              "memberships": {
+                "sha256": "c4a7ac6b51f07587e786a8bac41c8fad6b2b67fbc2e91eb3506322f51edb2b1a",
+                "bytes": 9028318
+              },
+              "stories": {
+                "sha256": "35964cf13f1d588eb84b0193af9309e94c7405642299681927d0e8922fa01d3c",
+                "bytes": 6634380
+              },
+              "locations": {
+                "sha256": "e734cf20ed8548cafc94aff860d4048f427b784cd692aa8aec2e228c784186ac",
+                "bytes": 1636788
+              }
+            },
+            "snapshotMatchesStep": true,
+            "snapshotInputHash": "36382afa664aaae5324d881a8de01181772f76d889aed81622612732ecbcec0f",
+            "snapshotMembers": {
+              "snapshotId": 83,
+              "watermark": "2026-11-24T08:05:00+00:00",
+              "count": 53587,
+              "compacted": false,
+              "sha256": "eaaab57f31487d49dc8f3a08cfdb172e4e9f2ce4563775032a799fb3a26c151d",
+              "bytes": 14622329
+            }
+          }
+        },
+        "3": {
+          "result": {
+            "step": 3,
+            "watermark": "2026-11-24T08:10:00Z",
+            "startedAt": "2026-11-24T21:38:33.793448088Z",
+            "completedAt": "2026-11-24T21:41:21.346610508Z",
+            "elapsedMs": 167559,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0
+          },
+          "database": {
+            "database": "gem122_before",
+            "latestRun": {
+              "id": 84,
+              "run_mode": "INCREMENTAL",
+              "status": "SUCCEEDED",
+              "read_article_count": 54584,
+              "changed_article_count": 995,
+              "skipped_article_count": 0,
+              "failed_article_count": 0,
+              "candidate_count": 52372358,
+              "started_at": "2026-11-24T21:38:33.794042+00:00",
+              "completed_at": "2026-11-24T21:41:21.342446+00:00"
+            },
+            "latestPublishedWatermark": "2026-11-24T08:10:00+00:00",
+            "totals": {
+              "articles": 71228,
+              "currentInputs": 54586,
+              "readyInputs": 54417,
+              "stories": 25527,
+              "memberships": 54417,
+              "duplicateMemberships": 0,
+              "databaseBytes": 2118268595
+            },
+            "exports": {
+              "memberships": {
+                "sha256": "9be4646b588e6db44875cbcbcc7bbe228c1f432469ffd4bd04ea1845d022ace9",
+                "bytes": 9196473
+              },
+              "stories": {
+                "sha256": "c8a34deb76fc7f051f12f6560b820589132647c1298c080bd606fb8a1c35e8b0",
+                "bytes": 6765852
+              },
+              "locations": {
+                "sha256": "e10d9b6212e674d3d13afde88198bdb0698517b4fd4bc31b761dbc1b536adce1",
+                "bytes": 1662473
+              }
+            },
+            "snapshotMatchesStep": true,
+            "snapshotInputHash": "22f7eb65e8415b1296181f53b831e068bc4587286ad80d5987356bf911dcad2f",
+            "snapshotMembers": {
+              "snapshotId": 84,
+              "watermark": "2026-11-24T08:10:00+00:00",
+              "count": 54584,
+              "compacted": false,
+              "sha256": "22664a7b8b11133efa9130c184e3d6cbe335f53535a3aa5b45024895b24f220e",
+              "bytes": 14894244
+            }
+          }
+        }
+      }
+    },
+    "after": {
+      "runner": {
+        "variant": "after",
+        "database": "gem122_after",
+        "startedAt": "2026-11-24T21:41:44.678541+00:00",
+        "success": true,
+        "environment": "Windows-local-Docker",
+        "dockerEndpoint": "npipe:////./pipe/dockerDesktopLinuxEngine",
+        "image": "sha256:6b730c459e848365a3d23545c14a0f4df7f5d361119f791e1c308da7595bed6c",
+        "jarSha256": "8d5d334511f53b766096edcddfddd55f8708645715e37c055746668a337deb82",
+        "basisSnapshot": 79,
+        "postgresLimits": {
+          "NanoCpus": 1000000000,
+          "Memory": 2147483648,
+          "MemorySwap": 2147483648,
+          "PidsLimit": null
+        },
+        "apiEndpoint": "http://gem122-local-after:8080",
+        "hostPortsPublished": false,
+        "probeClassSha256": "d156ee24453ddeb9b6ec3613a507765ba6e19311a923c290ce2ecb94c827a1bb",
+        "engineLimits": {
+          "NanoCpus": 1000000000,
+          "Memory": 2147483648,
+          "MemorySwap": 2147483648,
+          "PidsLimit": 256
+        },
+        "probeLimits": {
+          "NanoCpus": 250000000,
+          "Memory": 134217728,
+          "MemorySwap": 134217728,
+          "PidsLimit": 128
+        },
+        "forcedProbeStop": false,
+        "finalProbeState": {
+          "Running": false,
+          "OOMKilled": false,
+          "ExitCode": 0
+        },
+        "forcedEngineStop": false,
+        "finalEngineState": {
+          "Running": false,
+          "OOMKilled": false,
+          "ExitCode": 0
+        },
+        "completedAt": "2026-11-24T21:53:19.692491+00:00"
+      },
+      "preflight": {
+        "basisSnapshot": 79,
+        "basisSnapshotExists": true,
+        "basisMembers": 50175,
+        "omittedCurrentMembers": 0,
+        "historicalBasisFallbackRefs": 22,
+        "environment": {
+          "postgresVersion": "PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+          "postgresSettings": {
+            "checkpoint_timeout": "300",
+            "client_encoding": "UTF8",
+            "DateStyle": "ISO, MDY",
+            "default_statistics_target": "100",
+            "default_transaction_isolation": "read committed",
+            "effective_cache_size": "524288",
+            "effective_io_concurrency": "1",
+            "fsync": "on",
+            "full_page_writes": "on",
+            "jit": "on",
+            "maintenance_work_mem": "65536",
+            "max_connections": "100",
+            "max_parallel_workers": "8",
+            "max_parallel_workers_per_gather": "2",
+            "max_worker_processes": "8",
+            "random_page_cost": "4",
+            "seq_page_cost": "1",
+            "server_encoding": "UTF8",
+            "server_version_num": "170011",
+            "shared_buffers": "16384",
+            "synchronous_commit": "on",
+            "TimeZone": "Etc/UTC",
+            "track_io_timing": "off",
+            "work_mem": "4096"
+          },
+          "clusteringVersion": {
+            "version_key": "story-mvp-title-embedding-24h-v1.1.0",
+            "embedding_dimension": 1536,
+            "candidate_window_hours": 24,
+            "candidate_similarity_threshold": 0.7,
+            "candidate_search_mode": "exact-cosine-radius-v1",
+            "component_rule_version": "medoid-radius-agglomerative-v1",
+            "pair_decision_rule_version": "cosine-070-time24-v1",
+            "title_normalization_version": "art031-title-nfkc-ws-v1",
+            "generic_title_rule_version": "art031-generic-title-v1",
+            "input_eligibility_rule_version": "navigation-service-exact-path-title-v1",
+            "embedding_model_id": "text-embedding-3-small",
+            "embedding_model_version": "openai:text-embedding-3-small@2026-07-20",
+            "candidate_time_rule_version": "published-at-else-first-seen-v1",
+            "feature_normalization_versions": "none-v1"
+          }
+        }
+      },
+      "releases": [
+        {
+          "step": 1,
+          "releasedAt": "2026-11-24T21:42:26.080042+00:00",
+          "latenessMs": 15.000000013969839
+        },
+        {
+          "step": 2,
+          "releasedAt": "2026-11-24T21:47:26.073221+00:00",
+          "latenessMs": 0.0
+        },
+        {
+          "step": 3,
+          "releasedAt": "2026-11-24T21:52:26.072608+00:00",
+          "latenessMs": 0.0
+        }
+      ],
+      "steps": {
+        "0": {
+          "result": {
+            "step": 0,
+            "watermark": "2026-11-24T07:55:00.000001Z",
+            "startedAt": "2026-11-24T21:42:03.410565144Z",
+            "completedAt": "2026-11-24T21:42:18.801486636Z",
+            "elapsedMs": 15392,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0
+          },
+          "database": {
+            "database": "gem122_after",
+            "latestRun": {
+              "id": 81,
+              "run_mode": "INCREMENTAL",
+              "status": "SUCCEEDED",
+              "read_article_count": 51587,
+              "changed_article_count": 0,
+              "skipped_article_count": 0,
+              "failed_article_count": 0,
+              "candidate_count": 0,
+              "started_at": "2026-11-24T21:42:03.412625+00:00",
+              "completed_at": "2026-11-24T21:42:18.796728+00:00"
+            },
+            "latestPublishedWatermark": "2026-11-24T07:55:00.000001+00:00",
+            "totals": {
+              "articles": 71228,
+              "currentInputs": 51589,
+              "readyInputs": 51438,
+              "stories": 24068,
+              "memberships": 51438,
+              "duplicateMemberships": 0,
+              "databaseBytes": 2011551411
+            },
+            "exports": {
+              "memberships": {
+                "sha256": "27d7b77277de40e4d782a00af427ad080401f219eb957f7568aa24cdf3cac6c1",
+                "bytes": 8693022
+              },
+              "stories": {
+                "sha256": "bb9aae7d28ec84f99feedf20dc786f57cee0cadc312da6841c413cbf8bb20280",
+                "bytes": 6379137
+              },
+              "locations": {
+                "sha256": "4037ae3717436f5d478bbd28519826c48cbb66977a2adb579db61858a29bd3a7",
+                "bytes": 1566143
+              }
+            },
+            "snapshotMatchesStep": true,
+            "snapshotInputHash": "fc06ed17ca3d5fccab6dad177b4f18998c0c94a8a95593e78c830a315476af61",
+            "snapshotMembers": {
+              "snapshotId": 81,
+              "watermark": "2026-11-24T07:55:00.000001+00:00",
+              "count": 51587,
+              "compacted": false,
+              "sha256": "c90fea32146006e07e5b06b82ed5cdfb146a141b516c19a13d62cf5e903d2efc",
+              "bytes": 14076054
+            }
+          }
+        },
+        "1": {
+          "result": {
+            "step": 1,
+            "watermark": "2026-11-24T08:00:00Z",
+            "startedAt": "2026-11-24T21:42:26.710996820Z",
+            "completedAt": "2026-11-24T21:43:14.517572352Z",
+            "elapsedMs": 47808,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0
+          },
+          "database": {
+            "database": "gem122_after",
+            "latestRun": {
+              "id": 82,
+              "run_mode": "INCREMENTAL",
+              "status": "SUCCEEDED",
+              "read_article_count": 52587,
+              "changed_article_count": 988,
+              "skipped_article_count": 0,
+              "failed_article_count": 0,
+              "candidate_count": 50289652,
+              "started_at": "2026-11-24T21:42:26.711759+00:00",
+              "completed_at": "2026-11-24T21:43:14.51334+00:00"
+            },
+            "latestPublishedWatermark": "2026-11-24T08:00:00+00:00",
+            "totals": {
+              "articles": 71228,
+              "currentInputs": 52589,
+              "readyInputs": 52426,
+              "stories": 24572,
+              "memberships": 52426,
+              "duplicateMemberships": 0,
+              "databaseBytes": 2044065459
+            },
+            "exports": {
+              "memberships": {
+                "sha256": "927c37be2ed4c8c1d864af6fac6d0239a68614e6fea3dd74521aff8e1f7c2a2e",
+                "bytes": 8859994
+              },
+              "stories": {
+                "sha256": "ccb4a8252fc1b1fef7a0dd0553d91d0fb03553dde225f3569786732a1c812347",
+                "bytes": 6512722
+              },
+              "locations": {
+                "sha256": "bec80cd9aa8155408692f58a86554e786c37f8dcad768d9aa544f2b483b4b084",
+                "bytes": 1610206
+              }
+            },
+            "snapshotMatchesStep": true,
+            "snapshotInputHash": "81ca12b53f61c00950c9d3327ad5773a1ec38a7b298fb83fb4e5e3becf535bc8",
+            "snapshotMembers": {
+              "snapshotId": 82,
+              "watermark": "2026-11-24T08:00:00+00:00",
+              "count": 52587,
+              "compacted": false,
+              "sha256": "9dea3c9154af13b6d5a75770daca5508fba820c440d4e344b42747c89c606490",
+              "bytes": 14346893
+            }
+          }
+        },
+        "2": {
+          "result": {
+            "step": 2,
+            "watermark": "2026-11-24T08:05:00Z",
+            "startedAt": "2026-11-24T21:47:26.504911362Z",
+            "completedAt": "2026-11-24T21:48:12.363062045Z",
+            "elapsedMs": 45860,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0
+          },
+          "database": {
+            "database": "gem122_after",
+            "latestRun": {
+              "id": 83,
+              "run_mode": "INCREMENTAL",
+              "status": "SUCCEEDED",
+              "read_article_count": 53587,
+              "changed_article_count": 996,
+              "skipped_article_count": 0,
+              "failed_article_count": 0,
+              "candidate_count": 51361123,
+              "started_at": "2026-11-24T21:47:26.50543+00:00",
+              "completed_at": "2026-11-24T21:48:12.354626+00:00"
+            },
+            "latestPublishedWatermark": "2026-11-24T08:05:00+00:00",
+            "totals": {
+              "articles": 71228,
+              "currentInputs": 53589,
+              "readyInputs": 53422,
+              "stories": 25031,
+              "memberships": 53422,
+              "duplicateMemberships": 0,
+              "databaseBytes": 2079307443
+            },
+            "exports": {
+              "memberships": {
+                "sha256": "c4a7ac6b51f07587e786a8bac41c8fad6b2b67fbc2e91eb3506322f51edb2b1a",
+                "bytes": 9028318
+              },
+              "stories": {
+                "sha256": "35964cf13f1d588eb84b0193af9309e94c7405642299681927d0e8922fa01d3c",
+                "bytes": 6634380
+              },
+              "locations": {
+                "sha256": "e734cf20ed8548cafc94aff860d4048f427b784cd692aa8aec2e228c784186ac",
+                "bytes": 1636788
+              }
+            },
+            "snapshotMatchesStep": true,
+            "snapshotInputHash": "36382afa664aaae5324d881a8de01181772f76d889aed81622612732ecbcec0f",
+            "snapshotMembers": {
+              "snapshotId": 83,
+              "watermark": "2026-11-24T08:05:00+00:00",
+              "count": 53587,
+              "compacted": false,
+              "sha256": "eaaab57f31487d49dc8f3a08cfdb172e4e9f2ce4563775032a799fb3a26c151d",
+              "bytes": 14622329
+            }
+          }
+        },
+        "3": {
+          "result": {
+            "step": 3,
+            "watermark": "2026-11-24T08:10:00Z",
+            "startedAt": "2026-11-24T21:52:26.481002732Z",
+            "completedAt": "2026-11-24T21:53:09.836852518Z",
+            "elapsedMs": 43357,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0
+          },
+          "database": {
+            "database": "gem122_after",
+            "latestRun": {
+              "id": 84,
+              "run_mode": "INCREMENTAL",
+              "status": "SUCCEEDED",
+              "read_article_count": 54584,
+              "changed_article_count": 995,
+              "skipped_article_count": 0,
+              "failed_article_count": 0,
+              "candidate_count": 52372358,
+              "started_at": "2026-11-24T21:52:26.481635+00:00",
+              "completed_at": "2026-11-24T21:53:09.833895+00:00"
+            },
+            "latestPublishedWatermark": "2026-11-24T08:10:00+00:00",
+            "totals": {
+              "articles": 71228,
+              "currentInputs": 54586,
+              "readyInputs": 54417,
+              "stories": 25527,
+              "memberships": 54417,
+              "duplicateMemberships": 0,
+              "databaseBytes": 2116630195
+            },
+            "exports": {
+              "memberships": {
+                "sha256": "9be4646b588e6db44875cbcbcc7bbe228c1f432469ffd4bd04ea1845d022ace9",
+                "bytes": 9196473
+              },
+              "stories": {
+                "sha256": "c8a34deb76fc7f051f12f6560b820589132647c1298c080bd606fb8a1c35e8b0",
+                "bytes": 6765852
+              },
+              "locations": {
+                "sha256": "e10d9b6212e674d3d13afde88198bdb0698517b4fd4bc31b761dbc1b536adce1",
+                "bytes": 1662473
+              }
+            },
+            "snapshotMatchesStep": true,
+            "snapshotInputHash": "22f7eb65e8415b1296181f53b831e068bc4587286ad80d5987356bf911dcad2f",
+            "snapshotMembers": {
+              "snapshotId": 84,
+              "watermark": "2026-11-24T08:10:00+00:00",
+              "count": 54584,
+              "compacted": false,
+              "sha256": "22664a7b8b11133efa9130c184e3d6cbe335f53535a3aa5b45024895b24f220e",
+              "bytes": 14894244
+            }
+          }
+        }
+      }
+    }
+  },
+  "evidenceSha256": {
+    "scripts\\gem122-benchmark\\run_local.py": "9285c55e55029680bf849f43c13728f19a819b21bf4f28ed22b3e09b827234aa",
+    "scripts\\gem122-benchmark\\run_variant.py": "7a8f2a9c29cc720fdea5c2dea3b6e3865f1cb57d18f819e623fd6330240db0e8",
+    "scripts\\gem122-benchmark\\summarize.py": "e81a3cd1eb2b9cc5d2cd457dbc9737fe864d66580ae18d1771fcddce9e4936ce",
+    "scripts\\gem122-benchmark\\verify_local.py": "3bc8f7316dba9472f2c272a66a6bd29495f2c0b9e6c391edfda2e7c77b152c8a",
+    "scripts\\gem122-benchmark\\ApiProbe.java": "df8a798cb30ebdcab12a0b2ba375e5069b1aabb98829b6d92a1743ceb7e00c53",
+    "engine\\target\\gem122-local-benchmark\\probe-classes\\ApiProbe.class": "d156ee24453ddeb9b6ec3613a507765ba6e19311a923c290ce2ecb94c827a1bb",
+    "engine\\target\\gem122-local-benchmark\\local-source-manifest.json": "da4b40d563b6770de1acc6961fd104673346feefe0cc847803ca8f3dc31fb746",
+    "engine\\target\\gem122-local-benchmark\\local-startup-order-overlay.patch": "4d75d7c1c60484aeebd90fa12b36f81d375d47b8aa573884f735f4ba35746473",
+    "engine\\target\\gem122-local-benchmark\\retry_local.py": "4b85471b66dbda09358d27a20490b044e111a5f42a53e74376e43eec570bf025"
+  },
+  "controlEqual": true,
+  "cleanup": {
+    "verifiedAt": "2026-11-24T21:57:30.589068+00:00",
+    "containers": {
+      "gem122-local-postgres": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-24T21:55:11.764603665Z"
+      },
+      "gem122-local-before": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-24T21:41:32.762394141Z"
+      },
+      "gem122-local-after": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-24T21:53:19.436269052Z"
+      },
+      "gem122-local-probe-before": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-24T21:41:31.976425862Z"
+      },
+      "gem122-local-probe-after": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-24T21:53:18.65316061Z"
+      },
+      "gem122-local-retry-before": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-24T21:53:41.615405558Z"
+      },
+      "gem122-local-retry-after": {
+        "Running": false,
+        "OOMKilled": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-24T21:54:09.134922845Z"
+      }
+    },
+    "privateBackupAndVolumeRetained": true
+  },
+  "integration": {
+    "date": "2026-11-24",
+    "branch": "codex/gem-122",
+    "baseCommit": "6beefb3fb8506d6c36eeb6472a29d915224019f9",
+    "changesCommitted": false,
+    "deployed": false,
+    "verification": "Maven verify with fresh disposable local PostgreSQL17.11 on localhost55433; BUILD SUCCESS",
+    "tests": {
+      "unit": {
+        "totals": {
+          "tests": 161,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 2
+        },
+        "suites": {
+          "com.example.globalnewsenginev1.articles.api.ArticleControllerTests": {
+            "tests": 8,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.articles.ArticleDatabaseViewsTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.articles.extraction.ArticleExtractorServiceTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.articles.GkgThemeMigrationTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.articles.health.ArticleExtractionHealthServiceTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.articles.normalization.ArticleUrlNormalizerTests": {
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.articles.normalization.GkgValueNormalizerTests": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.articles.query.ArticleQueryServiceTests": {
+            "tests": 8,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.discovery.GdeltMasterfileDiscoveryTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.raw.GdeltPollingImporterTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.raw.GdeltRawImporterTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.retention.GdeltPayloadRetentionJobTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.staging.GdeltRawToStagingTransformerTests": {
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.staging.parser.GdeltParserTests": {
+            "tests": 9,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.GlobalNewsEngineV1ApplicationTests": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.statistics.StatisticsControllerTests": {
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.statistics.StatisticsServiceTests": {
+            "tests": 4,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.api.ExploreControllerTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.api.StoryControllerTests": {
+            "tests": 6,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.embedding.OpenAiEmbeddingClientTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.embedding.StoryEmbeddingJobTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.embedding.StoryInputEligibilityRuleTests": {
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.embedding.StoryTitleNormalizerTests": {
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.EmbeddingUsageMetricsTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.query.StoryQueryServiceTests": {
+            "tests": 16,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.ExactCosineTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryClusteringQualityTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryHnswBenchmarkCommandTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryHnswShadowServiceTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryLocationMaterializerTests": {
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryPairSearchTests": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryPartitionCorpusTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 1
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryPartitionMemoryTests": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 1
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryPartitionServiceTests": {
+            "tests": 18,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryRegressionEvaluationTests": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryReleaseCommandTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryReleaseEvaluationTests": {
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryReleaseWorkflowTests": {
+            "tests": 9,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StorySnapshotCanonicalizerTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StorySubjectCoherenceTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "db.migration.ArticleLinksDomainModelMigrationTests": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "db.migration.GdeltEventLocationMigrationTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "db.migration.GdeltEventPayloadMigrationTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "db.migration.GdeltGkgPayloadMigrationTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "db.migration.GdeltMentionPayloadMigrationTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "db.migration.GdeltProcessingErrorMigrationTests": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        }
+      },
+      "integration": {
+        "totals": {
+          "tests": 70,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "suites": {
+          "com.example.globalnewsenginev1.gdelt.raw.GdeltPipelinePostgresIT": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.raw.GdeltRawImporterPostgresIT": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.retention.GdeltPayloadRetentionPostgresIT": {
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.gdelt.staging.GdeltProcessingErrorPostgresIT": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.api.StoryApiPerformanceBudgetIT": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.embedding.StoryEmbeddingServicePostgresIT": {
+            "tests": 7,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.query.StoryQueryServicePostgresIT": {
+            "tests": 4,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StoryPromotionPostgresIT": {
+            "tests": 10,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "com.example.globalnewsenginev1.stories.snapshot.StorySnapshotServicePostgresIT": {
+            "tests": 31,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "db.migration.ArticleLinksDomainModelMigrationPostgresIT": {
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "db.migration.StoryDomainModelMigrationPostgresIT": {
+            "tests": 6,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        }
+      }
+    },
+    "skipped": [
+      {
+        "class": "com.example.globalnewsenginev1.stories.snapshot.StoryPartitionCorpusTests",
+        "test": "evaluatesActualPartitionSeparatelyForEachFrozenCorpusSplit",
+        "reason": "System property [art037.inputs] does not exist"
+      },
+      {
+        "class": "com.example.globalnewsenginev1.stories.snapshot.StoryPartitionMemoryTests",
+        "test": "processesThreeProductionSizedDenseBacklogs",
+        "reason": "System property [stories.load-test] does not exist"
+      }
+    ],
+    "jarSha256": "a3d02689127022bf63d1a3b07edee38b508a5ca2fdb3e433a62b3f1030e728cd",
+    "smoke": {
+      "first": {
+        "selected": 1,
+        "succeeded": 1,
+        "reused": 0,
+        "failed": 0
+      },
+      "retry": {
+        "selected": 1,
+        "succeeded": 0,
+        "reused": 1,
+        "failed": 0
+      }
+    },
+    "independentReview": "Passed; tested core matches, GEM-121 and user EventEvidence preserved",
+    "sourceSha256": {
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StoryPartitionService.java": "c03b2dc27526709722c44ba276e892968cdc66329d87e469ce103a41163d718e",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StoryPublisher.java": "c0d767bdbd08b97a006dcf689f05b630590535cedbf6ab3b7ad6b7e8d95d4746",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StoryLocationMaterializer.java": "39502ec939c2521ff8bb5201d1de91c22c91b5273478c0d773c7b51fcb85e07a",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StorySnapshotService.java": "7c258ac00bd7061885b33eceb3440c90e693f80106fdadf9d0d300c0d82763ea",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StorySnapshotRepository.java": "3d144e5cd1fadd7bf215bb24baffa61a3912c07d1d6a33e0d3adc58d9692ce29",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StorySnapshotMetrics.java": "b07a500e7005545d697964fd9f190a0583d382cd06fc4c9b6d2473323953b24e",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StoryLocationBackfill.java": "e71ee32ad6397681d1cda67483aacf2ef6076d79b08e4b54374210cffac950bd",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StorySnapshotBenchmarkCommand.java": "d5b0028501d6637bcb7e1cb3cf47fe5c48d956d06779c2f5e350961419059cf9",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StoryEventEvidence.java": "d9f89b277b917fefdda671bb452bef77632f8370c64f3cc90f980358bd3349f0",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/ExactCosine.java": "cef0b1e4b80c37e6f04bfe0a0f130ef89ad7f58572e1e4f604666b63af29eb49",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StoryIncrementalPairSearch.java": "16d6836a7a76d00e3e1c4893a6c72c8d70cf5d1f22d16b599024b1b7b1708c40",
+      "engine/src/main/java/com/example/globalnewsenginev1/stories/snapshot/StorySnapshotRetention.java": "58c83d6ded065abf6a92783ae1b700a305bcf224f54919a67d71526d9d3c3ba0",
+      "engine/src/main/resources/db/migration/V38__add_event_evidence_story_clustering_shadow.sql": "a0a6e68f708954154247fa23ece47f72549890953b1dc025995d7e820d8f4872",
+      "engine/src/main/resources/db/migration/V39__track_story_projection_changes.sql": "d6bfaff602a75f257a8ffc48b766d4c21c0a71fc88a91526d1f3d8c30fd947ec"
+    },
+    "verificationLogSha256": "c663e7b61021c0f120738550da4f7d2b90e03c1a7c6121e755fc2976ebc0e795",
+    "temporaryPostgresRemoved": true
+  },
+  "mainCandidate": {
+    "baseCommit": "6beefb3fb8506d6c36eeb6472a29d915224019f9",
+    "scope": "Focused GEM-122; unrelated EventEvidence/V38 changes excluded",
+    "tests": {
+      "unit": {
+        "tests": 153,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2
+      },
+      "integration": {
+        "tests": 70,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "verification": "Offline Maven clean verify against fresh disposable PostgreSQL17.11; Windows Mockito startup agent supplied to avoid named-pipe attach restriction",
+    "jarSha256": "d79982c641a0d3b1eaafae081f41224cb6dd9dd13934b2248af73b41888425a9",
+    "verificationLogSha256": "5ca93b47ad38f1bb0603970ca82c412e4606c9f77a74ccb0e5e5347c6176713c",
+    "independentReview": "Passed, no findings"
+  }
+}

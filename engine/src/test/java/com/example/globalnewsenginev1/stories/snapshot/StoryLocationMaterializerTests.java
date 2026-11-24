@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.UUID;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,6 +53,38 @@ class StoryLocationMaterializerTests {
         materializer.refresh(1);
 
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_locations", Integer.class)).isZero();
+    }
+
+    @Test
+    void scopedRefreshPreservesOtherStoriesAndClearsSupersededLocations() {
+        UUID otherStory = UUID.fromString("10000000-0000-0000-0000-000000000002");
+        UUID otherVersionStory = UUID.fromString("10000000-0000-0000-0000-000000000003");
+        jdbc.update("INSERT INTO stories VALUES (?, 1, 'ACTIVE'), (?, 1, 'ACTIVE'), (?, 2, 'ACTIVE')",
+                storyId, otherStory, otherVersionStory);
+        jdbc.update("INSERT INTO articles VALUES (1, 'one.example'), (2, 'two.example'), (3, 'three.example')");
+        jdbc.update("INSERT INTO story_memberships VALUES (?, 1, 1, 1), (?, 1, 2, 1), (?, 2, 3, 1)",
+                storyId, otherStory, otherVersionStory);
+        seedEvent(1, 1, "Berlin", "GM", "GM16", 52.52, 13.405, 90);
+        seedEvent(2, 2, "London", "UK", "UKI", 51.5, -0.12, 80);
+        seedEvent(3, 3, "Paris", "FR", "FR11", 48.86, 2.35, 70);
+        materializer.refresh(1);
+        materializer.refresh(2);
+        jdbc.update("UPDATE gdelt_mentions SET confidence = 100 WHERE global_event_id = 1");
+
+        materializer.refresh(1, Set.of(storyId, otherVersionStory));
+
+        assertThat(jdbc.queryForObject("SELECT confidence FROM story_locations WHERE story_id = ?",
+                Integer.class, storyId)).isEqualTo(100);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_locations", Integer.class)).isEqualTo(3);
+        jdbc.update("UPDATE stories SET state = 'SUPERSEDED' WHERE id = ?", storyId);
+        materializer.refresh(1, Set.of(storyId));
+        assertThat(jdbc.queryForList("SELECT name FROM story_locations ORDER BY name", String.class))
+                .containsExactly("London", "Paris");
+
+        jdbc.update("DELETE FROM gdelt_events");
+        materializer.refresh(1, Set.of());
+        assertThat(jdbc.queryForList("SELECT name FROM story_locations ORDER BY name", String.class))
+                .containsExactly("London", "Paris");
     }
 
     private void seedEvent(long eventId, long articleId, String name, String country, String region,

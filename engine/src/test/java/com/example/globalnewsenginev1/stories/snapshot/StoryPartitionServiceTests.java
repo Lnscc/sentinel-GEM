@@ -112,7 +112,7 @@ class StoryPartitionServiceTests {
                         new StorySnapshotRepository.ExistingAssignment("a", storyId, "a"),
                         new StorySnapshotRepository.ExistingAssignment("b", storyId, "a")));
 
-        assertThat(groups(result)).containsExactlyInAnyOrder(List.of("a", "b"), List.of("c"));
+        assertThat(groups(result)).containsExactly(List.of("c"));
     }
 
     @Test
@@ -131,7 +131,45 @@ class StoryPartitionServiceTests {
                         new StorySnapshotRepository.ExistingAssignment("b", firstStory, "a"),
                         new StorySnapshotRepository.ExistingAssignment("d", secondStory, "d")));
 
-        assertThat(groups(result)).containsExactlyInAnyOrder(List.of("a", "b"), List.of("d", "c"));
+        assertThat(groups(result)).containsExactly(List.of("d", "c"));
+    }
+
+    @Test
+    void incrementalNoOpOmitsAllExistingGroups() {
+        var inputs = List.of(titledAngle("a", 0, "Alpha event"),
+                titledAngle("b", 20, "Alpha event"), titledAngle("c", 90, "Other event"));
+        UUID firstStory = UUID.randomUUID();
+        UUID secondStory = UUID.randomUUID();
+
+        var result = StoryPartitionService.incrementalPartition(coherentRules(),
+                inputs, incrementalSearch(inputs), Set.of(), List.of(
+                        new StorySnapshotRepository.ExistingAssignment("a", firstStory, "a"),
+                        new StorySnapshotRepository.ExistingAssignment("b", firstStory, "a"),
+                        new StorySnapshotRepository.ExistingAssignment("c", secondStory, "c")));
+
+        assertThat(result.components()).isEmpty();
+        assertThat(result.decisions()).isEmpty();
+    }
+
+    @Test
+    void incrementalMoveRebuildsTheSourceAndSelectedTargetButOmitsUnrelatedGroups() {
+        var inputs = List.of(titledAngle("a", 90, "Changed event"),
+                titledAngle("b", 0, "Original event"), titledAngle("c", 90, "Changed event"),
+                titledAngle("d", 180, "Unrelated event"));
+        UUID sourceStory = UUID.randomUUID();
+        UUID targetStory = UUID.randomUUID();
+        UUID unrelatedStory = UUID.randomUUID();
+
+        var result = StoryPartitionService.incrementalPartition(coherentRules(),
+                inputs, incrementalSearch(inputs), Set.of("a"), List.of(
+                        new StorySnapshotRepository.ExistingAssignment("a", sourceStory, "a"),
+                        new StorySnapshotRepository.ExistingAssignment("b", sourceStory, "a"),
+                        new StorySnapshotRepository.ExistingAssignment("c", targetStory, "c"),
+                        new StorySnapshotRepository.ExistingAssignment("d", unrelatedStory, "d")));
+
+        assertThat(groups(result)).containsExactlyInAnyOrder(List.of("a", "c"), List.of("b"));
+        assertThat(result.components()).extracting(StoryPartitionService.Component::medoidArticleRef)
+                .containsExactlyInAnyOrder("b", "c");
     }
 
     private StoryIncrementalPairSearch incrementalSearch(
