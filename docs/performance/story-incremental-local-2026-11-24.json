@@ -1669,7 +1669,7 @@
     },
     "verification": "Offline Maven clean verify against fresh disposable PostgreSQL17.11; Windows Mockito startup agent supplied to avoid named-pipe attach restriction",
     "jarSha256": "d79982c641a0d3b1eaafae081f41224cb6dd9dd13934b2248af73b41888425a9",
-    "verificationLogSha256": "0cd1964d97ff9bb734d73d9e1bd69c4f0872ac3b12e2d06c94145e542d4b52ad",
+    "verificationLogSha256": "5ca93b47ad38f1bb0603970ca82c412e4606c9f77a74ccb0e5e5347c6176713c",
     "independentReview": "Passed, no findings"
   }
 }
