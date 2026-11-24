@@ -725,11 +725,18 @@ unveraenderlichen Snapshot rekonstruierbar referenziert. Fuer Artikel ohne Kandi
 beste exakte Score unterhalb der Grenze als Diagnose gespeichert. Eine Erklaerung nennt damit die
 ausgeloeste Schwellenregel und den knappsten abgelehnten Vergleich.
 
+Ein inkrementeller Lauf vergleicht weiterhin alle Kandidaten im Zeitfenster für geänderte
+Artikel. Er speichert je geändertem Artikel den besten positiven Kandidaten und bei Bedarf
+den abweichenden Kandidaten, den die Zuordnung gewählt hat. Gibt es keinen positiven
+Kandidaten, speichert er den besten Vergleich unter der Schwelle. Der Rang bezieht sich auf
+die gespeicherten Paare des Laufs. Vollständige Kandidaten lassen sich aus einem vollständigen Snapshot erneut
+berechnen. Backfill und Freigabebewertung behalten ihre vollständige Paar-Evidenz.
+
 Inputs, Embeddings, Snapshots und Scores bleiben erhalten, solange sie fuer aktuelle
-Ergebnisse oder offene Laeufe und Retries erforderlich sind. Eine dauerhafte Rekonstruktion
-aller abgeloesten Zuordnungen ist nicht erforderlich. ART-042 prueft technische Abhaengigkeiten;
-Aufbewahrungsfristen und Bereinigung werden erst fuer einen konkreten Vorschlag in ART-043
-festgelegt. Dieser Vertrag erlaubt keine unmittelbare Loeschung vorhandener Daten.
+Ergebnisse, Freigaben oder offene Laeufe und Retries erforderlich sind. Eine dauerhafte
+Rekonstruktion aller abgeloesten Kandidaten ist nicht erforderlich. Die optionale
+[Snapshot-Aufbewahrung](operations.md#aufbewahrung-der-story-snapshot-daten) verdichtet
+aeltere inkrementelle Snapshots und behaelt referenzierte Diagnose-Evidenz.
 
 ## Ende-zu-Ende-Szenarien
 

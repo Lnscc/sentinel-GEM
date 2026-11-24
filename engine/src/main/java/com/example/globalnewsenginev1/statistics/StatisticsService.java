@@ -169,12 +169,14 @@ public class StatisticsService {
                 "Aktueller Status PROCESSING; kein historischer Status zum Zeitraumende.", now, null);
         String missing = version == null ? "Die konfigurierte sichtbare Clustering-Version ist nicht vorhanden." : null;
         Double processed = version == null ? null : number("""
-                SELECT COUNT(DISTINCT member.article_ref) FROM story_processing_runs run
-                JOIN story_snapshot_members member ON member.snapshot_id = run.snapshot_id
-                    AND member.clustering_version_id = run.clustering_version_id
-                WHERE run.clustering_version_id = ? AND run.status = 'SUCCEEDED'
-                    AND run.completed_at >= ? AND run.completed_at < ?
-                """, version, from, to);
+                SELECT COUNT(DISTINCT member.article_id) FROM story_snapshot_statistics_members member
+                WHERE member.clustering_version_id = ?
+                  AND member.snapshot_id = ANY(CAST((
+                    SELECT ARRAY_AGG(run.snapshot_id) FROM story_processing_runs run
+                    WHERE run.clustering_version_id = ? AND run.status = 'SUCCEEDED'
+                      AND run.completed_at >= ? AND run.completed_at < ?
+                  ) AS BIGINT ARRAY))
+                """, version, version, from, to);
         period(metrics, "processedArticles", "processing", "In Story-Läufen gelesene Artikel", processed, "Artikel",
                 "Unterschiedliche Snapshot-Artikel erfolgreicher Story-Läufe der sichtbaren Version nach completed_at; kann früher eingelesene Artikel enthalten.", period, missing);
         period(metrics, "processingThroughput", "processing", "Story-Verarbeitungsdurchsatz",
