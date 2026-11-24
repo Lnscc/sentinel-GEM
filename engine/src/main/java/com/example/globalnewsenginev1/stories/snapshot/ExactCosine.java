@@ -60,14 +60,49 @@ final class ExactCosine {
             leftSquaredNorm += leftValue * leftValue;
             rightSquaredNorm += rightValue * rightValue;
         }
-        double denominator = Math.sqrt(leftSquaredNorm) * Math.sqrt(rightSquaredNorm);
+        double cosine = cosine(dot, Math.sqrt(leftSquaredNorm) * Math.sqrt(rightSquaredNorm));
+        return new Score(cosine, quantize(cosine));
+    }
+
+    static double norm(float[] vector) {
+        double squaredNorm = 0;
+        for (double value : vector) squaredNorm += value * value;
+        return Math.sqrt(squaredNorm);
+    }
+
+    static double cosine(float[] left, float[] right, double leftNorm, double rightNorm) {
+        if (left.length != right.length) {
+            throw new InvalidVectorException("DIMENSION_MISMATCH", "Vector dimensions differ");
+        }
+        double dot = 0;
+        for (int index = 0; index < left.length; index++) {
+            dot += (double) left[index] * right[index];
+        }
+        return cosine(dot, leftNorm * rightNorm);
+    }
+
+    private static double cosine(double dot, double denominator) {
         if (!Double.isFinite(denominator) || denominator == 0) {
             throw new InvalidVectorException("ZERO_NORM",
                     "Vector norm must be finite and positive");
         }
-        double cosine = Math.max(-1, Math.min(1, dot / denominator));
-        return new Score(cosine,
-                BigDecimal.valueOf(cosine).setScale(6, RoundingMode.HALF_UP));
+        return Math.max(-1, Math.min(1, dot / denominator));
+    }
+
+    static BigDecimal quantize(double cosine) {
+        return BigDecimal.valueOf(cosine).setScale(6, RoundingMode.HALF_UP);
+    }
+
+    static long micros(double cosine) {
+        double scaled = Math.abs(cosine) * 1_000_000;
+        long integral = (long) scaled;
+        double fraction = scaled - integral;
+        // Match the decimal HALF_UP rule when binary multiplication could round across the tie.
+        if (Math.abs(fraction - 0.5) <= Math.ulp(scaled)) {
+            return quantize(cosine).unscaledValue().longValueExact();
+        }
+        long rounded = fraction < 0.5 ? integral : integral + 1;
+        return cosine < 0 ? -rounded : rounded;
     }
 
     record Score(double exact, BigDecimal quantized) {

@@ -152,21 +152,32 @@ transaktionalen Versions-Lock. Solange ein frischer `RUNNING`-Run fuer eine Vers
 erzeugt auch ein neu gestarteter oder konkurrierender Worker fuer diese Version keinen weiteren
 Snapshot.
 
-Persistiert werden alle quantisierten Treffer ab `0.700000` als `SAME_STORY` sowie die
-deterministische beste exakte Vergleichsdiagnose fuer Artikel ohne positiven Treffer als
-`UNCERTAIN`. Seit ART-038 berechnet der Job auch die Partition und publiziert Stories,
-Mitgliedschaften, Assignment-Entscheidungen, Paarentscheidungen und den Publish-Nachweis
-in einer Transaktion. Da Snapshot-Mitglieder nach `effective_at, article_ref` sortiert sind, beendet
-die exakte Suche den inneren Scan am ersten Artikel ausserhalb des Zeitfensters. Sie bleibt
-vollstaendig exakt, untersucht aber keine nachweislich unzulaessigen spaeteren Paare.
+Inkrementelle Laeufe speichern hoechstens zwei Paarentscheidungen pro geaendertem Artikel.
+Der Job speichert den staerksten positiven Treffer und bei Abweichung das Paar fuer die
+gewaehlte Zuordnung. Ohne positiven Treffer speichert er den besten Vergleich unterhalb
+der Schwelle als `UNCERTAIN`. Backfill und Reprocessing speichern weiterhin alle positiven
+Treffer und die beste Diagnose je Artikel ohne positiven Treffer. Die Publikation
+schreibt Stories, Mitgliedschaften, Assignment-Entscheidungen, Paarentscheidungen und
+den Publish-Nachweis in einer Transaktion.
+Die exakte Suche nutzt die Sortierung nach `effective_at, article_ref`, um Vergleiche auf
+das konfigurierte Zeitfenster zu beschraenken.
 
 Operative Kontrollen:
 
 ```powershell
+docker compose logs --since 30m engine
 docker compose exec postgres psql -U gne -d gne -c "select version.version_key, run.run_mode, run.status, run.read_article_count, run.candidate_count, run.failed_article_count, run.started_at, run.completed_at from story_processing_runs run join story_clustering_versions version on version.id = run.clustering_version_id order by run.started_at desc limit 20;"
+docker compose exec postgres psql -U gne -d gne -c "select version.version_key, max(run.completed_at) as last_success from story_clustering_versions version left join story_processing_runs run on run.clustering_version_id = version.id and run.run_mode = 'INCREMENTAL' and run.status = 'SUCCEEDED' where version.status = 'ACTIVE' group by version.version_key;"
+docker compose exec postgres psql -U gne -d gne -c "select relation, pg_total_relation_size(relation) as bytes from (values ('story_pair_decisions'::regclass), ('story_snapshot_members'::regclass)) as tables(relation);"
 docker compose exec postgres psql -U gne -d gne -c "select version.version_key, count(distinct snapshot.id) as snapshots, count(member.*) as members from story_snapshots snapshot join story_clustering_versions version on version.id = snapshot.clustering_version_id left join story_snapshot_members member on member.snapshot_id = snapshot.id group by version.version_key order by version.version_key;"
 docker compose exec postgres psql -U gne -d gne -c "select result, top_one_below_threshold, count(*) from story_pair_decisions group by result, top_one_below_threshold order by result, top_one_below_threshold;"
 ```
+
+`last_success` basiert auf dem gespeicherten Laufstatus und bleibt nach einem Neustart
+verfuegbar. Die Tabellengroessen enthalten Indizes. Das Abschluss-Log des inkrementellen
+Jobs zeigt den belegten Heap vor und nach dem Lauf sowie das JVM-Limit in Bytes. Fuer
+Auslastung waehrend des Laufs JVM-GC-Logging mit `JAVA_TOOL_OPTIONS=-Xlog:gc` in der
+Umgebung des Engine-Prozesses aktivieren und das Engine-Log verfolgen.
 
 Micrometer stellt `stories.snapshot.created`, `stories.snapshot.reused`,
 `stories.snapshot.members`, `stories.snapshot.candidates`, `stories.snapshot.failures`, den
@@ -201,6 +212,75 @@ Der Partitionscache ist auf 65.536 Scores begrenzt. Die Publikation clustert una
 Gruppen des exakten Kandidatengraphen separat und behaelt keine Merge-Diagnosehistorie im Heap.
 Die Paarberechnung bleibt exakt; grosse zusammenhaengende Gruppen und dichte Paarmengen
 muessen weiterhin hinsichtlich Laufzeit und Speicher vermessen werden.
+
+### Aufbewahrung der Story-Snapshot-Daten
+
+Die Aufbewahrung laesst sich mit `STORIES_SNAPSHOTS_RETENTION_ENABLED=true` einschalten.
+Sie ist standardmaessig deaktiviert. Der Job verdichtet ausschliesslich aeltere,
+erfolgreich publizierte inkrementelle Snapshots. Die drei neuesten Publikationen pro
+Version und Laeufe mit Abschluss in den letzten 30 Minuten bleiben vollstaendig erhalten.
+Dasselbe gilt fuer die Freigabebasis, Backfill, Reprocessing und wiederholbare Laeufe.
+Story-Zuordnungen und aktuelle Mitgliedschaften bleiben verfuegbar.
+
+Ein verdichteter Snapshot behaelt maximal ein Diagnosepaar pro Assignment-Entscheidung
+und die von diesen Entscheidungen und Paaren referenzierten Snapshot-Mitglieder.
+Fuer die Artikelstatistik bleiben die Abstaende zwischen aufsteigend sortierten IDs
+erhalten. Vor Kompression fallen acht Byte pro Artikel zuzueglich Array-Overhead an,
+rund 0,4 MiB bei 50.000 Artikeln. Ein synthetischer PostgreSQL-17-Test mit 50.175 IDs
+benoetigte nach Kompression je Snapshot 4,6 bis 6,3 KiB. Die Archivdaten wachsen mit der
+Zahl der verdichteten Snapshots.
+Beim regulaeren Fuenf-Minuten-Takt umfasst das 30-Minuten-Fenster rund sechs volle
+Snapshots je Version. Freigabe-, Backfill- und Reprocessing-Snapshots, laufende Jobs und
+ein eventueller Bereinigungsrueckstand kommen hinzu.
+
+Der Job startet nach zwei Minuten und wartet eine Minute zwischen Durchlaeufen.
+Standardmaessig verarbeitet er hoechstens acht Transaktionen je Durchlauf und entfernt
+pro Transaktion bis zu 10.000 Zeilen je Tabelle. Das Log meldet Snapshot-ID und die
+entfernten Zeilen. PostgreSQL kann freigegebene Seiten nach dem regulaeren Vacuum
+wiederverwenden. Fuer die Messung des Speicherbudgets die physischen Tabellengroessen
+ueber mehrere Laeufe beobachten. Die Migration legt vier Indizes an. Fuer den
+Migrationsstart entsprechend Platz fuer Indizes und WAL vorhalten.
+
+Die Artikelstatistik liest die archivierten ID-Abstaende im angefragten Zeitraum fuer
+die exakte Zahl unterschiedlicher Artikel. Im synthetischen Test dauerte die Abfrage
+mit 288 verdichteten Snapshots dieser Groesse rund neun Sekunden.
+
+### Inkrementelle Berechnung unter Last pruefen
+
+Mit einer isolierten, produktionsnahen Kopie und dem JVM-Heap-Limit des VPS pruefen.
+Der erste Lauf enthaelt den Rueckstau. Als Lastreferenz dienen 50.175 Artikel und rund
+48,3 Millionen Kandidatenvergleiche aus dem Vorfall vom 24. November 2026. Fuer mindestens
+zwei weitere Laeufe jeweils neue verarbeitbare Inputs zufuehren und die neuen
+`INCREMENTAL`-Laeufe anhand ihrer Startzeit und des Status `SUCCEEDED` nachweisen.
+Heap-Auslastung in den GC-Logs, Kandidatenanzahl und die beiden Tabellengroessen vor und nach
+den Laeufen erfassen. Fuer die Speicherpruefung die Snapshot-Aufbewahrung in der isolierten
+Umgebung einschalten und bis zum Abschluss der Verdichtung messen.
+
+Waehrenddessen Artikel- und Story-API ueber den Proxy in einer getrennten Shell abfragen.
+`api_base` ist beim lokalen Compose-Stack `http://localhost:5173/api`, auf dem VPS
+`https://sentinel-gem.com/api`.
+
+```bash
+api_base=${api_base:-http://localhost:5173/api}
+while true; do
+  for path in 'articles?limit=1' 'stories?limit=1'; do
+    curl --fail --silent --show-error --max-time 5 --output /dev/null \
+      --write-out '%{http_code} %{time_total}s %{url_effective}\n' "$api_base/$path" || exit 1
+  done
+  sleep 5
+done
+```
+
+Fuer die Wiederaufnahme nach den Last- und Speicherpruefungen in der bestehenden
+Host-Datei `$HOME/sentinel-gem-vps/.env` die Schalter
+`STORIES_SNAPSHOTS_INCREMENTAL_ENABLED=true` und
+`STORIES_SNAPSHOTS_RETENTION_ENABLED=true` setzen. `STORIES_VISIBLE_VERSION` auf den
+Schluessel der freigegebenen `ACTIVE`-Version setzen. Das regulaere `deploy` liest
+diese Datei bei jedem Compose-Start. Auf dem VPS die Compose-Befehle mit
+`-f compose.yaml -f compose.vps.yaml` ausfuehren und nach dem Deployment einen
+neu publizierten Story-Eintrag aus dieser Version pruefen.
+Bei einer verorteten Story muss dieselbe ID auch in `/api/stories/map-positions` und
+im entsprechenden Kartenzeitraum sichtbar sein.
 
 ## Importstatus
 

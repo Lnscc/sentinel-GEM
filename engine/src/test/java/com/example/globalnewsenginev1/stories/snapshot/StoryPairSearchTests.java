@@ -6,11 +6,23 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
+import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class StoryPairSearchTests {
+
+    @Test
+    void fastRoundingMatchesDecimalRoundingAtCandidateTieBoundaries() {
+        var random = new Random(9);
+        for (int i = 0; i < 1_000; i++) {
+            double boundary = (random.nextInt(-1_000_000, 1_000_000) + 0.5) / 1_000_000;
+            for (double score : new double[] {Math.nextDown(boundary), boundary, Math.nextUp(boundary)}) {
+                assertThat(ExactCosine.micros(score))
+                        .isEqualTo(ExactCosine.quantize(score).unscaledValue().longValueExact());
+            }
+        }
+    }
 
     @Test
     void stopsEachOrderedScanAtTheFirstInputOutsideTheTimeWindow() {
@@ -54,15 +66,16 @@ class StoryPairSearchTests {
                 input(4, "d", start.plusSeconds(24 * 3600L), vector, hash),
                 input(5, "e", start.plusSeconds(48 * 3600L), vector, hash));
 
-        var result = StorySnapshotService.search(version, inputs,
-                Set.of("c".repeat(64)));
+        var search = new StoryIncrementalPairSearch(version, inputs);
+        assertThat(search.findMatch(inputs.get(2), input -> input == inputs.get(3)))
+                .isSameAs(inputs.get(3));
+        var result = search.result();
 
         assertThat(result.examinedPairs()).isEqualTo(2);
         assertThat(result.comparedPairs()).isEqualTo(2);
         assertThat(result.decisions()).extracting(decision ->
                 List.of(decision.left().articleRef(), decision.right().articleRef()))
-                .containsExactly(
-                        List.of("b".repeat(64), "c".repeat(64)),
+                .containsExactly(List.of("b".repeat(64), "c".repeat(64)),
                         List.of("c".repeat(64), "d".repeat(64)));
     }
 

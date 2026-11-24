@@ -29,7 +29,11 @@ public class StoryPartitionService {
     /** Reconstructs a partition from immutable snapshot artifacts without publishing it. */
     public Partition calculate(long snapshotId) {
         SnapshotRules rules = repository.loadPartitionRules(snapshotId);
-        return partition(rules, repository.loadSnapshotInputs(snapshotId));
+        var inputs = repository.loadSnapshotInputs(snapshotId);
+        if (repository.isCompacted(snapshotId)) {
+            throw new IllegalStateException("Snapshot is archived: " + snapshotId);
+        }
+        return partition(rules, inputs);
     }
 
     static Partition partitionForPublication(SnapshotRules rules,
@@ -68,7 +72,7 @@ public class StoryPartitionService {
     static Partition incrementalPartition(
             SnapshotRules rules,
             List<StorySnapshotRepository.SnapshotInput> inputs,
-            List<StorySnapshotService.PairDecision> pairs,
+            StoryIncrementalPairSearch search,
             Set<String> changedArticleRefs,
             List<StorySnapshotRepository.ExistingAssignment> existingAssignments
     ) {
@@ -91,36 +95,17 @@ public class StoryPartitionService {
                 membersByGroup.computeIfAbsent(group, ignored -> new ArrayList<>()).add(input);
             }
         }
-        Map<String, float[]> vectors = new HashMap<>();
-        if (COHERENT_COMPONENT_RULE.equals(rules.componentRuleVersion())) {
-            for (var input : inputs) {
-                vectors.put(input.articleRef(), ExactCosine.decode(
-                        input.vectorBytes(), rules.dimension(), input.vectorHash()));
-            }
-        }
-
         List<StorySnapshotRepository.SnapshotInput> changedInputs = inputs.stream()
                 .filter(input -> changedArticleRefs.contains(input.articleRef()))
                 .sorted(Comparator.comparing(StorySnapshotRepository.SnapshotInput::effectiveAt)
                         .thenComparing(StorySnapshotRepository.SnapshotInput::articleRef))
                 .toList();
         for (var input : changedInputs) {
-            Object target = null;
-            for (var pair : pairs) {
-                if (!"SAME_STORY".equals(pair.result())) continue;
-                String other = pair.left().articleRef().equals(input.articleRef())
-                        ? pair.right().articleRef()
-                        : pair.right().articleRef().equals(input.articleRef())
-                                ? pair.left().articleRef() : null;
-                if (other != null && groupByRef.containsKey(other)) {
-                    Object candidate = groupByRef.get(other);
-                    if (coherent(rules, input, membersByGroup.get(candidate), vectors)) {
-                        target = candidate;
-                        break;
-                    }
-                }
-            }
-            Object group = target == null ? input.articleRef() : target;
+            var match = search.findMatch(input, candidate -> {
+                Object group = groupByRef.get(candidate.articleRef());
+                return group != null && coherent(rules, input, membersByGroup.get(group), search);
+            });
+            Object group = match == null ? input.articleRef() : groupByRef.get(match.articleRef());
             groupByRef.put(input.articleRef(), group);
             membersByGroup.computeIfAbsent(group, ignored -> new ArrayList<>()).add(input);
         }
@@ -139,13 +124,11 @@ public class StoryPartitionService {
             if (representative == null || !members.contains(representative)) {
                 representative = members.getFirst();
             }
-            float[] representativeVector = ExactCosine.decode(representative.vectorBytes(),
-                    rules.dimension(), representative.vectorHash());
+            float[] representativeVector = search.vector(representative);
             List<MemberEvidence> evidence = new ArrayList<>();
             for (var member : members) {
                 BigDecimal similarity = member == representative ? BigDecimal.ONE.setScale(6)
-                        : ExactCosine.score(representativeVector, ExactCosine.decode(
-                                member.vectorBytes(), rules.dimension(), member.vectorHash())).quantized();
+                        : ExactCosine.similarity(representativeVector, search.vector(member));
                 evidence.add(new MemberEvidence(member.articleRef(), member.articleInputFingerprint(),
                         member.embeddingArtifactId(), member.vectorHash(), similarity,
                         Duration.between(member.effectiveAt(), representative.effectiveAt()).abs()));
@@ -287,12 +270,12 @@ public class StoryPartitionService {
     private static boolean coherent(SnapshotRules rules,
                                     StorySnapshotRepository.SnapshotInput input,
                                     List<StorySnapshotRepository.SnapshotInput> members,
-                                    Map<String, float[]> vectors) {
+                                    StoryIncrementalPairSearch search) {
         if (!COHERENT_COMPONENT_RULE.equals(rules.componentRuleVersion())) return true;
         Duration window = Duration.ofHours(rules.windowHours());
-        float[] inputVector = vectors.get(input.articleRef());
+        float[] inputVector = search.vector(input);
         for (var member : members) {
-            if (ExactCosine.similarity(inputVector, vectors.get(member.articleRef()))
+            if (ExactCosine.similarity(inputVector, search.vector(member))
                     .compareTo(rules.threshold()) < 0
                     || Duration.between(input.effectiveAt(), member.effectiveAt()).abs().compareTo(window) > 0
                     || !StorySubjectCoherence.compatible(input.normalizedTitle(), member.normalizedTitle())) {

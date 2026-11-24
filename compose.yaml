@@ -25,6 +25,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-gne}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-gne}
       SPRING_DOCKER_COMPOSE_ENABLED: 'false'
+      STORIES_SNAPSHOTS_INCREMENTAL_ENABLED:
+      STORIES_SNAPSHOTS_RETENTION_ENABLED:
+      STORIES_VISIBLE_VERSION:
     depends_on:
       postgres:
         condition: service_healthy

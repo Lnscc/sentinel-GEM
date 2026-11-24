@@ -280,6 +280,87 @@ class StorySnapshotServicePostgresIT {
     }
 
     @Test
+    void compactsOnlyHistoricalIncrementalEvidenceAndKeepsExactStatistics() {
+        jdbc.update("""
+                UPDATE story_clustering_versions SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+                WHERE version_key = ?
+                """, VERSION_24_ELIGIBILITY);
+        for (String article : List.of("a", "b", "c", "d", "e")) {
+            insertReadyInput(VERSION_24_ELIGIBILITY, article, vector(1, 0), effectiveAt, null);
+        }
+        jdbc.update("UPDATE story_article_inputs SET embedding_status = 'PENDING' WHERE id = ?",
+                currentInput(VERSION_24_ELIGIBILITY, "e"));
+        Instant originalWatermark = clock.instant();
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+
+        var repository = new StorySnapshotRepository(jdbc);
+        var version = repository.findActiveVersion().getFirst();
+        var original = jdbc.queryForObject("""
+                SELECT id, snapshot_key, snapshot_input_hash FROM story_snapshots
+                """, (rs, row) -> new StorySnapshotRepository.Snapshot(rs.getLong("id"), version.id(),
+                rs.getString("snapshot_key"), originalWatermark, rs.getString("snapshot_input_hash"), false));
+        var claim = jdbc.queryForObject("""
+                SELECT id, fencing_token FROM story_processing_runs
+                """, (rs, row) -> new StorySnapshotRepository.RunClaim(rs.getLong(1), rs.getLong(2)));
+        var exhaustive = StorySnapshotService.search(version, repository.loadSnapshotInputs(original.id()));
+        for (var pair : exhaustive.decisions()) {
+            var hash = StorySnapshotCanonicalizer.decisionHash(original, pair.left(), pair.right(),
+                    pair, version.pairRuleVersion());
+            repository.insertDecision(version, original, claim, pair, hash, originalWatermark);
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_pair_decisions", Integer.class)).isEqualTo(6);
+
+        advance(Duration.ofMinutes(1));
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        jdbc.update("""
+                INSERT INTO story_clustering_version_status_history
+                  (clustering_version_id, previous_status, new_status, reason, changed_at)
+                VALUES (?, 'ACTIVE', 'RETIRED', 'Release basis', ?)
+                """, version.id(), OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
+
+        advance(Duration.ofMinutes(1));
+        assertThat(service().processBackfill(version.id(), clock.instant()).succeededVersions()).isOne();
+        for (int index = 0; index < 3; index++) {
+            advance(Duration.ofMinutes(1));
+            assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        }
+
+        var retention = new StorySnapshotRetention(jdbc, new DataSourceTransactionManager(dataSource),
+                Duration.ZERO, 1, 8);
+        int pairsRemoved = 0;
+        int membersRemoved = 0;
+        for (int batchNumber = 0; batchNumber < 8; batchNumber++) {
+            var batch = retention.compactBatch(version.id(), clock.instant().plusSeconds(1));
+            if (batch == null) break;
+            assertThat(batch.snapshotId()).isEqualTo(original.id());
+            assertThat(batch.removedPairs()).isBetween(0, 1);
+            assertThat(batch.removedMembers()).isBetween(0, 1);
+            pairsRemoved += batch.removedPairs();
+            membersRemoved += batch.removedMembers();
+        }
+        assertThat(pairsRemoved).isGreaterThanOrEqualTo(2);
+        assertThat(membersRemoved).isOne();
+        assertThat(retention.compactBatch(version.id(), clock.instant().plusSeconds(1))).isNull();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(DISTINCT article_id) FROM story_snapshot_statistics_members
+                WHERE snapshot_id = ?
+                """, Integer.class, original.id())).isEqualTo(5);
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_snapshot_members WHERE snapshot_id = ?
+                """, Integer.class, original.id())).isEqualTo(4);
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_memberships WHERE current_marker = 1
+                """, Integer.class)).isEqualTo(4);
+        assertThatThrownBy(() -> jdbc.update("""
+                DELETE FROM story_snapshot_members WHERE snapshot_id = ?
+                """, original.id())).hasMessageContaining("Snapshot members are immutable");
+        assertThatThrownBy(() -> new StoryPartitionService(repository).calculate(original.id()))
+                .hasMessageContaining("Snapshot is archived");
+        assertThat(service(Clock.fixed(originalWatermark, ZoneOffset.UTC)).processIncremental(1).reusedVersions())
+                .isOne();
+    }
+
+    @Test
     void incrementalRunCanUseTheSecondBestCompatibleStory() {
         jdbc.update("""
                 UPDATE story_clustering_versions SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP

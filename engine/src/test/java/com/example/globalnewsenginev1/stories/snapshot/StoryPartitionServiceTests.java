@@ -104,12 +104,11 @@ class StoryPartitionServiceTests {
         var existingA = titledAngle("a", 0, "Alpha event");
         var existingB = titledAngle("b", 40, "Alpha event follow-up");
         var changed = titledAngle("c", -40, "Different event");
-        var pair = new StorySnapshotService.PairDecision(changed, existingA,
-                new BigDecimal("0.766044"), 0, 1, "SAME_STORY", "pair-rule", false);
         UUID storyId = UUID.randomUUID();
+        var inputs = List.of(existingA, existingB, changed);
 
         var result = StoryPartitionService.incrementalPartition(coherentRules(),
-                List.of(existingA, existingB, changed), List.of(pair), Set.of("c"), List.of(
+                inputs, incrementalSearch(inputs), Set.of("c"), List.of(
                         new StorySnapshotRepository.ExistingAssignment("a", storyId, "a"),
                         new StorySnapshotRepository.ExistingAssignment("b", storyId, "a")));
 
@@ -124,19 +123,23 @@ class StoryPartitionServiceTests {
         var changed = titledAngle("c", 0, "Alpha event");
         UUID firstStory = UUID.randomUUID();
         UUID secondStory = UUID.randomUUID();
-        var rejectedBest = new StorySnapshotService.PairDecision(changed, firstNear,
-                new BigDecimal("0.996195"), 0, 1, "SAME_STORY", "pair-rule", false);
-        var acceptedSecond = new StorySnapshotService.PairDecision(changed, second,
-                new BigDecimal("0.939693"), 0, 2, "SAME_STORY", "pair-rule", false);
+        var inputs = List.of(firstNear, firstFar, second, changed);
 
         var result = StoryPartitionService.incrementalPartition(coherentRules(),
-                List.of(firstNear, firstFar, second, changed),
-                List.of(rejectedBest, acceptedSecond), Set.of("c"), List.of(
+                inputs, incrementalSearch(inputs), Set.of("c"), List.of(
                         new StorySnapshotRepository.ExistingAssignment("a", firstStory, "a"),
                         new StorySnapshotRepository.ExistingAssignment("b", firstStory, "a"),
                         new StorySnapshotRepository.ExistingAssignment("d", secondStory, "d")));
 
         assertThat(groups(result)).containsExactlyInAnyOrder(List.of("a", "b"), List.of("d", "c"));
+    }
+
+    private StoryIncrementalPairSearch incrementalSearch(
+            List<StorySnapshotRepository.SnapshotInput> inputs
+    ) {
+        var version = new StorySnapshotRepository.ClusteringVersion(1, "version", 2, 24,
+                new BigDecimal("0.700000"), "exact-cosine-radius-v1", "pair-rule");
+        return new StoryIncrementalPairSearch(version, inputs);
     }
 
     @Test
