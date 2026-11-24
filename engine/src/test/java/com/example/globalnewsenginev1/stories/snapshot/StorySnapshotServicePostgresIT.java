@@ -361,6 +361,219 @@ class StorySnapshotServicePostgresIT {
     }
 
     @Test
+    void incrementalExtensionKeepsAnExistingMemberWhileItsReplacementEmbeddingIsPending() {
+        activateIncrementalVersion();
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(1, 0), effectiveAt, null);
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        UUID originalStory = story("a");
+        var previousMembership = jdbc.queryForMap("""
+                SELECT * FROM story_memberships WHERE article_ref = ? AND current_marker = 1
+                """, ref("b"));
+
+        advance(Duration.ofMinutes(5));
+        jdbc.update("UPDATE story_article_inputs SET current_marker = NULL, superseded_at = ? WHERE id = ?",
+                OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC), currentInput(VERSION_24_ELIGIBILITY, "b"));
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(1, 0), effectiveAt, "pending-replacement");
+        jdbc.update("UPDATE story_article_inputs SET embedding_status = 'PENDING' WHERE id = ?",
+                currentInput(VERSION_24_ELIGIBILITY, "b"));
+        insertReadyInput(VERSION_24_ELIGIBILITY, "c", vector(1, 0), effectiveAt, null);
+
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+
+        assertThat(story("a")).isEqualTo(originalStory);
+        assertThat(story("b")).isEqualTo(originalStory);
+        assertThat(story("c")).isEqualTo(originalStory);
+        assertThat(jdbc.queryForMap("""
+                SELECT * FROM story_memberships WHERE article_ref = ? AND current_marker = 1
+                """, ref("b"))).isEqualTo(previousMembership);
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_assignment_decisions
+                WHERE article_ref = ? AND run_id = (SELECT MAX(id) FROM story_processing_runs)
+                """, Integer.class, ref("b"))).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_memberships WHERE current_marker = 1
+                """, Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM (SELECT article_ref FROM story_memberships
+                    WHERE current_marker = 1 GROUP BY article_ref HAVING COUNT(*) > 1) duplicates
+                """, Integer.class)).isZero();
+    }
+
+    @Test
+    void incrementalWindowsMatchTheFullFrozenPartitionAndKeepRetriesIdempotent() {
+        activateIncrementalVersion();
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "c", vector(0, 1), effectiveAt.minus(Duration.ofDays(4)), null);
+        assertIncrementalMatchesFullFrozenPartition();
+        for (String suffix : List.of("d", "e", "f")) {
+            advance(Duration.ofMinutes(5));
+            insertReadyInput(VERSION_24_ELIGIBILITY, suffix, vector(1, 0), effectiveAt, null);
+            assertIncrementalMatchesFullFrozenPartition();
+            assertThat(service().processIncremental(1).reusedVersions()).isOne();
+        }
+        advance(Duration.ofMinutes(5));
+        jdbc.update("UPDATE story_article_inputs SET current_marker = NULL, superseded_at = ? WHERE id = ?",
+                OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC), currentInput(VERSION_24_ELIGIBILITY, "a"));
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(0, 1), effectiveAt, "corrected");
+        assertIncrementalMatchesFullFrozenPartition();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM (SELECT article_ref FROM story_memberships
+                    WHERE current_marker = 1 GROUP BY article_ref HAVING COUNT(*) > 1) duplicates
+                """, Integer.class)).isZero();
+    }
+
+    @Test
+    void incrementalNoOpDoesNotRewriteUnrelatedStoriesButStillClosesAndReopens() {
+        activateIncrementalVersion();
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt.minus(Duration.ofDays(5)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(0, 1), effectiveAt, null);
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        UUID oldStory = story("a");
+        jdbc.execute("CREATE TABLE projection_writes (story_id UUID)");
+        jdbc.execute("""
+                CREATE FUNCTION record_projection_write() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN INSERT INTO projection_writes VALUES (NEW.id); RETURN NEW; END $$
+                """);
+        jdbc.execute("CREATE TRIGGER projection_write AFTER UPDATE ON stories FOR EACH ROW EXECUTE FUNCTION record_projection_write()");
+        advance(Duration.ofMinutes(5));
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM projection_writes", Integer.class)).isZero();
+        advance(Duration.ofHours(73));
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        assertThat(jdbc.queryForObject("SELECT state FROM stories WHERE id = ?", String.class, oldStory)).isEqualTo("CLOSED");
+        assertThat(jdbc.queryForObject("SELECT candidate_count FROM story_processing_runs ORDER BY id DESC LIMIT 1", Long.class)).isZero();
+        advance(Duration.ofMinutes(5));
+        insertReadyInput(VERSION_24_ELIGIBILITY, "d", vector(1, 0), effectiveAt.minus(Duration.ofDays(5)), null);
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        assertThat(story("d")).isEqualTo(oldStory);
+        assertThat(jdbc.queryForObject("SELECT state FROM stories WHERE id = ?", String.class, oldStory)).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void incrementalRefreshesLateLocationAndConfidenceWithoutReassigningArticles() {
+        activateIncrementalVersion();
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt, null);
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        UUID id = story("a");
+        int decisions = jdbc.queryForObject("SELECT COUNT(*) FROM story_assignment_decisions", Integer.class);
+        advance(Duration.ofMinutes(5));
+        seedLocation("a", "Berlin", "GM", "GM16", 52.52, 13.405, 60);
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        assertThat(jdbc.queryForObject("SELECT confidence FROM story_locations WHERE story_id = ?", Integer.class, id)).isEqualTo(60);
+        advance(Duration.ofMinutes(5));
+        jdbc.update("UPDATE gdelt_mentions SET confidence = 95");
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        assertThat(jdbc.queryForObject("SELECT confidence FROM story_locations WHERE story_id = ?", Integer.class, id)).isEqualTo(95);
+        advance(Duration.ofMinutes(5));
+        jdbc.update("DELETE FROM gdelt_mentions");
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_locations WHERE story_id = ?", Integer.class, id)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_assignment_decisions", Integer.class)).isEqualTo(decisions);
+    }
+
+    @Test
+    void incrementalPicksUpSourceTransactionThatCommitsAfterPublication() throws Exception {
+        activateIncrementalVersion();
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(1, 0), effectiveAt, null);
+        seedLocation("b", "Berlin", "GM", "GM16", 52.52, 13.405, 60);
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        jdbc.update("UPDATE gdelt_mentions SET confidence = 60"); // A committed key now held by the writer.
+        CountDownLatch updated = new CountDownLatch(1);
+        CountDownLatch allowCommit = new CountDownLatch(1);
+        var executor = Executors.newSingleThreadExecutor();
+        var writer = executor.submit(() -> new TransactionTemplate(new DataSourceTransactionManager(dataSource))
+                .executeWithoutResult(status -> {
+                    jdbc.update("UPDATE gdelt_mentions SET confidence = 95");
+                    updated.countDown();
+                    try {
+                        if (!allowCommit.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Writer timed out");
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(exception);
+                    }
+                }));
+        try {
+            assertThat(updated.await(5, TimeUnit.SECONDS)).isTrue();
+            advance(Duration.ofMinutes(5));
+            UUID previousStory = story("b");
+            jdbc.update("UPDATE story_article_inputs SET current_marker = NULL, superseded_at = ? WHERE id = ?",
+                    OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC), currentInput(VERSION_24_ELIGIBILITY, "a"));
+            insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(0, 1), effectiveAt, "correction");
+            assertThat(service().processIncremental(1).succeededVersions()).isOne();
+            assertThat(story("b")).isNotEqualTo(previousStory);
+            assertThat(jdbc.queryForObject("SELECT confidence FROM story_locations", Integer.class)).isEqualTo(60);
+            allowCommit.countDown();
+            writer.get(5, TimeUnit.SECONDS);
+            advance(Duration.ofMinutes(5));
+            assertThat(service().processIncremental(1).succeededVersions()).isOne();
+            assertThat(jdbc.queryForObject("SELECT confidence FROM story_locations", Integer.class)).isEqualTo(95);
+        } finally {
+            allowCommit.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void activationRefreshesShadowProjectionsEvenAfterPreviousActiveConsumedTheSourceChange() {
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt, null);
+        seedLocation("a", "Berlin", "GM", "GM16", 52.52, 13.405, 60);
+        assertThat(service().processBackfill(versionId(VERSION_24_ELIGIBILITY), watermark).succeededVersions()).isOne();
+        jdbc.update("UPDATE gdelt_mentions SET confidence = 95");
+        jdbc.update("DELETE FROM story_projection_dirty_sources");
+        activateIncrementalVersion();
+        advance(Duration.ofMinutes(5));
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        assertThat(jdbc.queryForObject("SELECT confidence FROM story_locations", Integer.class)).isEqualTo(95);
+        assertThat(jdbc.queryForObject("SELECT candidate_count FROM story_processing_runs ORDER BY id DESC LIMIT 1", Long.class)).isZero();
+    }
+
+    private void activateIncrementalVersion() {
+        jdbc.update("UPDATE story_clustering_versions SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE version_key = ?",
+                VERSION_24_ELIGIBILITY);
+    }
+
+    private void assertIncrementalMatchesFullFrozenPartition() {
+        var repository = new StorySnapshotRepository(jdbc);
+        var publisher = publisher();
+        var version = repository.findActiveVersion().getFirst();
+        var beforeStories = publisher.stories(version.id());
+        var beforeMembers = publisher.memberships(version.id());
+        var assignments = repository.findExistingAssignments(version.id());
+        var changed = repository.findSnapshotInputs(version.id(), clock.instant()).stream()
+                .filter(input -> input.embeddingArtifactId() != 0)
+                .filter(input -> beforeMembers.stream().noneMatch(member -> member.ref().equals(input.articleRef())
+                        && member.fingerprint().equals(input.articleInputFingerprint())))
+                .map(StorySnapshotRepository.SnapshotInput::articleRef).collect(java.util.stream.Collectors.toSet());
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        long snapshotId = jdbc.queryForObject("SELECT MAX(id) FROM story_snapshots", Long.class);
+        var inputs = repository.loadSnapshotInputs(snapshotId);
+        var rules = repository.loadPartitionRules(snapshotId);
+        var search = new StoryIncrementalPairSearch(version, inputs);
+        var expected = StoryPartitionService.incrementalPartition(rules, inputs, search, changed, assignments);
+        var indexes = new java.util.HashMap<String, Integer>();
+        for (int index = 0; index < expected.components().size(); index++) {
+            for (var member : expected.components().get(index).members()) indexes.put(member.articleRef(), index);
+        }
+        var identity = StoryIdentity.match(beforeStories, beforeMembers, indexes);
+        String hash = jdbc.queryForObject("SELECT snapshot_input_hash FROM story_snapshots WHERE id = ?", String.class, snapshotId);
+        for (int index = 0; index < expected.components().size(); index++) {
+            var component = expected.components().get(index);
+            var winner = StoryIdentity.winner(identity.nominees().getOrDefault(index, List.of()));
+            UUID expectedId = winner == null ? UUID.nameUUIDFromBytes((version.id() + ":" + hash + ":"
+                    + component.members().getFirst().articleRef()).getBytes(java.nio.charset.StandardCharsets.UTF_8)) : winner.id();
+            for (var member : component.members()) {
+                assertThat(jdbc.queryForObject("SELECT story_id FROM story_memberships WHERE article_ref = ? AND current_marker = 1",
+                        UUID.class, member.articleRef())).isEqualTo(expectedId);
+            }
+            assertThat(jdbc.queryForObject("SELECT representative_article_ref FROM stories WHERE id = ?", String.class, expectedId))
+                    .isEqualTo(component.medoidArticleRef());
+        }
+    }
+
+    @Test
     void incrementalRunCanUseTheSecondBestCompatibleStory() {
         jdbc.update("""
                 UPDATE story_clustering_versions SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP

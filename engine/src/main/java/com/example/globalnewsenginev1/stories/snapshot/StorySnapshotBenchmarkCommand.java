@@ -36,7 +36,7 @@ class StorySnapshotBenchmarkCommand implements ApplicationRunner {
             Instant watermark = Instant.parse(environment.getRequiredProperty(
                     "stories.snapshots.benchmark.watermark"));
             StorySnapshotService.ProcessingResult result = "incremental".equals(mode)
-                    ? service.processIncremental(1)
+                    ? service.process(StorySnapshotService.RunMode.INCREMENTAL, watermark, 1)
                     : service.reprocess(watermark, 1);
             LOGGER.info("Story snapshot benchmark completed: mode={}, watermark={}, elapsed={}, selected={}, "
                             + "succeeded={}, reused={}, failed={}",

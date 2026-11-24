@@ -2,6 +2,7 @@ package com.example.globalnewsenginev1.stories.snapshot;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -12,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,27 +53,37 @@ class StoryPublisher {
     Plan prepare(StorySnapshotRepository.Snapshot snapshot,
                  StoryPartitionService.Partition partition,
                  Set<String> processedArticleRefs) {
+        Set<String> affectedRefs = new HashSet<>();
+        partition.components().forEach(component -> component.members().forEach(member ->
+                affectedRefs.add(member.articleRef())));
+        if (processedArticleRefs != null) affectedRefs.addAll(processedArticleRefs);
         // Read the identity basis consistently; expensive clustering does not hold the publisher lock.
         Basis basis = transaction.execute(status -> {
             repository.lockVersion(snapshot.versionId());
-            return new Basis(stories(snapshot.versionId()), memberships(snapshot.versionId()),
+            Set<UUID> scope = processedArticleRefs == null ? null : storyIds(snapshot.versionId(), affectedRefs);
+            return new Basis(stories(snapshot.versionId(), scope), memberships(snapshot.versionId(), scope),
                     latestCommit(snapshot.versionId()));
         });
-        List<Input> inputs = jdbc.query("""
+        basis.memberships().forEach(member -> affectedRefs.add(member.ref()));
+        var parameters = new java.util.HashMap<String, Object>();
+        parameters.put("snapshot", snapshot.id());
+        parameters.put("refs", affectedRefs.isEmpty() ? Set.of("") : affectedRefs);
+        List<Input> inputs = new NamedParameterJdbcTemplate(jdbc).query("""
                 SELECT input.id, input.article_id, member.article_ref,
                        member.article_input_fingerprint, input.effective_at, input.created_at,
                        input.title_usability
                 FROM story_snapshot_members member
                 JOIN story_article_inputs input ON input.id = member.article_input_id
-                WHERE member.snapshot_id = ? ORDER BY input.effective_at, member.article_ref
-                """, (rs, row) -> new Input(rs.getLong("id"), rs.getLong("article_id"),
+                WHERE member.snapshot_id = :snapshot
+                """ + (processedArticleRefs == null ? "" : " AND member.article_ref IN (:refs)")
+                + " ORDER BY input.effective_at, member.article_ref", parameters, (rs, row) -> new Input(rs.getLong("id"), rs.getLong("article_id"),
                 rs.getString("article_ref"), rs.getString("article_input_fingerprint"),
                 rs.getTimestamp("effective_at").toInstant(), rs.getTimestamp("created_at").toInstant(),
-                rs.getString("title_usability")), snapshot.id());
+                rs.getString("title_usability")));
         Set<String> processed = processedArticleRefs == null
                 ? inputs.stream().map(Input::ref).collect(java.util.stream.Collectors.toSet())
                 : Set.copyOf(processedArticleRefs);
-        return new Plan(snapshot, basis, inputs, partition, processed);
+        return new Plan(snapshot, basis, inputs, partition, processed, processedArticleRefs != null);
     }
 
     Result publish(Plan plan, StorySnapshotRepository.RunClaim run, Instant now, Duration lease) {
@@ -96,10 +108,22 @@ class StoryPublisher {
         if (stale) {
             return new Result("DISCARDED", 0, plan.processedArticleRefs().size(), Map.of());
         }
+        Set<UUID> scope = plan.incremental() ? plan.basis().stories().stream()
+                .map(Story::id).collect(java.util.stream.Collectors.toSet()) : null;
         if (latestCommit(snapshot.versionId()) != plan.basis().commitId()
-                || !stories(snapshot.versionId()).equals(plan.basis().stories())
-                || !memberships(snapshot.versionId()).equals(plan.basis().memberships())) {
+                || !stories(snapshot.versionId(), scope).equals(plan.basis().stories())
+                || !memberships(snapshot.versionId(), scope).equals(plan.basis().memberships())) {
             throw conflict("Published story basis changed during calculation");
+        }
+        if (Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (
+                    SELECT article_ref FROM story_memberships
+                    WHERE clustering_version_id = ? AND current_marker = 1
+                    EXCEPT
+                    SELECT article_ref FROM story_snapshot_members WHERE snapshot_id = ?
+                )
+                """, Boolean.class, snapshot.versionId(), snapshot.id()))) {
+            throw conflict("Snapshot omits a current member; create a fresh snapshot");
         }
 
         Map<String, Input> inputs = new LinkedHashMap<>();
@@ -180,9 +204,11 @@ class StoryPublisher {
 
         int changed = 0;
         for (Input input : plan.inputs()) {
-            if (!plan.processedArticleRefs().contains(input.ref())) continue;
             UUID target = assignments.get(input.ref());
             Membership old = previous.get(input.ref());
+            // A corrected anchor can move the identity of a whole source component.
+            if (!plan.processedArticleRefs().contains(input.ref())
+                    && (old == null || target == null || old.storyId().equals(target))) continue;
             boolean same = old != null && old.storyId().equals(target)
                     && old.fingerprint().equals(input.fingerprint());
             String reason = target != null ? "MEDOID_RADIUS"
@@ -225,8 +251,17 @@ class StoryPublisher {
                 throw conflict("Snapshot omits a current member; create a fresh snapshot");
             }
         }
-        refreshListValues(snapshot.versionId(), surviving.size());
-        locationMaterializer.refresh(snapshot.versionId());
+        if (plan.incremental()) {
+            closeUnchangedStories(snapshot, run, now, scope, counts);
+            Set<UUID> projections = projectionChanges(snapshot);
+            projections.addAll(surviving);
+            refreshListValues(snapshot.versionId(), projections.size(), projections);
+            projections.addAll(scope); // Also clear locations of superseded source stories.
+            locationMaterializer.refresh(snapshot.versionId(), projections);
+        } else {
+            refreshListValues(snapshot.versionId(), surviving.size(), null);
+            locationMaterializer.refresh(snapshot.versionId());
+        }
         jdbc.update("""
                 INSERT INTO story_publish_commits (publish_key, clustering_version_id, snapshot_id,
                     run_id, fencing_token, published_at) VALUES (?, ?, ?, ?, ?, ?)
@@ -259,8 +294,14 @@ class StoryPublisher {
         return new IllegalStateException(message);
     }
 
-    private void refreshListValues(long versionId, int expectedStories) {
-        int refreshed = jdbc.update("""
+    private void refreshListValues(long versionId, int expectedStories, Set<UUID> scope) {
+        if (scope != null && scope.isEmpty()) return;
+        String memberScope = scope == null ? "" : " AND member.story_id IN (:scope)\n";
+        String storyScope = scope == null ? "" : " AND candidate.id IN (:scope)\n";
+        var parameters = new java.util.HashMap<String, Object>();
+        parameters.put("version", versionId);
+        if (scope != null) parameters.put("scope", scope);
+        int refreshed = new NamedParameterJdbcTemplate(jdbc).update("""
                 UPDATE stories story
                 SET representative_article_id = projection.article_id,
                     representative_canonical_url = projection.canonical_url,
@@ -301,13 +342,15 @@ class StoryPublisher {
                           ON input.clustering_version_id = member.clustering_version_id
                          AND input.article_ref = member.article_ref
                          AND input.article_input_fingerprint = member.article_input_fingerprint
-                        WHERE member.clustering_version_id = ? AND member.current_marker = 1
+                        WHERE member.clustering_version_id = :version AND member.current_marker = 1
+                        """ + memberScope + """
                         GROUP BY member.story_id
                     ) members ON members.story_id = candidate.id
-                    WHERE candidate.clustering_version_id = ? AND candidate.state <> 'SUPERSEDED'
+                    WHERE candidate.clustering_version_id = :version AND candidate.state <> 'SUPERSEDED'
+                    """ + storyScope + """
                 ) projection
                 WHERE story.id = projection.story_id
-                """, versionId, versionId);
+                """, parameters);
         if (refreshed != expectedStories) {
             throw conflict("Story list projection is incomplete");
         }
@@ -326,23 +369,91 @@ class StoryPublisher {
         if (updated != 1) throw conflict("Story optimistic version changed");
     }
 
-    List<Story> stories(long versionId) {
-        return jdbc.query("""
-                SELECT * FROM stories WHERE clustering_version_id = ? AND state <> 'SUPERSEDED'
-                ORDER BY created_at, id FOR UPDATE
-                """, (rs, row) -> new Story(rs.getObject("id", UUID.class), rs.getObject("public_id", UUID.class),
+    List<Story> stories(long versionId) { return stories(versionId, null); }
+
+    private List<Story> stories(long versionId, Set<UUID> scope) {
+        if (scope != null && scope.isEmpty()) return List.of();
+        return new NamedParameterJdbcTemplate(jdbc).query("""
+                SELECT * FROM stories WHERE clustering_version_id = :version AND state <> 'SUPERSEDED'
+                """ + (scope == null ? "" : " AND id IN (:scope)") + " ORDER BY created_at, id FOR UPDATE",
+                scope == null ? Map.of("version", versionId) : Map.of("version", versionId, "scope", scope), (rs, row) -> new Story(rs.getObject("id", UUID.class), rs.getObject("public_id", UUID.class),
                 rs.getString("identity_anchor_article_ref"), rs.getString("representative_article_ref"),
                 rs.getString("state"), rs.getTimestamp("effective_from").toInstant(),
                 rs.getTimestamp("effective_to").toInstant(), rs.getLong("optimistic_version"),
-                rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant()), versionId);
+                rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant()));
     }
 
-    List<Membership> memberships(long versionId) {
-        return jdbc.query("""
+    List<Membership> memberships(long versionId) { return memberships(versionId, null); }
+
+    private List<Membership> memberships(long versionId, Set<UUID> scope) {
+        if (scope != null && scope.isEmpty()) return List.of();
+        return new NamedParameterJdbcTemplate(jdbc).query("""
                 SELECT id, story_id, article_ref, article_input_fingerprint FROM story_memberships
-                WHERE clustering_version_id = ? AND current_marker = 1 ORDER BY article_ref
-                """, (rs, row) -> new Membership(rs.getLong("id"), rs.getObject("story_id", UUID.class),
-                rs.getString("article_ref"), rs.getString("article_input_fingerprint")), versionId);
+                WHERE clustering_version_id = :version AND current_marker = 1
+                """ + (scope == null ? "" : " AND story_id IN (:scope)") + " ORDER BY article_ref",
+                scope == null ? Map.of("version", versionId) : Map.of("version", versionId, "scope", scope), (rs, row) -> new Membership(rs.getLong("id"), rs.getObject("story_id", UUID.class),
+                rs.getString("article_ref"), rs.getString("article_input_fingerprint")));
+    }
+
+    private Set<UUID> storyIds(long versionId, Set<String> refs) {
+        if (refs.isEmpty()) return Set.of();
+        return new HashSet<>(new NamedParameterJdbcTemplate(jdbc).queryForList("""
+                SELECT DISTINCT story_id FROM story_memberships
+                WHERE clustering_version_id = :version AND current_marker = 1 AND article_ref IN (:refs)
+                """, Map.of("version", versionId, "refs", refs), UUID.class));
+    }
+
+    private void closeUnchangedStories(StorySnapshotRepository.Snapshot snapshot,
+                                       StorySnapshotRepository.RunClaim run, Instant now,
+                                       Set<UUID> scope, Map<String, Long> counts) {
+        var parameters = new java.util.HashMap<String, Object>();
+        parameters.put("version", snapshot.versionId());
+        parameters.put("cutoff", ts(snapshot.watermark().minus(Duration.ofHours(72))));
+        parameters.put("run", run.id());
+        parameters.put("now", ts(now));
+        parameters.put("scope", scope.isEmpty() ? Set.of(new UUID(0, 0)) : scope);
+        int closed = new NamedParameterJdbcTemplate(jdbc).update("""
+                UPDATE stories story SET state = 'CLOSED', closed_at = :now, updated_at = :now,
+                    last_changed_by_run_id = :run, optimistic_version = optimistic_version + 1
+                WHERE story.clustering_version_id = :version AND story.state = 'ACTIVE'
+                  AND story.id NOT IN (:scope) AND story.updated_at <= :cutoff
+                  AND NOT EXISTS (
+                    SELECT 1 FROM story_memberships member
+                    JOIN story_article_inputs input ON input.clustering_version_id = member.clustering_version_id
+                      AND input.article_ref = member.article_ref
+                      AND input.article_input_fingerprint = member.article_input_fingerprint
+                    WHERE member.story_id = story.id AND member.current_marker = 1
+                      AND input.created_at > :cutoff)
+                """, parameters);
+        if (closed > 0) counts.merge("closed", (long) closed, Long::sum);
+    }
+
+    /** Source-only changes (including late location/confidence evidence) do not change embeddings. */
+    private Set<UUID> projectionChanges(StorySnapshotRepository.Snapshot snapshot) {
+        return new HashSet<>(jdbc.queryForList("""
+                WITH ready AS (
+                    SELECT source_key FROM story_projection_dirty_sources
+                    WHERE EXISTS (SELECT 1 FROM story_clustering_versions
+                        WHERE id = ? AND status = 'ACTIVE')
+                    ORDER BY source_key FOR UPDATE SKIP LOCKED
+                ), consumed AS (
+                    DELETE FROM story_projection_dirty_sources dirty USING ready
+                    WHERE dirty.source_key = ready.source_key
+                    RETURNING dirty.article_id, dirty.global_event_id, dirty.mention_identifier
+                ), changed_articles AS (
+                    SELECT article_id FROM consumed WHERE article_id IS NOT NULL
+                    UNION
+                    SELECT event.article_id FROM consumed source
+                    JOIN gdelt_events event ON event.global_event_id = source.global_event_id
+                      AND event.source_url = source.mention_identifier
+                    WHERE event.article_id IS NOT NULL
+                )
+                SELECT DISTINCT member.story_id FROM changed_articles source
+                JOIN story_memberships member ON member.article_id = source.article_id
+                JOIN stories story ON story.id = member.story_id
+                WHERE member.clustering_version_id = ? AND member.current_marker = 1
+                  AND story.state <> 'SUPERSEDED'
+                """, UUID.class, snapshot.versionId(), snapshot.versionId()));
     }
 
     long latestCommit(long versionId) {
@@ -363,6 +474,6 @@ class StoryPublisher {
                  Instant createdAt, String usability) { }
     record Basis(List<Story> stories, List<Membership> memberships, long commitId) { }
     record Plan(StorySnapshotRepository.Snapshot snapshot, Basis basis, List<Input> inputs,
-                StoryPartitionService.Partition partition, Set<String> processedArticleRefs) { }
+                StoryPartitionService.Partition partition, Set<String> processedArticleRefs, boolean incremental) { }
     record Result(String outcome, int changed, int skipped, Map<String, Long> counts) { }
 }

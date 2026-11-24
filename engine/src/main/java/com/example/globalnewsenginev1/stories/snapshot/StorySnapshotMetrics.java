@@ -18,8 +18,10 @@ class StorySnapshotMetrics {
     private final Counter uncertain;
     private final Counter failures;
     private final Timer latency;
+    private final MeterRegistry registry;
 
     StorySnapshotMetrics(MeterRegistry registry) {
+        this.registry = registry;
         snapshotsCreated = registry.counter("stories.snapshot.created");
         snapshotsReused = registry.counter("stories.snapshot.reused");
         members = registry.counter("stories.snapshot.members");
@@ -47,6 +49,10 @@ class StorySnapshotMetrics {
 
     void failure() {
         failures.increment();
+    }
+
+    void phase(String phase, long nanos) {
+        registry.timer("stories.snapshot.phase.latency", "phase", phase).record(nanos, TimeUnit.NANOSECONDS);
     }
 
     void latency(long nanos) {

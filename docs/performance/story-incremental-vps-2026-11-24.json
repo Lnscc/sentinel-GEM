@@ -1,0 +1,341 @@
+{
+  "status": "ABORTED_BUDGET_AND_AVAILABILITY_FAILED",
+  "budgetMs": 300000,
+  "provenance": {
+    "recordedAtUtc": "2026-11-24T20:43:59.805486+00:00",
+    "status": "ABORTED_BUDGET_AND_AVAILABILITY_FAILED",
+    "baselineCommit": "7e6eef62ef10677e613aad0d0087d28c5b09ceac",
+    "server": {
+      "cpus": 2,
+      "memoryMiB": 3911,
+      "swapMiB": 0,
+      "cpuModel": "Intel Xeon Processor (Cascadelake)"
+    },
+    "before": "not_started_safety_abort",
+    "identityEquivalence": "not_proven",
+    "phases2and3": "incomplete/not_started_after_safety_abort",
+    "production": {
+      "image": "sentinel-gem-vps-engine:7e6eef62ef10677e613aad0d0087d28c5b09ceac",
+      "running": true,
+      "startedAt": "2026-11-24T20:34:48.287267808Z",
+      "restartCount": 6
+    },
+    "artifacts": {
+      "before.jar": "7e8765e9f9d375a083e257c1203c444f47044817bd1acad0d490cb07d7df5533",
+      "after.jar": "cb98c6749869a987076dc22ff1bae8705d2970c0643d1165f0c8e34a694220c1",
+      "source-manifest.json": "bdbde2ed9f99917ef4295092cf9dbea9a42d289b9c486edd962ef6e679f5ef09",
+      "baseline-instrumentation.patch": "abe7ebd13f22a4bb9304d9354bdbfecd231f7d4ec167957df045ff0677066236",
+      "gem122-on-deployed-baseline.patch": "de7339e54db9cc0eb0b4b43919ebad2c06c7fb74884f4a404400904b6cfe892b",
+      "run_variant.py": "0b405cbecf42e2935de4fd1a5c14fe61dc8ee0ba94c52f860de8497f8783ebfa",
+      "api_probe.py": "a3ee9541c6196c132b537c632fa18ed7f4e1f0bb0436d9c690cf305d88d15d66",
+      "summarize.py": "e81a3cd1eb2b9cc5d2cd457dbc9737fe864d66580ae18d1771fcddce9e4936ce"
+    }
+  },
+  "processing": {
+    "budgetMs": 300000,
+    "variants": [
+      {
+        "variant": "after",
+        "firstStep": 1,
+        "steps": [
+          {
+            "step": 1,
+            "watermark": "2026-11-24T08:00:00Z",
+            "startedAt": "2026-11-24T20:20:24.680851224Z",
+            "completedAt": "2026-11-24T20:26:11.579750830Z",
+            "elapsedMs": 346898,
+            "processingWithinBudget": false,
+            "published": true,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0,
+            "phases": {
+              "snapshot": 83,
+              "loadMs": 124206,
+              "compareMs": 190742,
+              "publishMs": 31935,
+              "candidates": 50289652
+            },
+            "api": {
+              "articles": {
+                "requests": 344,
+                "failures": 0,
+                "p50Ms": 32.05295279622078,
+                "p95Ms": 166.95156320929527,
+                "maxMs": 2686.500985175371
+              },
+              "stories": {
+                "requests": 344,
+                "failures": 0,
+                "p50Ms": 260.6520317494869,
+                "p95Ms": 575.3934942185879,
+                "maxMs": 3262.1836699545383
+              }
+            },
+            "scheduledAt": "2026-11-24T20:20:21.137901+00:00",
+            "completionLagMs": 350441.849,
+            "releaseBudgetPassed": false
+          },
+          {
+            "step": 2,
+            "watermark": "2026-11-24T08:05:00Z",
+            "startedAt": "2026-11-24T20:26:17.644901211Z",
+            "completedAt": "2026-11-24T20:34:34.502360824Z",
+            "elapsedMs": 496857,
+            "processingWithinBudget": false,
+            "published": true,
+            "selected": 1,
+            "succeeded": 1,
+            "reused": 0,
+            "failed": 0,
+            "phases": {
+              "snapshot": 84,
+              "loadMs": 225398,
+              "compareMs": 247531,
+              "publishMs": 23903,
+              "candidates": 51361123
+            },
+            "api": {
+              "articles": {
+                "requests": 363,
+                "failures": 11,
+                "p50Ms": 23.669593036174774,
+                "p95Ms": 931.0625977814198,
+                "maxMs": 13401.271268725395
+              },
+              "stories": {
+                "requests": 336,
+                "failures": 11,
+                "p50Ms": 187.06221878528595,
+                "p95Ms": 1780.9855602681637,
+                "maxMs": 18733.210742473602
+              }
+            },
+            "scheduledAt": "2026-11-24T20:25:21.137901+00:00",
+            "completionLagMs": 553364.459,
+            "releaseBudgetPassed": false
+          }
+        ],
+        "apiMeasuredWindow": {
+          "articles": {
+            "requests": 713,
+            "failures": 11,
+            "p50Ms": 28.766240924596786,
+            "p95Ms": 566.1747716367245,
+            "maxMs": 13401.271268725395
+          },
+          "stories": {
+            "requests": 684,
+            "failures": 11,
+            "p50Ms": 227.31031849980354,
+            "p95Ms": 1287.8649197518826,
+            "maxMs": 18733.210742473602
+          }
+        },
+        "backlogAtReleases": [
+          {
+            "step": 1,
+            "releasedAt": "2026-11-24T20:20:21.137901+00:00",
+            "unfinishedEarlierIntervals": 0,
+            "pendingIncludingRelease": 1
+          },
+          {
+            "step": 2,
+            "releasedAt": "2026-11-24T20:25:21.137901+00:00",
+            "unfinishedEarlierIntervals": 1,
+            "pendingIncludingRelease": 2
+          },
+          {
+            "step": 3,
+            "releasedAt": "2026-11-24T20:30:21.137901+00:00",
+            "unfinishedEarlierIntervals": 1,
+            "pendingIncludingRelease": 2
+          }
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  "availability": {
+    "measuredStartUtc": "2026-11-24T20:20:24.680851+00:00",
+    "testStoppedUtc": "2026-11-24T20:35:05.245275+00:00",
+    "testApiWholeAttempt": {
+      "articles": {
+        "requests": 743,
+        "failures": 12,
+        "p50Ms": 28.11521291732788,
+        "p95Ms": 560.279656201601,
+        "maxMs": 13401.271268725395
+      },
+      "stories": {
+        "requests": 714,
+        "failures": 11,
+        "p50Ms": 223.88364002108574,
+        "p95Ms": 1274.5238952338696,
+        "maxMs": 18733.210742473602
+      }
+    },
+    "productionApiWholeAttempt": {
+      "articles": {
+        "requests": 384,
+        "failures": 73,
+        "p50Ms": 94.8733538389206,
+        "p95Ms": 851.2225933372974,
+        "maxMs": 2894.999023526907
+      },
+      "stories": {
+        "requests": 380,
+        "failures": 73,
+        "p50Ms": 324.9979466199875,
+        "p95Ms": 1547.437995672226,
+        "maxMs": 3842.937771230936
+      }
+    },
+    "productionDockerEventsRetained": [
+      {
+        "utc": "2026-11-24T20:31:18+00:00",
+        "event": "oom",
+        "exit": ""
+      },
+      {
+        "utc": "2026-11-24T20:31:19+00:00",
+        "event": "die",
+        "exit": "137"
+      },
+      {
+        "utc": "2026-11-24T20:32:43+00:00",
+        "event": "oom",
+        "exit": ""
+      },
+      {
+        "utc": "2026-11-24T20:32:44+00:00",
+        "event": "die",
+        "exit": "137"
+      },
+      {
+        "utc": "2026-11-24T20:34:00+00:00",
+        "event": "oom",
+        "exit": ""
+      },
+      {
+        "utc": "2026-11-24T20:34:02+00:00",
+        "event": "die",
+        "exit": "137"
+      },
+      {
+        "utc": "2026-11-24T20:34:46+00:00",
+        "event": "oom",
+        "exit": ""
+      },
+      {
+        "utc": "2026-11-24T20:34:48+00:00",
+        "event": "die",
+        "exit": "137"
+      }
+    ]
+  },
+  "publicHttps": {
+    "measuredAttempt": {
+      "articles": {
+        "requests": 175,
+        "failures": 49,
+        "p50Ms": 375.0,
+        "p95Ms": 1375.0,
+        "maxMs": 3204.0000000270084
+      },
+      "stories": {
+        "requests": 174,
+        "failures": 52,
+        "p50Ms": 655.9999999590218,
+        "p95Ms": 3140.999999945052,
+        "maxMs": 4827.999999979511
+      }
+    },
+    "recoverySince203625Utc": {
+      "articles": {
+        "requests": 94,
+        "failures": 0,
+        "p50Ms": 312.99999996554106,
+        "p95Ms": 343.99999992456287,
+        "maxMs": 359.00000005494803
+      },
+      "stories": {
+        "requests": 94,
+        "failures": 0,
+        "p50Ms": 500.0,
+        "p95Ms": 579.0000000270084,
+        "maxMs": 609.000000054948
+      }
+    }
+  },
+  "completedIntervalDatabase": {
+    "database": "gem122_after",
+    "latestRun": {
+      "id": 84,
+      "run_mode": "INCREMENTAL",
+      "status": "SUCCEEDED",
+      "read_article_count": 52587,
+      "changed_article_count": 988,
+      "skipped_article_count": 0,
+      "failed_article_count": 0,
+      "candidate_count": 50289652,
+      "started_at": "2026-11-24T20:20:24.68745+00:00",
+      "completed_at": "2026-11-24T20:26:11.543517+00:00"
+    },
+    "latestPublishedWatermark": "2026-11-24T08:00:00+00:00",
+    "totals": {
+      "articles": 71228,
+      "currentInputs": 52589,
+      "readyInputs": 52426,
+      "stories": 24572,
+      "memberships": 52426,
+      "duplicateMemberships": 0,
+      "databaseBytes": 2076055219
+    },
+    "exports": {
+      "memberships": {
+        "sha256": "927c37be2ed4c8c1d864af6fac6d0239a68614e6fea3dd74521aff8e1f7c2a2e",
+        "bytes": 8859994
+      },
+      "stories": {
+        "sha256": "ccb4a8252fc1b1fef7a0dd0553d91d0fb03553dde225f3569786732a1c812347",
+        "bytes": 6512722
+      },
+      "locations": {
+        "sha256": "bec80cd9aa8155408692f58a86554e786c37f8dcad768d9aa544f2b483b4b084",
+        "bytes": 1610206
+      }
+    },
+    "snapshotMatchesStep": true
+  },
+  "guardDiagnostic": {
+    "oldPlan": "Nested Loop Anti Join with Materialize; fresh snapshot estimated 1 row, actual 51587",
+    "replacement": "SetOp Except; missing current references remain an error",
+    "realDataExecutionMs": 2476.921,
+    "omittedReferenceDetected": true
+  },
+  "cleanup": {
+    "testDatabasesRemoved": [
+      "gem122_after",
+      "gem122_before",
+      "gem122_seed"
+    ],
+    "testContainersRemoved": [
+      "gem122-after",
+      "gem122-warmup"
+    ],
+    "temporaryCredentialCopiesRemoved": true,
+    "productionHttpArticles": 200,
+    "productionHttpStories": 200,
+    "productionRestartCountAfterRecovery": 6,
+    "freeRootGiB": 54,
+    "privateDatabaseTransferredOffVps": false
+  },
+  "remaining": [
+    "Three completed consecutive intervals within 300 seconds",
+    "Matched before/after run and identity/representative equivalence",
+    "Exclusive isolated resource test",
+    "Integration into main"
+  ]
+}
