@@ -2,6 +2,8 @@ package com.example.globalnewsenginev1.stories.snapshot;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -22,8 +24,17 @@ class StoryLocationMaterializer {
     }
 
     void refresh(long versionId) {
+        refresh(versionId, null);
+    }
+
+    void refresh(long versionId, Set<UUID> storyIds) {
+        if (storyIds != null && storyIds.isEmpty()) return;
+        NamedParameterJdbcTemplate scopedJdbc = new NamedParameterJdbcTemplate(jdbc);
+        MapSqlParameterSource parameters = new MapSqlParameterSource("versionId", versionId);
+        String scope = storyIds == null ? "" : " AND story.id IN (:storyIds)";
+        if (storyIds != null) parameters.addValue("storyIds", storyIds);
         Map<UUID, List<Candidate>> candidates = new HashMap<>();
-        jdbc.query("""
+        scopedJdbc.query("""
                 SELECT story.id AS story_id, member.article_id, article.domain,
                        event.action_geo_type AS location_type, event.action_geo_name AS location_name,
                        event.action_geo_country_code AS country_code,
@@ -39,15 +50,17 @@ class StoryLocationMaterializer {
                   AND member.current_marker = 1
                 JOIN articles article ON article.id = member.article_id
                 JOIN gdelt_events event ON event.article_id = member.article_id
-                WHERE story.clustering_version_id = ? AND story.state <> 'SUPERSEDED'
-                """, (RowCallbackHandler) rs -> candidates.computeIfAbsent(rs.getObject("story_id", UUID.class), ignored -> new ArrayList<>())
+                WHERE story.clustering_version_id = :versionId AND story.state <> 'SUPERSEDED'
+                """ + scope, parameters, (RowCallbackHandler) rs -> candidates.computeIfAbsent(rs.getObject("story_id", UUID.class), ignored -> new ArrayList<>())
                 .add(new Candidate(nullableInt(rs.getObject("location_type")), rs.getString("location_name"),
                         rs.getString("country_code"), rs.getString("region_code"),
                         nullableDouble(rs.getObject("latitude")), nullableDouble(rs.getObject("longitude")),
                         rs.getString("feature_id"), rs.getLong("article_id"), rs.getString("domain"),
-                        nullableInt(rs.getObject("event_confidence")))), versionId);
+                        nullableInt(rs.getObject("event_confidence")))));
 
-        jdbc.update("DELETE FROM story_locations WHERE story_id IN (SELECT id FROM stories WHERE clustering_version_id = ?)", versionId);
+        scopedJdbc.update("DELETE FROM story_locations WHERE story_id IN "
+                + "(SELECT story.id FROM stories story WHERE story.clustering_version_id = :versionId"
+                + scope + ")", parameters);
         candidates.forEach((storyId, values) -> {
             List<Ranked> ranked = values.stream().filter(Candidate::valid)
                     .collect(Collectors.groupingBy(value -> new Coordinates(value.latitude(), value.longitude())))

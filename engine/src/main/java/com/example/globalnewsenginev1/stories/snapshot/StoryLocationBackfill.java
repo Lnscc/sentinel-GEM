@@ -2,12 +2,14 @@ package com.example.globalnewsenginev1.stories.snapshot;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
+@Order(-100)
 class StoryLocationBackfill implements ApplicationRunner {
     private final JdbcTemplate jdbc;
     private final StorySnapshotRepository repository;

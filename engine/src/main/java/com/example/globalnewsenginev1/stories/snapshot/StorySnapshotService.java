@@ -141,6 +141,7 @@ public class StorySnapshotService {
     ) {
         validateVersion(version);
         Instant now = StorySnapshotCanonicalizer.normalizeWatermark(clock.instant());
+        long loadStarted = System.nanoTime();
         PreparedWork work = snapshotTransaction.execute(status -> {
             repository.lockVersion(version.id());
             if (repository.hasFreshRunningRun(
@@ -199,12 +200,17 @@ public class StorySnapshotService {
             Set<String> changedArticleRefs = mode == RunMode.INCREMENTAL
                     ? repository.findChangedArticleRefs(work.snapshot().id())
                     : Set.of();
+            var assignments = mode == RunMode.INCREMENTAL
+                    ? repository.findExistingAssignments(version.id())
+                    : List.<StorySnapshotRepository.ExistingAssignment>of();
+            long loadNanos = System.nanoTime() - loadStarted;
+            long compareStarted = System.nanoTime();
             PairSearchResult search;
             StoryPartitionService.Partition partition;
             if (mode == RunMode.INCREMENTAL) {
                 var incrementalSearch = new StoryIncrementalPairSearch(version, frozenInputs);
                 partition = StoryPartitionService.incrementalPartition(rules, frozenInputs,
-                        incrementalSearch, changedArticleRefs, repository.findExistingAssignments(version.id()));
+                        incrementalSearch, changedArticleRefs, assignments);
                 search = incrementalSearch.result();
             } else {
                 search = hnswShadow == null
@@ -213,6 +219,8 @@ public class StorySnapshotService {
                                 () -> search(version, frozenInputs));
                 partition = StoryPartitionService.partitionForPublication(rules, frozenInputs, search.decisions());
             }
+            long compareNanos = System.nanoTime() - compareStarted;
+            long publishStarted = System.nanoTime();
             StoryPublisher.Plan plan = mode == RunMode.INCREMENTAL
                     ? publisher.prepare(work.snapshot(), partition, changedArticleRefs)
                     : publisher.prepare(work.snapshot(), partition);
@@ -240,6 +248,13 @@ public class StorySnapshotService {
                         search.comparedPairs(), completedAt);
                 return result;
             });
+            long publishNanos = System.nanoTime() - publishStarted;
+            metrics.phase("load", loadNanos);
+            metrics.phase("compare", compareNanos);
+            metrics.phase("publish", publishNanos);
+            LOGGER.info("Story run timings: snapshot={}, mode={}, loadMs={}, compareMs={}, publishMs={}, candidates={}",
+                    work.snapshot().id(), mode, loadNanos / 1_000_000,
+                    compareNanos / 1_000_000, publishNanos / 1_000_000, search.comparedPairs());
             publisher.record(published);
             long sameStory = search.decisions().stream()
                     .filter(decision -> "SAME_STORY".equals(decision.result())).count();
