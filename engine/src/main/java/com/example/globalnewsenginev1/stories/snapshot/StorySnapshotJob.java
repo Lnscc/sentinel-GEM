@@ -7,6 +7,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
+
 @Service
 @ConditionalOnProperty(name = "stories.snapshots.incremental.enabled",
         havingValue = "true", matchIfMissing = true)
@@ -31,12 +34,16 @@ class StorySnapshotJob {
     )
     void processIncremental() {
         long startedAt = System.nanoTime();
+        long heapUsedBefore = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
         StorySnapshotService.ProcessingResult result =
                 service.processIncremental(maxVersionsPerRun);
         if (result.selectedVersions() > 0) {
-            LOGGER.info("Story snapshot run completed: selected={}, succeeded={}, reused={}, failed={}, durationMs={}",
+            MemoryUsage heap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+            LOGGER.info("Story snapshot run completed: selected={}, succeeded={}, reused={}, failed={}, durationMs={}, "
+                            + "heapUsedBeforeBytes={}, heapUsedAfterBytes={}, heapMaxBytes={}",
                     result.selectedVersions(), result.succeededVersions(),
-                    result.reusedVersions(), result.failedVersions(), elapsedMillis(startedAt));
+                    result.reusedVersions(), result.failedVersions(), elapsedMillis(startedAt),
+                    heapUsedBefore, heap.getUsed(), heap.getMax());
         }
     }
 

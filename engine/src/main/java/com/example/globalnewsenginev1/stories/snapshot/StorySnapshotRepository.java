@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -140,7 +141,7 @@ class StorySnapshotRepository {
                        input.article_input_fingerprint, input.effective_at,
                        input.effective_at_source, input.normalized_title, input.title_input_hash,
                        artifact.id AS embedding_artifact_id, artifact.vector_hash,
-                       artifact.vector_bytes, artifact.embedding_dimension
+                       artifact.embedding_dimension
                 FROM story_article_inputs input
                 LEFT JOIN story_embedding_artifacts artifact
                   ON artifact.id = input.embedding_artifact_id
@@ -164,7 +165,7 @@ class StorySnapshotRepository {
                 resultSet.getString("title_input_hash"),
                 resultSet.getLong("embedding_artifact_id"),
                 resultSet.getString("vector_hash"),
-                resultSet.getBytes("vector_bytes"),
+                null,
                 resultSet.getInt("embedding_dimension")),
                 Timestamp.from(watermark), versionId, Timestamp.from(watermark));
     }
@@ -201,23 +202,32 @@ class StorySnapshotRepository {
                 || !snapshot.watermark().equals(watermark)) {
             throw new IllegalStateException("Snapshot key collision detected");
         }
+        if (!snapshot.created() && isCompacted(snapshot.id())) return snapshot;
         int memberCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM story_snapshot_members WHERE snapshot_id = ?
                 """, Integer.class, snapshot.id());
         if (memberCount != inputs.size()) {
-            for (SnapshotInput input : inputs) {
-                jdbcTemplate.update("""
+            jdbcTemplate.batchUpdate("""
                         INSERT INTO story_snapshot_members (
                             snapshot_id, clustering_version_id, article_input_id,
                             article_ref, article_input_fingerprint,
                             embedding_artifact_id, vector_hash, normalized_title
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT DO NOTHING
-                        """, snapshot.id(), version.id(), input.articleInputId(),
-                        input.articleRef(), input.articleInputFingerprint(),
-                        input.embeddingArtifactId() == 0 ? null : input.embeddingArtifactId(),
-                        input.vectorHash(), input.normalizedTitle());
-            }
+                        """, inputs, 512, (statement, input) -> {
+                statement.setLong(1, snapshot.id());
+                statement.setLong(2, version.id());
+                statement.setLong(3, input.articleInputId());
+                statement.setString(4, input.articleRef());
+                statement.setString(5, input.articleInputFingerprint());
+                if (input.embeddingArtifactId() == 0) {
+                    statement.setNull(6, Types.BIGINT);
+                } else {
+                    statement.setLong(6, input.embeddingArtifactId());
+                }
+                statement.setString(7, input.vectorHash());
+                statement.setString(8, input.normalizedTitle());
+            });
             memberCount = jdbcTemplate.queryForObject("""
                     SELECT COUNT(*) FROM story_snapshot_members WHERE snapshot_id = ?
                     """, Integer.class, snapshot.id());
@@ -227,6 +237,12 @@ class StorySnapshotRepository {
                     "Snapshot member count differs from its canonical input");
         }
         return snapshot;
+    }
+
+    boolean isCompacted(long snapshotId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM story_snapshot_retention WHERE snapshot_id = ?)
+                """, Boolean.class, snapshotId));
     }
 
     Optional<RunClaim> claimRun(
@@ -316,7 +332,16 @@ class StorySnapshotRepository {
     }
 
     List<SnapshotInput> loadSnapshotInputs(long snapshotId) {
-        return jdbcTemplate.query("""
+        return loadSnapshotInputs(snapshotId, false);
+    }
+
+    List<SnapshotInput> loadIncrementalSnapshotInputs(long snapshotId) {
+        return loadSnapshotInputs(snapshotId, true);
+    }
+
+    private List<SnapshotInput> loadSnapshotInputs(long snapshotId, boolean decodeVectors) {
+        return jdbcTemplate.query(connection -> {
+            var statement = connection.prepareStatement("""
                 SELECT input.id AS article_input_id, input.article_ref,
                        member.article_input_fingerprint, input.effective_at,
                        input.effective_at_source, member.normalized_title, input.title_input_hash,
@@ -329,18 +354,26 @@ class StorySnapshotRepository {
                  AND artifact.vector_hash = member.vector_hash
                 WHERE member.snapshot_id = ?
                 ORDER BY input.effective_at, input.article_ref
-                """, (resultSet, rowNum) -> new SnapshotInput(
-                resultSet.getLong("article_input_id"),
-                resultSet.getString("article_ref"),
-                resultSet.getString("article_input_fingerprint"),
-                resultSet.getTimestamp("effective_at").toInstant(),
-                resultSet.getString("effective_at_source"),
-                resultSet.getString("normalized_title"),
-                resultSet.getString("title_input_hash"),
-                resultSet.getLong("embedding_artifact_id"),
-                resultSet.getString("vector_hash"),
-                resultSet.getBytes("vector_bytes"),
-                resultSet.getInt("embedding_dimension")), snapshotId);
+                """);
+            statement.setLong(1, snapshotId);
+            statement.setFetchSize(256);
+            return statement;
+        }, (resultSet, rowNum) -> {
+            byte[] bytes = resultSet.getBytes("vector_bytes");
+            String hash = resultSet.getString("vector_hash");
+            int dimension = resultSet.getInt("embedding_dimension");
+            return new SnapshotInput(
+                    resultSet.getLong("article_input_id"),
+                    resultSet.getString("article_ref"),
+                    resultSet.getString("article_input_fingerprint"),
+                    resultSet.getTimestamp("effective_at").toInstant(),
+                    resultSet.getString("effective_at_source"),
+                    resultSet.getString("normalized_title"),
+                    resultSet.getString("title_input_hash"),
+                    resultSet.getLong("embedding_artifact_id"),
+                    hash, decodeVectors ? null : bytes, dimension,
+                    decodeVectors ? ExactCosine.decode(bytes, dimension, hash) : null);
+        });
     }
 
     Set<String> findChangedArticleRefs(long snapshotId) {
@@ -479,8 +512,17 @@ class StorySnapshotRepository {
             long embeddingArtifactId,
             String vectorHash,
             byte[] vectorBytes,
-            int embeddingDimension
+            int embeddingDimension,
+            float[] decodedVector
     ) {
+        SnapshotInput(long articleInputId, String articleRef, String articleInputFingerprint,
+                      Instant effectiveAt, String effectiveAtSource, String normalizedTitle, String titleInputHash,
+                      long embeddingArtifactId, String vectorHash, byte[] vectorBytes, int embeddingDimension) {
+            this(articleInputId, articleRef, articleInputFingerprint, effectiveAt, effectiveAtSource,
+                    normalizedTitle, titleInputHash, embeddingArtifactId, vectorHash, vectorBytes,
+                    embeddingDimension, null);
+        }
+
         SnapshotInput(long articleInputId, String articleRef, String articleInputFingerprint,
                       Instant effectiveAt, String effectiveAtSource, String titleInputHash,
                       long embeddingArtifactId, String vectorHash, byte[] vectorBytes,

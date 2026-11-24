@@ -170,6 +170,7 @@ public class StorySnapshotService {
                         StorySnapshotCanonicalizer.normalizeWatermark(clock.instant()));
                 memberCount = inputs.size();
             }
+            if (!snapshot.created() && repository.isCompacted(snapshot.id())) return PreparedWork.blocked();
             String runKey = StorySnapshotCanonicalizer.runKey(
                     version.key(), snapshot.inputHash(), mode,
                     version.pairRuleVersion());
@@ -190,25 +191,28 @@ public class StorySnapshotService {
         }
 
         try {
-            List<StorySnapshotRepository.SnapshotInput> frozenInputs =
-                    repository.loadSnapshotInputs(work.snapshot().id());
+            List<StorySnapshotRepository.SnapshotInput> frozenInputs = mode == RunMode.INCREMENTAL
+                    ? snapshotTransaction.execute(status -> repository.loadIncrementalSnapshotInputs(work.snapshot().id()))
+                    : repository.loadSnapshotInputs(work.snapshot().id());
             StoryPartitionService.SnapshotRules rules =
                     repository.loadPartitionRules(work.snapshot().id());
             Set<String> changedArticleRefs = mode == RunMode.INCREMENTAL
                     ? repository.findChangedArticleRefs(work.snapshot().id())
                     : Set.of();
-            PairSearchResult search = mode == RunMode.INCREMENTAL
-                    ? search(version, frozenInputs, changedArticleRefs)
-                    : hnswShadow == null
-                            ? search(version, frozenInputs)
-                            : hnswShadow.run(version, work.snapshot(), work.claim(), frozenInputs, rules,
-                                    () -> search(version, frozenInputs));
-            var partition = mode == RunMode.INCREMENTAL
-                    ? StoryPartitionService.incrementalPartition(rules, frozenInputs,
-                            search.decisions(), changedArticleRefs,
-                            repository.findExistingAssignments(version.id()))
-                    : StoryPartitionService.partitionForPublication(
-                            rules, frozenInputs, search.decisions());
+            PairSearchResult search;
+            StoryPartitionService.Partition partition;
+            if (mode == RunMode.INCREMENTAL) {
+                var incrementalSearch = new StoryIncrementalPairSearch(version, frozenInputs);
+                partition = StoryPartitionService.incrementalPartition(rules, frozenInputs,
+                        incrementalSearch, changedArticleRefs, repository.findExistingAssignments(version.id()));
+                search = incrementalSearch.result();
+            } else {
+                search = hnswShadow == null
+                        ? search(version, frozenInputs)
+                        : hnswShadow.run(version, work.snapshot(), work.claim(), frozenInputs, rules,
+                                () -> search(version, frozenInputs));
+                partition = StoryPartitionService.partitionForPublication(rules, frozenInputs, search.decisions());
+            }
             StoryPublisher.Plan plan = mode == RunMode.INCREMENTAL
                     ? publisher.prepare(work.snapshot(), partition, changedArticleRefs)
                     : publisher.prepare(work.snapshot(), partition);
@@ -254,14 +258,6 @@ public class StorySnapshotService {
             StorySnapshotRepository.ClusteringVersion version,
             List<StorySnapshotRepository.SnapshotInput> inputs
     ) {
-        return search(version, inputs, null);
-    }
-
-    static PairSearchResult search(
-            StorySnapshotRepository.ClusteringVersion version,
-            List<StorySnapshotRepository.SnapshotInput> inputs,
-            Set<String> changedArticleRefs
-    ) {
         Map<Long, float[]> vectors = new HashMap<>();
         for (StorySnapshotRepository.SnapshotInput input : inputs) {
             if (input.embeddingDimension() != version.dimension()) {
@@ -280,57 +276,26 @@ public class StorySnapshotService {
         long comparedPairs = 0;
         Duration window = Duration.ofHours(version.windowHours());
 
-        if (changedArticleRefs == null) {
-            for (int leftIndex = 0; leftIndex < inputs.size(); leftIndex++) {
-                for (int rightIndex = leftIndex + 1; rightIndex < inputs.size(); rightIndex++) {
-                    var first = inputs.get(leftIndex);
-                    var second = inputs.get(rightIndex);
-                    examinedPairs++;
-                    Duration distance = Duration.between(first.effectiveAt(), second.effectiveAt());
-                    if (distance.isNegative()) {
-                        throw new IllegalArgumentException("Snapshot inputs are not ordered by effectiveAt");
-                    }
-                    if (distance.compareTo(window) > 0) break;
-                    PairDecision decision = compare(version, first, second, vectors,
-                            bestComparison, articlesWithPositive, distance);
-                    if (decision != null) sameStory.add(decision);
-                    comparedPairs++;
+        for (int leftIndex = 0; leftIndex < inputs.size(); leftIndex++) {
+            for (int rightIndex = leftIndex + 1; rightIndex < inputs.size(); rightIndex++) {
+                var first = inputs.get(leftIndex);
+                var second = inputs.get(rightIndex);
+                examinedPairs++;
+                Duration distance = Duration.between(first.effectiveAt(), second.effectiveAt());
+                if (distance.isNegative()) {
+                    throw new IllegalArgumentException("Snapshot inputs are not ordered by effectiveAt");
                 }
+                if (distance.compareTo(window) > 0) break;
+                PairDecision decision = compare(version, first, second, vectors,
+                        bestComparison, articlesWithPositive, distance);
+                if (decision != null) sameStory.add(decision);
+                comparedPairs++;
             }
-        } else {
-            Map<PairKey, PairDecision> positivePairs = new HashMap<>();
-            for (int changedIndex = 0; changedIndex < inputs.size(); changedIndex++) {
-                var changed = inputs.get(changedIndex);
-                if (!changedArticleRefs.contains(changed.articleRef())) continue;
-                int firstCandidate = lowerBound(inputs, changed.effectiveAt().minus(window));
-                int afterLastCandidate = upperBound(inputs, changed.effectiveAt().plus(window));
-                for (int candidateIndex = firstCandidate;
-                     candidateIndex < afterLastCandidate; candidateIndex++) {
-                    if (changedIndex == candidateIndex) continue;
-                    var candidate = inputs.get(candidateIndex);
-                    examinedPairs++;
-                    Duration distance = Duration.between(
-                            changed.effectiveAt(), candidate.effectiveAt()).abs();
-                    if (distance.compareTo(window) > 0) continue;
-                    PairDecision decision = compare(version, changed, candidate, vectors,
-                            bestComparison, articlesWithPositive, distance);
-                    if (decision != null) {
-                        positivePairs.putIfAbsent(new PairKey(decision.left().articleRef(),
-                                decision.right().articleRef()), decision);
-                    }
-                    comparedPairs++;
-                }
-            }
-            sameStory.addAll(positivePairs.values());
         }
 
         List<PairDecision> decisions = sameStory;
         Set<PairKey> uncertainPairs = new HashSet<>();
         for (StorySnapshotRepository.SnapshotInput input : inputs) {
-            if (changedArticleRefs != null
-                    && !changedArticleRefs.contains(input.articleRef())) {
-                continue;
-            }
             if (articlesWithPositive.contains(input.articleRef())) {
                 continue;
             }
@@ -350,6 +315,10 @@ public class StorySnapshotService {
             }
         }
 
+        return rankDecisions(decisions, examinedPairs, comparedPairs);
+    }
+
+    static PairSearchResult rankDecisions(List<PairDecision> decisions, long examinedPairs, long comparedPairs) {
         Comparator<PairDecision> order = Comparator
                 .comparing(PairDecision::similarity, Comparator.reverseOrder())
                 .thenComparing(decision -> decision.left().articleRef())
@@ -367,40 +336,6 @@ public class StorySnapshotService {
         }
         return new PairSearchResult(List.copyOf(decisions), examinedPairs, comparedPairs,
                 changedArticles.size());
-    }
-
-    private static int lowerBound(
-            List<StorySnapshotRepository.SnapshotInput> inputs,
-            Instant effectiveAt
-    ) {
-        int low = 0;
-        int high = inputs.size();
-        while (low < high) {
-            int middle = (low + high) >>> 1;
-            if (inputs.get(middle).effectiveAt().isBefore(effectiveAt)) {
-                low = middle + 1;
-            } else {
-                high = middle;
-            }
-        }
-        return low;
-    }
-
-    private static int upperBound(
-            List<StorySnapshotRepository.SnapshotInput> inputs,
-            Instant effectiveAt
-    ) {
-        int low = 0;
-        int high = inputs.size();
-        while (low < high) {
-            int middle = (low + high) >>> 1;
-            if (inputs.get(middle).effectiveAt().isAfter(effectiveAt)) {
-                high = middle;
-            } else {
-                low = middle + 1;
-            }
-        }
-        return low;
     }
 
     private static void updateBest(

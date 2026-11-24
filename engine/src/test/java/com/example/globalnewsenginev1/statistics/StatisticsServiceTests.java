@@ -38,7 +38,7 @@ class StatisticsServiceTests {
                 CREATE TABLE story_processing_runs(id BIGINT, clustering_version_id BIGINT, snapshot_id BIGINT,
                     status TEXT, started_at TIMESTAMP WITH TIME ZONE, completed_at TIMESTAMP WITH TIME ZONE)
                 """);
-        jdbc.execute("CREATE TABLE story_snapshot_members(snapshot_id BIGINT, clustering_version_id BIGINT, article_ref TEXT)");
+        jdbc.execute("CREATE TABLE story_snapshot_statistics_members(snapshot_id BIGINT, clustering_version_id BIGINT, article_id BIGINT)");
         jdbc.execute("CREATE TABLE story_article_inputs(clustering_version_id BIGINT, current_marker SMALLINT, embedding_status TEXT, attempt_count INTEGER)");
         service = new StatisticsService(jdbc, new EmbeddingUsageMetrics(new SimpleMeterRegistry()), "visible",
                 Clock.fixed(NOW, ZoneOffset.UTC));
@@ -54,7 +54,7 @@ class StatisticsServiceTests {
         jdbc.update("INSERT INTO story_memberships VALUES (1, 1, 1, 1), (2, 1, 2, 1), (5, 1, 3, 1), (6, 2, 3, 1), (2, 1, 3, NULL)");
         jdbc.update("INSERT INTO gdelt_import_files VALUES (1, 'COMPLETED', 100, '2026-11-18T10:00:00Z', '2026-11-18T10:00:05Z'), (2, 'FAILED', 0, '2026-11-18T11:00:00Z', '2026-11-18T11:00:02Z'), (3, 'COMPLETED', 500, '2026-11-18T11:00:00Z', '2026-11-18T12:00:00Z')");
         jdbc.update("INSERT INTO story_processing_runs VALUES (1, 1, 10, 'SUCCEEDED', '2026-11-18T10:00:00Z', '2026-11-18T10:00:03Z'), (2, 1, 11, 'SUCCEEDED', '2026-11-18T10:01:00Z', '2026-11-18T10:01:02Z'), (3, 2, 20, 'SUCCEEDED', '2026-11-18T11:00:00Z', '2026-11-18T11:00:04Z')");
-        jdbc.update("INSERT INTO story_snapshot_members VALUES (10, 1, 'a'), (10, 1, 'b'), (11, 1, 'a'), (20, 2, 'other')");
+        jdbc.update("INSERT INTO story_snapshot_statistics_members VALUES (10, 1, 1), (10, 1, 2), (11, 1, 1), (20, 2, 3)");
         jdbc.update("INSERT INTO story_article_inputs VALUES (1, 1, 'PENDING', 0), (1, 1, 'RETRYABLE_FAILURE', 4), (1, 1, 'RETRYABLE_FAILURE', 5), (1, 1, 'TERMINAL_FAILURE', 1), (2, 1, 'PENDING', 0)");
 
         StatisticsReport report = service.report(null, null);
