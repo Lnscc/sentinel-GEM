@@ -3,6 +3,8 @@ package com.example.globalnewsenginev1.stories.query;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
@@ -189,7 +191,7 @@ class StoryQueryServiceTests {
 
     @Test
     void returnsOnlyCurrentVisibleStoriesWithStablePagination() {
-        seedVersion(1, "visible-version", "SHADOW");
+        seedVersion(1, "visible-version", "ACTIVE");
         seedVersion(2, "other-version", "ACTIVE");
         seedArticle(1, "a", "2026-09-01T10:00:00Z");
         seedArticle(2, "b", "2026-09-02T10:00:00Z");
@@ -393,7 +395,7 @@ class StoryQueryServiceTests {
 
     @Test
     void returnsCurrentMembersAndHidesSupersededIds() {
-        seedVersion(1, "visible-version", "SHADOW");
+        seedVersion(1, "visible-version", "ACTIVE");
         seedArticle(1, "a", "2026-09-01T10:00:00Z");
         seedArticle(2, "b", "2026-09-01T11:00:00Z");
         UUID visible = seedStory(1, 1, "a", "ACTIVE", "2026-09-01T11:00:00Z");
@@ -496,6 +498,32 @@ class StoryQueryServiceTests {
         assertThatIllegalArgumentException().isThrownBy(() -> service.stories(0, 20, "time", "desc",
                 new StorySearchCriteria(null, null, null, null, null, null,
                         new StorySearchCriteria.Bounds(5, 55, 16, 47))));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ACTIVE", "SHADOW", "RETIRED", "UNKNOWN"})
+    void requiresTheConfiguredVersionToBeActiveForEveryPublicStoryQuery(String status) {
+        seedVersion(1, "visible-version", "UNKNOWN".equals(status) ? "SHADOW" : status);
+        seedVersion(2, "another-active-version", "ACTIVE");
+        seedArticle(1, "a", "2026-09-01T10:00:00Z");
+        UUID id = seedStory(1, 1, "a", "ACTIVE", "2026-09-01T11:00:00Z");
+        UUID other = seedStory(2, 2, "a", "ACTIVE", "2026-09-01T11:00:00Z");
+        seedMember(1, 1, 1, 1, "NEW_COMPONENT");
+        seedLocation(1, "Berlin", "GM", "GM16", 52, 13, 100, 1, 1);
+        if ("UNKNOWN".equals(status)) service = new StoryQueryService(jdbc, "missing-version");
+
+        boolean active = "ACTIVE".equals(status);
+        StoryPage page = service.stories(0, 20, "time", "desc");
+        assertThat(page.total()).isEqualTo(active ? 1 : 0);
+        assertThat(page.stories()).hasSize(active ? 1 : 0);
+        assertThat(service.stories(20, 20, "time", "desc").total()).isEqualTo(active ? 1 : 0);
+        assertThat(service.countries()).hasSize(active ? 1 : 0);
+        assertThat(service.mapPositions(StorySearchCriteria.defaults())).hasSize(active ? 1 : 0);
+        assertThat(service.mapMarkers(List.of(id, other))).hasSize(active ? 1 : 0);
+        assertThat(service.story(other)).isEmpty();
+        var detail = service.story(id);
+        assertThat(detail.isPresent()).isEqualTo(active);
+        if (active) assertThat(detail.orElseThrow().members()).hasSize(1);
     }
 
     private void seedVersion(long id, String versionKey, String status) {
