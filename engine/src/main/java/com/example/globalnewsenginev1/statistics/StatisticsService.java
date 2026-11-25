@@ -86,6 +86,9 @@ public class StatisticsService {
         List<Long> versions = jdbc.query("SELECT id FROM story_clustering_versions WHERE version_key = ?",
                 (rs, row) -> rs.getLong(1), visibleVersion);
         Long version = versions.isEmpty() ? null : versions.getFirst();
+        String versionStatus = version == null ? null
+                : jdbc.queryForObject("SELECT status FROM story_clustering_versions WHERE id = ?", String.class, version);
+        if (!"ACTIVE".equals(versionStatus)) version = null;
         stories(metrics, version, now);
         processing(metrics, version, period, now);
         runtime(metrics, now);
@@ -99,13 +102,11 @@ public class StatisticsService {
                     instant(rs.getTimestamp(3))), version, Timestamp.from(start), Timestamp.from(end)));
         }
         runs.sort(Comparator.comparing(Run::startedAt).reversed());
-        String versionStatus = version == null ? null
-                : jdbc.queryForObject("SELECT status FROM story_clustering_versions WHERE id = ?", String.class, version);
         return new StatisticsReport(now, period, visibleVersion, versionStatus, List.copyOf(metrics), List.copyOf(runs));
     }
 
     private void stories(List<Metric> metrics, Long version, Instant now) {
-        String missing = version == null ? "Die konfigurierte sichtbare Clustering-Version ist nicht vorhanden." : null;
+        String missing = version == null ? "Die konfigurierte sichtbare Clustering-Version ist nicht vorhanden oder nicht ACTIVE." : null;
         Map<String, Object> values = version == null ? Map.of() : jdbc.queryForMap("""
                 SELECT COUNT(*) AS stories,
                        COALESCE(SUM(CASE WHEN member_count = 1 THEN 1 ELSE 0 END), 0) AS singletons,
@@ -167,7 +168,7 @@ public class StatisticsService {
         inventory(metrics, "runningImports", "processing", "Laufende Dateiimporte",
                 number("SELECT COUNT(*) FROM gdelt_import_files WHERE status = 'PROCESSING'"), "Dateien",
                 "Aktueller Status PROCESSING; kein historischer Status zum Zeitraumende.", now, null);
-        String missing = version == null ? "Die konfigurierte sichtbare Clustering-Version ist nicht vorhanden." : null;
+        String missing = version == null ? "Die konfigurierte sichtbare Clustering-Version ist nicht vorhanden oder nicht ACTIVE." : null;
         Double processed = version == null ? null : number("""
                 SELECT COUNT(DISTINCT member.article_id) FROM story_snapshot_statistics_members member
                 WHERE member.clustering_version_id = ?

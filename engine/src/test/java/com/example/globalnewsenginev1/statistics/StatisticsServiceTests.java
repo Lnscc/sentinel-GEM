@@ -5,6 +5,8 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Clock;
@@ -46,7 +48,7 @@ class StatisticsServiceTests {
 
     @Test
     void countsCurrentInventoryAndPeriodWorkWithoutMixingVersionsOrBoundaryTimes() {
-        jdbc.update("INSERT INTO story_clustering_versions VALUES (1, 'visible', 'SHADOW'), (2, 'other', 'ACTIVE')");
+        jdbc.update("INSERT INTO story_clustering_versions VALUES (1, 'visible', 'ACTIVE'), (2, 'other', 'SHADOW')");
         jdbc.update("INSERT INTO articles VALUES (1, 'one.test', '2026-11-17T12:00:00Z'), (2, 'one.test', '2026-11-18T11:00:00Z'), (3, 'two.test', '2026-11-18T12:00:00Z')");
         jdbc.update("INSERT INTO gdelt_pipeline_health_view VALUES (10, 3, 2), (20, 0, 1)");
         jdbc.update("INSERT INTO stories VALUES (1, 1, 'ACTIVE', 1), (2, 1, 'CLOSED', 3), (3, 1, 'ACTIVE', 8), (4, 1, 'ACTIVE', 30), (5, 1, 'SUPERSEDED', 1), (6, 2, 'ACTIVE', 1)");
@@ -60,7 +62,7 @@ class StatisticsServiceTests {
         StatisticsReport report = service.report(null, null);
 
         assertThat(report.visibleVersion()).isEqualTo("visible");
-        assertThat(report.visibleVersionStatus()).isEqualTo("SHADOW");
+        assertThat(report.visibleVersionStatus()).isEqualTo("ACTIVE");
         assertValue(report, "articles", 3);
         assertValue(report, "sources", 2);
         assertValue(report, "signals", 30);
@@ -87,6 +89,39 @@ class StatisticsServiceTests {
         assertThat(metric(report, "incomingArticles").from()).isEqualTo(NOW.minusSeconds(86400));
         assertThat(metric(report, "articles").from()).isNull();
         assertThat(metric(report, "articles").to()).isEqualTo(NOW);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"SHADOW", "RETIRED", "UNKNOWN"})
+    void hidesStoryDataWhenConfiguredVersionIsNotActive(String status) {
+        if (!status.equals("UNKNOWN")) {
+            jdbc.update("INSERT INTO story_clustering_versions VALUES (1, 'visible', ?)", status);
+        }
+        jdbc.update("INSERT INTO story_clustering_versions VALUES (2, 'other', 'ACTIVE')");
+        jdbc.update("INSERT INTO articles VALUES (1, 'one.test', '2026-11-18T11:00:00Z')");
+        jdbc.update("INSERT INTO stories VALUES (1, 1, 'ACTIVE', 1), (2, 2, 'ACTIVE', 1)");
+        jdbc.update("INSERT INTO story_locations VALUES (1, 1, 'GM'), (2, 1, 'FR')");
+        jdbc.update("INSERT INTO story_memberships VALUES (1, 1, 1, 1), (2, 2, 1, 1)");
+        jdbc.update("INSERT INTO story_processing_runs VALUES (1, 1, 10, 'SUCCEEDED', '2026-11-18T10:00:00Z', '2026-11-18T10:00:03Z'), (2, 2, 20, 'SUCCEEDED', '2026-11-18T11:00:00Z', '2026-11-18T11:00:04Z')");
+        jdbc.update("INSERT INTO story_snapshot_statistics_members VALUES (10, 1, 1), (20, 2, 1)");
+        jdbc.update("INSERT INTO story_article_inputs VALUES (1, 1, 'PENDING', 0), (1, 1, 'TERMINAL_FAILURE', 1)");
+        jdbc.update("INSERT INTO gdelt_import_files VALUES (1, 'COMPLETED', 100, '2026-11-18T10:00:00Z', '2026-11-18T10:00:05Z')");
+
+        StatisticsReport report = service.report(null, null);
+
+        assertThat(report.visibleVersion()).isEqualTo("visible");
+        assertThat(report.visibleVersionStatus()).isEqualTo(status.equals("UNKNOWN") ? null : status);
+        for (String id : new String[]{"stories", "singletonStories", "smallStories", "mediumStories",
+                "largeStories", "countries", "assignedArticles", "processedArticles", "processingThroughput",
+                "successfulStoryRuns", "failedStoryRuns", "storyDuration", "runningStoryRuns",
+                "pendingStoryRuns", "pendingEmbeddings", "failedEmbeddings"}) {
+            assertThat(metric(report, id).value()).as(id).isNull();
+            assertThat(metric(report, id).unavailableReason()).as(id).contains("nicht ACTIVE");
+        }
+        assertValue(report, "articles", 1);
+        assertValue(report, "incomingArticles", 1);
+        assertValue(report, "completedImports", 1);
+        assertThat(report.recentRuns()).singleElement().satisfies(run -> assertThat(run.kind()).isEqualTo("IMPORT"));
     }
 
     @Test

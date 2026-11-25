@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Sentinel-GEM Explore API",
-    "description": "Search contracts for the News Explorer. Import Local.postman_environment.json to set baseUrl.",
+    "description": "Search contracts for the News Explorer. Import Local.postman_environment.json to set baseUrl. Public story results, country options and article storyId links require an ACTIVE configured version. For negative scenarios restart the server with a SHADOW, RETIRED or missing visible version and set expectedVisibleVersionStatus to SHADOW, RETIRED or MISSING; rerun this collection for each scenario.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -12,6 +12,11 @@
         "if (pm.response.code === 200) {",
         "  const body = pm.response.json();",
         "  const stories = pm.request.url.path.includes('stories');",
+        "  const blocked = (pm.variables.get('expectedVisibleVersionStatus') || 'ACTIVE') !== 'ACTIVE';",
+        "  if (blocked) pm.test('Unreleased story data stays hidden', () => {",
+        "    if (stories) { pm.expect(body.items).to.eql([]); pm.expect(body.total).to.eql(0); pm.expect(body.availableFrom).to.eql(null); pm.expect(body.availableTo).to.eql(null); }",
+        "    else body.items.forEach(item => pm.expect(item.storyId).to.eql(null));",
+        "  });",
         "  const page = Number(pm.request.url.query.get('page') || 1);",
         "  const time = stories ? 'lastSeenAt' : 'firstSeenAt';",
         "  const date = value => typeof value === 'string' && Number.isFinite(Date.parse(value));",
@@ -59,6 +64,7 @@
         "pm.test('Status is 200', () => pm.response.to.have.status(200));",
         "pm.test('Each country has a unique code and a readable name', () => {",
         "  const countries = pm.response.json();",
+        "  if ((pm.variables.get('expectedVisibleVersionStatus') || 'ACTIVE') !== 'ACTIVE' && pm.request.url.query.get('view') === 'stories') pm.expect(countries).to.eql([]);",
         "  pm.expect(countries).to.be.an('array');",
         "  pm.expect(new Set(countries.map(country => country.code)).size).to.eql(countries.length);",
         "  countries.forEach(country => {",

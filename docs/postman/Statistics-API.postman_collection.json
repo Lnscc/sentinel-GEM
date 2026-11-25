@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Sentinel-GEM Statistics API",
-    "description": "Statistics contracts; see docs/statistics.md. Uses the baseUrl from Local.postman_environment.json. The 503 branch requires an unavailable database and is otherwise skipped.",
+    "description": "Statistics contracts; see docs/statistics.md. Uses the baseUrl from Local.postman_environment.json. The 503 branch requires an unavailable database and is otherwise skipped. Story metrics and STORY runs require an ACTIVE configured version. For each SHADOW, RETIRED and missing-version scenario, configure the server accordingly and set expectedVisibleVersionStatus to SHADOW, RETIRED or MISSING; MISSING expects a null status. Non-story metrics remain available.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -12,6 +12,19 @@
         "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
         "if (pm.response.code === 200) {",
         "  const body = pm.response.json();",
+        "  pm.test('Only ACTIVE versions expose story metrics and runs', () => {",
+        "    const expected = pm.variables.get('expectedVisibleVersionStatus') || 'ACTIVE';",
+        "    pm.expect(['ACTIVE', 'SHADOW', 'RETIRED', 'MISSING']).to.include(expected);",
+        "    pm.expect(body.visibleVersionStatus).to.eql(expected === 'MISSING' ? null : expected);",
+        "    const storyIds = ['stories', 'singletonStories', 'smallStories', 'mediumStories', 'largeStories', 'countries', 'assignedArticles', 'processedArticles', 'processingThroughput', 'successfulStoryRuns', 'failedStoryRuns', 'storyDuration', 'runningStoryRuns', 'pendingStoryRuns', 'pendingEmbeddings', 'failedEmbeddings'];",
+        "    storyIds.forEach(id => {",
+        "      const metric = body.metrics.find(metric => metric.id === id);",
+        "      pm.expect(metric, id).to.be.an('object');",
+        "      if (expected !== 'ACTIVE') { pm.expect(metric.value, id).to.eql(null); pm.expect(metric.unavailableReason, id).to.be.a('string').that.is.not.empty; }",
+        "    });",
+        "    if (expected !== 'ACTIVE') pm.expect(body.recentRuns.filter(run => run.kind === 'STORY')).to.eql([]);",
+        "    pm.expect(body.metrics.find(metric => metric.id === 'articles').value).to.be.a('number');",
+        "  });",
         "  pm.test('Response und Zeitraum sind definiert', () => {",
         "    pm.expect(body).to.include.all.keys('generatedAt', 'period', 'visibleVersion', 'visibleVersionStatus', 'metrics', 'recentRuns');",
         "    pm.expect(Date.parse(body.generatedAt)).to.be.a('number').and.not.NaN;",
