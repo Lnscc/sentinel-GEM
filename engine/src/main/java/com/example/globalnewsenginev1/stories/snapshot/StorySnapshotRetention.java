@@ -5,9 +5,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Timestamp;
@@ -26,22 +29,35 @@ class StorySnapshotRetention {
     private final Duration minimumAge;
     private final int batchSize;
     private final int maxBatches;
+    private final Duration statementTimeout;
+    private final Duration lockTimeout;
 
     StorySnapshotRetention(
             JdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
             @Value("${stories.snapshots.retention.minimum-age:PT30M}") Duration minimumAge,
             @Value("${stories.snapshots.retention.batch-size:10000}") int batchSize,
-            @Value("${stories.snapshots.retention.max-batches-per-run:8}") int maxBatches
+            @Value("${stories.snapshots.retention.max-batches-per-run:8}") int maxBatches,
+            @Value("${stories.snapshots.retention.statement-timeout:PT2S}") Duration statementTimeout,
+            @Value("${stories.snapshots.retention.lock-timeout:PT0.25S}") Duration lockTimeout,
+            @Value("${stories.snapshots.retention.transaction-timeout:PT5S}") Duration transactionTimeout
     ) {
-        if (minimumAge.isNegative() || batchSize <= 0 || maxBatches <= 0) {
+        if (minimumAge.isNegative() || batchSize <= 0 || maxBatches <= 0
+                || statementTimeout.toMillis() <= 0 || lockTimeout.toMillis() <= 0
+                || transactionTimeout.toSeconds() <= 0
+                || transactionTimeout.toSeconds() > Integer.MAX_VALUE
+                || statementTimeout.compareTo(transactionTimeout) > 0
+                || lockTimeout.compareTo(statementTimeout) > 0) {
             throw new IllegalArgumentException("Invalid story snapshot retention settings");
         }
         this.jdbc = jdbc;
         this.transaction = new TransactionTemplate(transactionManager);
+        this.transaction.setTimeout((int) transactionTimeout.toSeconds());
         this.minimumAge = minimumAge;
         this.batchSize = batchSize;
         this.maxBatches = maxBatches;
+        this.statementTimeout = statementTimeout;
+        this.lockTimeout = lockTimeout;
     }
 
     @Scheduled(
@@ -53,25 +69,42 @@ class StorySnapshotRetention {
         int remainingBatches = maxBatches;
         for (long version : jdbc.queryForList("SELECT id FROM story_clustering_versions ORDER BY id", Long.class)) {
             while (remainingBatches > 0) {
-                Batch batch = compactBatch(version, cutoff);
+                Batch batch;
+                try {
+                    batch = compactBatch(version, cutoff);
+                } catch (QueryTimeoutException | CannotAcquireLockException | TransactionTimedOutException exception) {
+                    remainingBatches--;
+                    // A rolled-back batch is safe to retry at the next poll; let publishers proceed now.
+                    LOGGER.warn("Story snapshot retention yielded: version={} reason={}",
+                            version, exception.getClass().getSimpleName());
+                    break;
+                }
                 if (batch == null) break;
                 remainingBatches--;
-                LOGGER.info("Story snapshot retention: snapshot={} removedPairs={} removedMembers={} complete={}",
-                        batch.snapshotId(), batch.removedPairs(), batch.removedMembers(), batch.complete());
+                LOGGER.info("Story snapshot retention: snapshot={} removedPairs={} removedMembers={} complete={} archiveMs={} elapsedMs={}",
+                        batch.snapshotId(), batch.removedPairs(), batch.removedMembers(), batch.complete(),
+                        batch.archiveMillis(), batch.elapsedMillis());
             }
             if (remainingBatches == 0) break;
         }
     }
 
     Batch compactBatch(long version, Instant cutoff) {
-        return transaction.execute(status -> {
+        long started = System.nanoTime();
+        Batch batch = transaction.execute(status -> {
+            jdbc.queryForObject("SELECT set_config('statement_timeout', ?, true)", String.class,
+                    statementTimeout.toMillis() + "ms");
+            jdbc.queryForObject("SELECT set_config('lock_timeout', ?, true)", String.class,
+                    lockTimeout.toMillis() + "ms");
             if (!Boolean.TRUE.equals(jdbc.queryForObject(
                     "SELECT pg_try_advisory_xact_lock(?)", Boolean.class, version))) {
                 return null;
             }
             Long snapshot = nextSnapshot(version, cutoff);
             if (snapshot == null) return null;
+            long archiveStarted = System.nanoTime();
             archive(snapshot);
+            long archiveMillis = (System.nanoTime() - archiveStarted) / 1_000_000;
             jdbc.execute("SET LOCAL stories.snapshot_retention = 'on'");
             int pairs = deletePairs(snapshot);
             int members = deleteMembers(snapshot);
@@ -83,8 +116,11 @@ class StorySnapshotRetention {
                         WHERE snapshot_id = ?
                         """, snapshot);
             }
-            return new Batch(snapshot, pairs, members, complete);
+            return new Batch(snapshot, pairs, members, complete, archiveMillis, 0);
         });
+        return batch == null ? null : new Batch(batch.snapshotId(), batch.removedPairs(),
+                batch.removedMembers(), batch.complete(), batch.archiveMillis(),
+                (System.nanoTime() - started) / 1_000_000);
     }
 
     private Long nextSnapshot(long version, Instant cutoff) {
@@ -196,5 +232,6 @@ class StorySnapshotRetention {
                 """, snapshot, snapshot, batchSize);
     }
 
-    record Batch(long snapshotId, int removedPairs, int removedMembers, boolean complete) { }
+    record Batch(long snapshotId, int removedPairs, int removedMembers, boolean complete,
+                 long archiveMillis, long elapsedMillis) { }
 }
