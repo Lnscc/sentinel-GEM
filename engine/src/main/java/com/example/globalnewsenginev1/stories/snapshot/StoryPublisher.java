@@ -3,6 +3,7 @@ package com.example.globalnewsenginev1.stories.snapshot;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.SqlArrayValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -67,7 +68,7 @@ class StoryPublisher {
         basis.memberships().forEach(member -> affectedRefs.add(member.ref()));
         var parameters = new java.util.HashMap<String, Object>();
         parameters.put("snapshot", snapshot.id());
-        parameters.put("refs", affectedRefs.isEmpty() ? Set.of("") : affectedRefs);
+        parameters.put("refs", new SqlArrayValue("text", affectedRefs.toArray()));
         List<Input> inputs = new NamedParameterJdbcTemplate(jdbc).query("""
                 SELECT input.id, input.article_id, member.article_ref,
                        member.article_input_fingerprint, input.effective_at, input.created_at,
@@ -75,7 +76,7 @@ class StoryPublisher {
                 FROM story_snapshot_members member
                 JOIN story_article_inputs input ON input.id = member.article_input_id
                 WHERE member.snapshot_id = :snapshot
-                """ + (processedArticleRefs == null ? "" : " AND member.article_ref IN (:refs)")
+                """ + (processedArticleRefs == null ? "" : " AND member.article_ref = ANY (:refs)")
                 + " ORDER BY input.effective_at, member.article_ref", parameters, (rs, row) -> new Input(rs.getLong("id"), rs.getLong("article_id"),
                 rs.getString("article_ref"), rs.getString("article_input_fingerprint"),
                 rs.getTimestamp("effective_at").toInstant(), rs.getTimestamp("created_at").toInstant(),
@@ -296,11 +297,10 @@ class StoryPublisher {
 
     private void refreshListValues(long versionId, int expectedStories, Set<UUID> scope) {
         if (scope != null && scope.isEmpty()) return;
-        String memberScope = scope == null ? "" : " AND member.story_id IN (:scope)\n";
-        String storyScope = scope == null ? "" : " AND candidate.id IN (:scope)\n";
+        String memberScope = scope == null ? "" : " AND member.story_id = ANY (:memberScope)\n";
         var parameters = new java.util.HashMap<String, Object>();
         parameters.put("version", versionId);
-        if (scope != null) parameters.put("scope", scope);
+        if (scope != null) parameters.put("memberScope", new SqlArrayValue("uuid", scope.toArray()));
         int refreshed = new NamedParameterJdbcTemplate(jdbc).update("""
                 UPDATE stories story
                 SET representative_article_id = projection.article_id,
@@ -347,7 +347,6 @@ class StoryPublisher {
                         GROUP BY member.story_id
                     ) members ON members.story_id = candidate.id
                     WHERE candidate.clustering_version_id = :version AND candidate.state <> 'SUPERSEDED'
-                    """ + storyScope + """
                 ) projection
                 WHERE story.id = projection.story_id
                 """, parameters);
@@ -375,8 +374,8 @@ class StoryPublisher {
         if (scope != null && scope.isEmpty()) return List.of();
         return new NamedParameterJdbcTemplate(jdbc).query("""
                 SELECT * FROM stories WHERE clustering_version_id = :version AND state <> 'SUPERSEDED'
-                """ + (scope == null ? "" : " AND id IN (:scope)") + " ORDER BY created_at, id FOR UPDATE",
-                scope == null ? Map.of("version", versionId) : Map.of("version", versionId, "scope", scope), (rs, row) -> new Story(rs.getObject("id", UUID.class), rs.getObject("public_id", UUID.class),
+                """ + (scope == null ? "" : " AND id = ANY (:scope)") + " ORDER BY created_at, id FOR UPDATE",
+                scope == null ? Map.of("version", versionId) : Map.of("version", versionId, "scope", new SqlArrayValue("uuid", scope.toArray())), (rs, row) -> new Story(rs.getObject("id", UUID.class), rs.getObject("public_id", UUID.class),
                 rs.getString("identity_anchor_article_ref"), rs.getString("representative_article_ref"),
                 rs.getString("state"), rs.getTimestamp("effective_from").toInstant(),
                 rs.getTimestamp("effective_to").toInstant(), rs.getLong("optimistic_version"),
@@ -390,8 +389,8 @@ class StoryPublisher {
         return new NamedParameterJdbcTemplate(jdbc).query("""
                 SELECT id, story_id, article_ref, article_input_fingerprint FROM story_memberships
                 WHERE clustering_version_id = :version AND current_marker = 1
-                """ + (scope == null ? "" : " AND story_id IN (:scope)") + " ORDER BY article_ref",
-                scope == null ? Map.of("version", versionId) : Map.of("version", versionId, "scope", scope), (rs, row) -> new Membership(rs.getLong("id"), rs.getObject("story_id", UUID.class),
+                """ + (scope == null ? "" : " AND story_id = ANY (:scope)") + " ORDER BY article_ref",
+                scope == null ? Map.of("version", versionId) : Map.of("version", versionId, "scope", new SqlArrayValue("uuid", scope.toArray())), (rs, row) -> new Membership(rs.getLong("id"), rs.getObject("story_id", UUID.class),
                 rs.getString("article_ref"), rs.getString("article_input_fingerprint")));
     }
 
@@ -399,8 +398,8 @@ class StoryPublisher {
         if (refs.isEmpty()) return Set.of();
         return new HashSet<>(new NamedParameterJdbcTemplate(jdbc).queryForList("""
                 SELECT DISTINCT story_id FROM story_memberships
-                WHERE clustering_version_id = :version AND current_marker = 1 AND article_ref IN (:refs)
-                """, Map.of("version", versionId, "refs", refs), UUID.class));
+                WHERE clustering_version_id = :version AND current_marker = 1 AND article_ref = ANY (:refs)
+                """, Map.of("version", versionId, "refs", new SqlArrayValue("text", refs.toArray())), UUID.class));
     }
 
     private void closeUnchangedStories(StorySnapshotRepository.Snapshot snapshot,
@@ -411,12 +410,12 @@ class StoryPublisher {
         parameters.put("cutoff", ts(snapshot.watermark().minus(Duration.ofHours(72))));
         parameters.put("run", run.id());
         parameters.put("now", ts(now));
-        parameters.put("scope", scope.isEmpty() ? Set.of(new UUID(0, 0)) : scope);
+        parameters.put("scope", new SqlArrayValue("uuid", scope.toArray()));
         int closed = new NamedParameterJdbcTemplate(jdbc).update("""
                 UPDATE stories story SET state = 'CLOSED', closed_at = :now, updated_at = :now,
                     last_changed_by_run_id = :run, optimistic_version = optimistic_version + 1
                 WHERE story.clustering_version_id = :version AND story.state = 'ACTIVE'
-                  AND story.id NOT IN (:scope) AND story.updated_at <= :cutoff
+                  AND story.id <> ALL (:scope) AND story.updated_at <= :cutoff
                   AND NOT EXISTS (
                     SELECT 1 FROM story_memberships member
                     JOIN story_article_inputs input ON input.clustering_version_id = member.clustering_version_id
