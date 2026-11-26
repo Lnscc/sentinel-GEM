@@ -57,27 +57,45 @@ final class StoryIncrementalPairSearch {
         Match strongestPositive = null;
         Match bestAssignment = null;
         Match nearestRejected = null;
-        for (int index = lowerBound(first); index < inputs.size(); index++) {
-            var candidate = inputs.get(index);
-            if (candidate.effectiveAt().isAfter(last)) break;
-            if (candidate.articleInputId() == input.articleInputId()) continue;
-            Vector other = searchVector(candidate);
-            double score = ExactCosine.cosine(inputVector.values(), other.values(), inputVector.norm(), other.norm());
-            comparedPairs++;
-            long rounded = ExactCosine.micros(score);
-            if (rounded >= threshold) {
-                boolean strongest = better(candidate, rounded, strongestPositive);
-                boolean best = better(candidate, rounded, bestAssignment) && canJoin.test(candidate);
-                if (strongest || best) {
-                    var match = new Match(candidate, score, rounded);
-                    if (strongest) strongestPositive = match;
-                    if (best) bestAssignment = match;
+        var candidates = new StorySnapshotRepository.SnapshotInput[4];
+        float[][] candidateVectors = new float[4][];
+        double[] norms = new double[4];
+        double[] scores = new double[4];
+        int index = lowerBound(first);
+        while (index < inputs.size()) {
+            int count = 0;
+            while (count < candidates.length && index < inputs.size()) {
+                var candidate = inputs.get(index++);
+                if (candidate.effectiveAt().isAfter(last)) {
+                    index = inputs.size();
+                    break;
                 }
-            } else if (strongestPositive == null && (nearestRejected == null
-                    || Double.compare(score, nearestRejected.score()) > 0
-                    || (Double.compare(score, nearestRejected.score()) == 0
-                    && candidate.articleRef().compareTo(nearestRejected.input().articleRef()) < 0))) {
-                nearestRejected = new Match(candidate, score, rounded);
+                if (candidate.articleInputId() == input.articleInputId()) continue;
+                Vector other = searchVector(candidate);
+                candidates[count] = candidate;
+                candidateVectors[count] = other.values();
+                norms[count++] = other.norm();
+            }
+            ExactCosine.cosines(inputVector.values(), candidateVectors, inputVector.norm(), norms, scores, count);
+            for (int batchIndex = 0; batchIndex < count; batchIndex++) {
+                var candidate = candidates[batchIndex];
+                double score = scores[batchIndex];
+                comparedPairs++;
+                long rounded = ExactCosine.micros(score);
+                if (rounded >= threshold) {
+                    boolean strongest = better(candidate, rounded, strongestPositive);
+                    boolean best = better(candidate, rounded, bestAssignment) && canJoin.test(candidate);
+                    if (strongest || best) {
+                        var match = new Match(candidate, score, rounded);
+                        if (strongest) strongestPositive = match;
+                        if (best) bestAssignment = match;
+                    }
+                } else if (strongestPositive == null && (nearestRejected == null
+                        || Double.compare(score, nearestRejected.score()) > 0
+                        || (Double.compare(score, nearestRejected.score()) == 0
+                        && candidate.articleRef().compareTo(nearestRejected.input().articleRef()) < 0))) {
+                    nearestRejected = new Match(candidate, score, rounded);
+                }
             }
         }
         if (strongestPositive != null) {
