@@ -81,6 +81,34 @@ final class ExactCosine {
         return cosine(dot, leftNorm * rightNorm);
     }
 
+    /** Independent accumulators preserve each pair's scalar summation order. */
+    static void cosines(float[] left, float[][] right, double leftNorm,
+                        double[] rightNorms, double[] scores, int count) {
+        if (count != 4) {
+            for (int index = 0; index < count; index++) {
+                scores[index] = cosine(left, right[index], leftNorm, rightNorms[index]);
+            }
+            return;
+        }
+        float[] first = right[0], second = right[1], third = right[2], fourth = right[3];
+        if (left.length != first.length || left.length != second.length
+                || left.length != third.length || left.length != fourth.length) {
+            throw new InvalidVectorException("DIMENSION_MISMATCH", "Vector dimensions differ");
+        }
+        double firstDot = 0, secondDot = 0, thirdDot = 0, fourthDot = 0;
+        for (int index = 0; index < left.length; index++) {
+            double value = left[index];
+            firstDot += value * first[index];
+            secondDot += value * second[index];
+            thirdDot += value * third[index];
+            fourthDot += value * fourth[index];
+        }
+        scores[0] = cosine(firstDot, leftNorm * rightNorms[0]);
+        scores[1] = cosine(secondDot, leftNorm * rightNorms[1]);
+        scores[2] = cosine(thirdDot, leftNorm * rightNorms[2]);
+        scores[3] = cosine(fourthDot, leftNorm * rightNorms[3]);
+    }
+
     private static double cosine(double dot, double denominator) {
         if (!Double.isFinite(denominator) || denominator == 0) {
             throw new InvalidVectorException("ZERO_NORM",
