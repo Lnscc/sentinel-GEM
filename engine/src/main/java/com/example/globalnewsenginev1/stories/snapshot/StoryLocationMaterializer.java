@@ -4,6 +4,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.SqlArrayValue;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -31,8 +32,8 @@ class StoryLocationMaterializer {
         if (storyIds != null && storyIds.isEmpty()) return;
         NamedParameterJdbcTemplate scopedJdbc = new NamedParameterJdbcTemplate(jdbc);
         MapSqlParameterSource parameters = new MapSqlParameterSource("versionId", versionId);
-        String scope = storyIds == null ? "" : " AND story.id IN (:storyIds)";
-        if (storyIds != null) parameters.addValue("storyIds", storyIds);
+        String scope = storyIds == null ? "" : " AND story.id = ANY (:storyIds)";
+        if (storyIds != null) parameters.addValue("storyIds", new SqlArrayValue("uuid", storyIds.toArray()));
         Map<UUID, List<Candidate>> candidates = new HashMap<>();
         scopedJdbc.query("""
                 SELECT story.id AS story_id, member.article_id, article.domain,

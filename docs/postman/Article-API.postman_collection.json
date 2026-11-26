@@ -1236,6 +1236,133 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Nicht freigegebene sichtbare Version (GEM-123)",
+      "description": "Nur diesen Ordner separat ausführen: Server mit stories.visible-version auf eine SHADOW-, RETIRED- oder unbekannte Version starten und expectedVisibleVersionStatus im Environment auf SHADOW, RETIRED bzw. MISSING setzen. hiddenStoryId muss die bekannte UUID einer vorhandenen Story der gesperrten Version sein (bei MISSING eine vorhandene Story einer anderen Version). Für ACTIVE überspringt dieser Ordner seine Requests; die normalen Story-Requests prüfen den unveränderten Vertrag.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const status = pm.variables.get('expectedVisibleVersionStatus') || 'ACTIVE';",
+              "if (status === 'ACTIVE') pm.execution.skipRequest();",
+              "else if (!['SHADOW', 'RETIRED', 'MISSING'].includes(status)) throw new Error('expectedVisibleVersionStatus must be ACTIVE, SHADOW, RETIRED or MISSING');",
+              "else if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pm.variables.get('hiddenStoryId') || '')) throw new Error('Set hiddenStoryId to an existing story UUID of the blocked version');"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Story-Liste bleibt leer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/stories"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No unpublished story data', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.stories).to.eql([]);",
+                  "  pm.expect(body.total).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Story-Laender bleiben leer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/stories/countries"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No unpublished story data', () => {",
+                  "  pm.expect(pm.response.json()).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenpositionen bleiben leer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/stories/map-positions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No unpublished story data', () => {",
+                  "  pm.expect(pm.response.json()).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kartenmarker bleiben leer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/stories/map-markers?ids={{hiddenStoryId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No unpublished story data', () => {",
+                  "  pm.expect(pm.response.json()).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Direkte Story-ID gibt weder Details noch Mitglieder preis",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/stories/{{hiddenStoryId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('No unpublished story data', () => {",
+                  "  pm.expect(pm.response.text()).to.eql('');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

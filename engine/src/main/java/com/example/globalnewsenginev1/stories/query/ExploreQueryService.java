@@ -45,7 +45,7 @@ public class ExploreQueryService {
                     ORDER BY g.source_timestamp, g.id LIMIT 1) AS title,
                    (SELECT story.public_id FROM story_memberships member
                     JOIN story_clustering_versions version
-                      ON version.id = member.clustering_version_id AND version.version_key = ?
+                      ON version.id = member.clustering_version_id AND version.version_key = ? AND version.status = 'ACTIVE'
                     JOIN stories story ON story.id = member.story_id
                                       AND story.clustering_version_id = member.clustering_version_id
                     WHERE member.article_id = article.id AND member.current_marker = 1

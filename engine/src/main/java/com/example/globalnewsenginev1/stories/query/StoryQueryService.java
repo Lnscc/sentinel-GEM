@@ -51,7 +51,7 @@ public class StoryQueryService {
     static final String VISIBLE_STORY = """
             FROM stories story
             JOIN story_clustering_versions version
-              ON version.id = story.clustering_version_id AND version.version_key = ?
+              ON version.id = story.clustering_version_id AND version.version_key = ? AND version.status = 'ACTIVE'
             LEFT JOIN story_locations primary_location
               ON primary_location.story_id = story.id AND primary_location.rank = 1
             WHERE story.state <> 'SUPERSEDED'
@@ -81,7 +81,7 @@ public class StoryQueryService {
               ON story.id = member.story_id
              AND story.clustering_version_id = member.clustering_version_id
             JOIN story_clustering_versions version
-              ON version.id = story.clustering_version_id AND version.version_key = ?
+              ON version.id = story.clustering_version_id AND version.version_key = ? AND version.status = 'ACTIVE'
             JOIN articles article ON article.id = member.article_id
             WHERE story.public_id = ? AND story.state <> 'SUPERSEDED'
               AND member.current_marker = 1
@@ -135,7 +135,7 @@ public class StoryQueryService {
                 SELECT story.public_id, story.representative_title, story.representative_main_image_url
                 FROM stories story
                 JOIN story_clustering_versions version
-                  ON version.id = story.clustering_version_id AND version.version_key = ?
+                  ON version.id = story.clustering_version_id AND version.version_key = ? AND version.status = 'ACTIVE'
                 WHERE story.state <> 'SUPERSEDED' AND story.public_id IN (
                 """ + placeholders + ") ORDER BY story.public_id",
                 (rs, row) -> new StoryMapMarker(rs.getObject("public_id", UUID.class),
@@ -323,7 +323,7 @@ public class StoryQueryService {
                        location.supporting_articles, location.supporting_domains
                 FROM stories story
                 JOIN story_clustering_versions version
-                  ON version.id = story.clustering_version_id AND version.version_key = ?
+                  ON version.id = story.clustering_version_id AND version.version_key = ? AND version.status = 'ACTIVE'
                 JOIN story_locations location ON location.story_id = story.id
                 WHERE story.state <> 'SUPERSEDED' AND story.public_id IN (%s)
                 ORDER BY story.public_id, location.rank

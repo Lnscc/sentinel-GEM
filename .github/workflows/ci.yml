@@ -90,10 +90,12 @@ jobs:
             --folder "Validierung"
 
           npx --yes newman@6.2.1 run ../docs/postman/Statistics-API.postman_collection.json \
-            --environment ../docs/postman/Local.postman_environment.json
+            --environment ../docs/postman/Local.postman_environment.json \
+            --env-var expectedVisibleVersionStatus=SHADOW
 
           npx --yes newman@6.2.1 run ../docs/postman/Explore-API.postman_collection.json \
-            --environment ../docs/postman/Local.postman_environment.json
+            --environment ../docs/postman/Local.postman_environment.json \
+            --env-var expectedVisibleVersionStatus=SHADOW
 
   monitor:
     name: Monitor

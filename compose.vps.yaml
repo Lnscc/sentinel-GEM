@@ -11,10 +11,18 @@ x-production: &production
 services:
   postgres:
     <<: *production
+    cpus: 0.75
+    mem_limit: 1152m
+    memswap_limit: 1152m
     ports: !reset []
 
   engine:
     <<: *production
+    cpus: 1.25
+    mem_limit: 2048m
+    memswap_limit: 2048m
+    environment:
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xmx1280m -XX:MaxDirectMemorySize=96m -XX:ActiveProcessorCount=2}
     build: !reset null
     image: sentinel-gem-vps-engine:${DEPLOY_SHA:?Set DEPLOY_SHA}
     ports: !reset []

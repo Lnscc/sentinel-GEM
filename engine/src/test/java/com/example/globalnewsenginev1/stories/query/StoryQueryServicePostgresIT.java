@@ -4,6 +4,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -84,7 +86,7 @@ class StoryQueryServicePostgresIT {
         jdbc.update("""
                 INSERT INTO story_clustering_versions VALUES
                   (1, 'old-version', 'RETIRED'),
-                  (2, 'visible-version', 'SHADOW'),
+                  (2, 'visible-version', 'ACTIVE'),
                   (3, 'other-version', 'ACTIVE')
                 """);
         jdbc.update("""
@@ -257,6 +259,39 @@ class StoryQueryServicePostgresIT {
         assertThat(service.articles("all", null, "FR", null, 1).items())
                 .extracting(ExploreQueryService.ArticleResult::id).containsExactly(3L);
         assertThat(service.countries("articles")).extracting(StoryCountry::code).containsExactly("FR", "GM", "NL");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ACTIVE", "SHADOW", "RETIRED", "UNKNOWN"})
+    void explorerOnlyPublishesActiveStoriesAndArticleStoryLinks(String status) {
+        jdbc.update("INSERT INTO story_clustering_versions VALUES (1, 'visible-version', ?)",
+                "UNKNOWN".equals(status) ? "SHADOW" : status);
+        jdbc.update("INSERT INTO articles VALUES (1, 'https://example.org/a', 'a', 'example.org', ?)",
+                time("2026-09-02T10:00:00Z"));
+        UUID internal = new UUID(1, 1);
+        UUID publicId = new UUID(2, 1);
+        jdbc.update("""
+                INSERT INTO stories (id, public_id, clustering_version_id, state, effective_from, effective_to)
+                VALUES (?, ?, 1, 'ACTIVE', ?, ?)
+                """, internal, publicId, time("2026-09-02T10:00:00Z"), time("2026-09-02T11:00:00Z"));
+        jdbc.update("INSERT INTO story_memberships VALUES (?, 1, 1, 1, 'CURRENT')", internal);
+        jdbc.update("INSERT INTO story_locations (story_id, rank, name, country_code) VALUES (?, 1, 'Berlin', 'GM')",
+                internal);
+        ExploreQueryService service = new ExploreQueryService(jdbc,
+                "UNKNOWN".equals(status) ? "missing-version" : "visible-version",
+                Clock.fixed(Instant.parse("2026-09-02T12:00:00Z"), ZoneOffset.UTC));
+
+        boolean active = "ACTIVE".equals(status);
+        var stories = service.stories("all", null, null, null, 1);
+        assertThat(stories.total()).isEqualTo(active ? 1 : 0);
+        assertThat(stories.items()).hasSize(active ? 1 : 0);
+        assertThat(stories.availableFrom()).isEqualTo(active ? Instant.parse("2026-09-02T10:00:00Z") : null);
+        assertThat(stories.availableTo()).isEqualTo(active ? Instant.parse("2026-09-02T11:00:00Z") : null);
+        assertThat(service.countries("stories")).hasSize(active ? 1 : 0);
+        var articles = service.articles("all", null, null, null, 1);
+        assertThat(articles.total()).isOne();
+        assertThat(articles.items()).singleElement().satisfies(article ->
+                assertThat(article.storyId()).isEqualTo(active ? publicId : null));
     }
 
     private ExploreQueryService explorer() {
