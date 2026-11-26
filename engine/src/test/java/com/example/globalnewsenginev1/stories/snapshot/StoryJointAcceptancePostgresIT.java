@@ -56,6 +56,7 @@ public class StoryJointAcceptancePostgresIT {
     private static final int DIMENSION = 1536;
     private final int inputs = Integer.getInteger("it.joint.inputs", 107_000);
     private final int changes = Integer.getInteger("it.joint.changes", 1_000);
+    private final int history = Integer.getInteger("it.joint.history-inputs", 0);
     private final int intervals = Integer.getInteger("it.joint.intervals", 3);
     private final int intervalSeconds = Integer.getInteger("it.joint.interval-seconds", 300);
     private final int groupSize = Integer.getInteger("it.joint.group-size", 4);
@@ -93,6 +94,7 @@ public class StoryJointAcceptancePostgresIT {
         assertThat(variant).isIn("reference", "integrated");
         assertThat(inputs).isGreaterThanOrEqualTo(20);
         assertThat(changes).isBetween(1, inputs);
+        assertThat(history).isGreaterThanOrEqualTo(0);
         assertThat(intervals).isGreaterThanOrEqualTo(3);
         assertThat(intervalSeconds).isPositive();
         assertThat(groupSize).isBetween(2, 20);
@@ -112,6 +114,7 @@ public class StoryJointAcceptancePostgresIT {
         report.put("fixture", "Deterministic synthetic dense Float32 vectors; many small near-identical groups; synthetic local TSV replay");
         report.put("inputs", inputs);
         report.put("changesPerInterval", changes);
+        report.put("independentNoncurrentHistoryInputs", history);
         report.put("intervalSeconds", intervalSeconds);
         report.put("epoch", epoch.toString());
         report.put("dimension", DIMENSION);
@@ -308,6 +311,24 @@ public class StoryJointAcceptancePostgresIT {
                 """, ts(epoch), ts(epoch), ts(epoch));
         artifacts(inputs, 0, epoch);
         insertInputs(inputs, 0, epoch);
+        Instant historicalAt = epoch.minus(Duration.ofDays(90));
+        jdbc.update("""
+                INSERT INTO articles (canonical_url, url_hash, domain, first_seen_at, created_at, updated_at)
+                SELECT 'https://joint-history.example/' || n,
+                    encode(sha256(convert_to('https://joint-history.example/' || n, 'UTF8')), 'hex'),
+                    'joint-history.example', ?, ?, ? FROM generate_series(1, ?) n
+                """, ts(historicalAt), ts(historicalAt), ts(historicalAt), history);
+        jdbc.update("""
+                INSERT INTO story_article_inputs (clustering_version_id, article_id, article_ref, effective_at,
+                    effective_at_source, normalized_title, title_input_hash, title_usability, article_input_fingerprint,
+                    embedding_status, embedding_artifact_id, attempt_count, current_marker, created_at, superseded_at)
+                SELECT ?, article.id, article.url_hash, article.first_seen_at, 'PUBLISHED_AT',
+                    'Joint synthetic report 1 revision 0', artifact.title_input_hash, 'USABLE',
+                    repeat(md5(article.url_hash), 2), 'READY', artifact.id, 1, NULL, ?, ?
+                FROM articles article JOIN story_embedding_artifacts artifact ON artifact.title_input_hash = ?
+                WHERE article.domain='joint-history.example'
+                """, version, ts(historicalAt), ts(historicalAt.plusSeconds(1)), titleHash(1, 0));
+        assertThat(count("SELECT COUNT(*) FROM story_article_inputs WHERE current_marker IS NULL")).isEqualTo(history);
         var repository = new StorySnapshotRepository(jdbc);
         var rules = repository.findActiveVersion().getFirst();
         var tx = new TransactionTemplate(new DataSourceTransactionManager(source));

@@ -41,6 +41,11 @@ python scripts/gem124-benchmark/verify.py engine/target/gem124-benchmark --name 
 ```
 
 Use a fresh `--name` for each run; existing evidence is never overwritten.
+`--history-inputs 20000` additionally persists independent noncurrent inputs from
+90 days before the frozen epoch. They share an existing valid embedding artifact
+and remain outside the logical snapshot population; the default is zero for
+reproducing the original measurement. This option was verified with a small
+reference/integrated run and does not by itself qualify the 107k VPS run.
 Generated dependency and reference-class directories are rebuilt before each run.
 Each variant has a deadline of at least 30 minutes (or three times the configured
 release window, whichever is larger); the runner stops its containers on timeout.
@@ -72,8 +77,23 @@ groups. Its distinction from real production replay and any untested import stag
 must remain visible in the result. Do not infer provider or network latency from
 locally supplied data.
 
-A successful Docker run on a Ryzen/Docker-Desktop host establishes the measured
-local integrated result. CPU quotas do not make that CPU equivalent to the
-production Xeon. The preflight consequently never declares local runs eligible
-for the ticket's stricter VPS hardware gate. It can separately check a dedicated
-reference host in `--mode acceptance`; no testserver is provisioned automatically.
+GEM-124 now explicitly accepts the isolated Docker environment under the above
+combined CPU/memory budget, with recorded host hardware and 512 MiB system reserve.
+Start the approved load qualification with:
+
+```powershell
+python scripts/gem124-benchmark/run_local.py --name docker-acceptance `
+  --docker-acceptance --inputs 107000 --changes 1000 --history-inputs 20000 `
+  --intervals 3 --interval-seconds 300
+python scripts/gem124-benchmark/verify.py engine/target/gem124-benchmark --name docker-acceptance
+```
+
+The verifier requires actual five-minute releases, dense workload, matching frozen
+inputs/results, independent history, enforced limits including disabled additional
+swap, maintenance progress and successful concurrent API/import probes. Only a
+full qualifying run can set `dockerLoadAcceptancePassed`; smoke cannot.
+The other functional and storage-cycle evidence must still be assessed for the
+complete ticket acceptance. `vpsAcceptancePassed` remains false: CPU quotas do not
+establish identical latency on the production Xeon. The legacy native-host check
+in `--mode acceptance` is optional and is no longer a GEM-124 prerequisite.
+No additional testserver is provisioned.

@@ -83,6 +83,7 @@ def java_command(variant, args, epoch):
     props = {
         "it.joint.enabled": "true", "it.joint.variant": variant,
         "it.joint.inputs": args.inputs, "it.joint.changes": args.changes,
+        "it.joint.history-inputs": args.history_inputs,
         "it.joint.intervals": args.intervals, "it.joint.interval-seconds": args.interval_seconds,
         "it.joint.epoch": epoch,
         "it.joint.retention.poll-seconds": 2 if args.interval_seconds < 300 else 30,
@@ -115,15 +116,20 @@ def main():
     parser.add_argument("--name", default="joint")
     parser.add_argument("--inputs", type=int, default=107000)
     parser.add_argument("--changes", type=int, default=1000)
+    parser.add_argument("--history-inputs", type=int, default=0)
     parser.add_argument("--intervals", type=int, default=3)
     parser.add_argument("--interval-seconds", type=int, default=300)
     parser.add_argument("--image", default="sentinel-gem-engine:gem116-check")
     parser.add_argument("--integrated-only", action="store_true")
+    parser.add_argument("--docker-acceptance", action="store_true",
+                        help="Use the explicitly approved GEM-124 Docker resource qualification")
     args = parser.parse_args()
     if not args.name.replace("-", "").isalnum() or min(args.inputs, args.changes, args.intervals, args.interval_seconds) < 1:
         parser.error("Use an alphanumeric name and positive workload dimensions")
     if args.changes >= args.inputs:
         parser.error("Changes must be smaller than the initial input population")
+    if args.history_inputs < 0:
+        parser.error("History inputs must be nonnegative")
     OUTPUT.mkdir(parents=True, exist_ok=True)
     if any(OUTPUT.glob(f"{args.name}-*")):
         parser.error("Run name already has evidence files; use a fresh --name instead of overwriting evidence")
@@ -133,11 +139,13 @@ def main():
     env = dict(os.environ, GEM124_WORKSPACE=str(ROOT), GEM124_RUNNER_IMAGE=args.image,
                GEM124_COMMAND=java_command("integrated", args, epoch))
     preflight = run(["python", str(Path(__file__).with_name("preflight.py")),
-                     "--mode", "local-preflight"], env=env, capture_output=True)
+                     "--mode", "docker-acceptance" if args.docker_acceptance else "local-preflight"],
+                    env=env, capture_output=True)
     inventory = json.loads(preflight.stdout)
     manifest = {"startedUtc": started_utc.isoformat(), "frozenEpoch": epoch,
                 "sourceCommit": capture(["git", "rev-parse", "HEAD"], cwd=ROOT),
-                "baselineScalarCommit": BASELINE, "scope": "local Docker integrated load test",
+                "baselineScalarCommit": BASELINE,
+                "scope": "GEM-124 Docker load acceptance" if args.docker_acceptance else "local Docker integrated load test",
                 "vpsAcceptancePassed": False, "preflight": inventory,
                 "binaryProvenance": binary_provenance(),
                 "parameters": vars(args), "variants": []}

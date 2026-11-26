@@ -110,8 +110,8 @@ def inspect_environment(args):
         errors.append("Linux Docker with memory and CFS quota support required")
     if daemon.get("NCPU", 0) < 2 or daemon.get("MemTotal", 0) < budget["totalBudgetBytes"]:
         errors.append("Docker daemon resources do not fit the envelope plus reserve")
-    if host.get("availableMemoryBytes", 0) < budget["containerMemoryBytes"]:
-        errors.append("Insufficient currently available host RAM for the container envelope")
+    if host.get("availableMemoryBytes", 0) < budget["totalBudgetBytes"]:
+        errors.append("Insufficient currently available host RAM for the container envelope plus OS reserve")
     running = command("docker", "ps", "-q").split()
     allocations = []
     for container in running:
@@ -127,15 +127,17 @@ def inspect_environment(args):
     if args.mode == "acceptance":
         errors.extend(eligibility)
     return {"mode": args.mode, "passed": not errors,
-            "acceptanceEligible": args.mode == "acceptance" and not errors,
-            "limitations": eligibility if args.mode == "local-preflight" else [],
+            "acceptanceEligible": args.mode in ("acceptance", "docker-acceptance") and not errors,
+            "dockerAcceptanceEligible": args.mode == "docker-acceptance" and not errors,
+            "limitations": (["Docker hardware is documented; identical production-VPS latency is not guaranteed"]
+                            if args.mode == "docker-acceptance" else eligibility if args.mode == "local-preflight" else []),
             "host": host, "daemon": daemon, "budget": budget,
             "imageIds": images, "runningContainers": allocations, "errors": errors}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("local-preflight", "acceptance"), required=True)
+    parser.add_argument("--mode", choices=("local-preflight", "acceptance", "docker-acceptance"), required=True)
     parser.add_argument("--compose", type=Path, default=Path(__file__).with_name("compose.yaml"))
     parser.add_argument("--dedicated-host", action="store_true")
     parser.add_argument("--reference-cpu-model", default=REFERENCE_CPU)

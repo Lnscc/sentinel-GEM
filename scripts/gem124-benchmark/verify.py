@@ -1,4 +1,4 @@
-"""Validate local integrated evidence without upgrading it to a VPS acceptance claim."""
+"""Validate measured load evidence against the declared local or approved Docker scope."""
 
 import argparse
 import json
@@ -13,17 +13,49 @@ def verify(manifest, before, after, smoke=False):
             errors.append(message)
 
     require(manifest.get("preflight", {}).get("passed") is True, "Resource preflight failed")
+    docker_acceptance = manifest.get("preflight", {}).get("mode") == "docker-acceptance"
+    if docker_acceptance:
+        require(not smoke, "Smoke cannot qualify Docker load acceptance")
+        require(manifest["preflight"].get("dockerAcceptanceEligible") is True, "Docker qualification failed")
+        parameters = manifest.get("parameters", {})
+        require(parameters.get("inputs", 0) >= 107000 and parameters.get("changes", 0) >= 1000,
+                "Docker acceptance requires at least 107000 inputs and 1000 changes per release")
+        require(parameters.get("intervals", 0) >= 3, "At least three releases are required")
+        require(parameters.get("interval_seconds") == 300, "Docker acceptance requires real five-minute releases")
+        require(parameters.get("history_inputs", 0) > 0, "Independent historical inputs are required")
+        budget = manifest["preflight"].get("budget", {})
+        require(0 < budget.get("cpuQuotaSum", 0) <= 2, "Docker CPU budget invalid")
+        require(0 < budget.get("containerMemoryBytes", 0) <= 3200 * 1024**2
+                and budget.get("osReserveBytes") == 512 * 1024**2, "Docker memory/reserve budget invalid")
     if not smoke:
         require(manifest.get("binariesUnchanged") is True and manifest.get("binaryProvenance"),
                 "Measured binary provenance is missing or changed during execution")
     require(len(manifest.get("variants", [])) == 2, "Both computational variants are required")
     for variant in manifest.get("variants", []):
         require(variant.get("exitCode") == 0, f"{variant.get('variant')}: nonzero exit")
+        if docker_acceptance:
+            containers = variant.get("containers", [])
+            require(len(containers) == 2, "Both enforced container envelopes are required")
+            require(0 < sum(c.get("nanoCpus", 0) for c in containers) <= 2_000_000_000,
+                    "Actual combined CPU quota exceeds budget")
+            require(0 < sum(c.get("memoryLimit", 0) for c in containers) <= 3200 * 1024**2,
+                    "Actual combined memory exceeds budget")
+            require(all(c.get("memorySwap") == c.get("memoryLimit") for c in containers),
+                    "Additional container swap is not disabled")
         for container in variant.get("containers", []):
             require(not container["state"].get("OOMKilled"), f"{container['name']}: OOM")
             require(container.get("memoryLimit", 0) > 0 and container.get("nanoCpus", 0) > 0,
                     f"{container['name']}: missing enforced limits")
     for label, report in (("reference", before), ("integrated", after)):
+        if docker_acceptance:
+            require(report.get("independentNoncurrentHistoryInputs") == manifest.get("parameters", {}).get("history_inputs"),
+                    f"{label}: independent history does not match the manifest")
+            for report_key, parameter in (("inputs", "inputs"), ("changesPerInterval", "changes"),
+                                          ("intervalSeconds", "interval_seconds")):
+                require(report.get(report_key) == manifest.get("parameters", {}).get(parameter),
+                        f"{label}: {report_key} does not match the manifest")
+            require(report.get("inputs", 0) >= 107000 and report.get("changesPerInterval", 0) >= 1000
+                    and report.get("intervalSeconds") == 300, f"{label}: numerical workload scale invalid")
         require(report.get("variant") == label, f"{label}: variant identity mismatch")
         require(report.get("workloadCompleted") is True and not report.get("failure"),
                 f"{label}: workload did not complete")
@@ -56,6 +88,9 @@ def verify(manifest, before, after, smoke=False):
                     f"{label}: logical input population mismatch")
             if label == "integrated":
                 require(step.get("budgetPassed") is True, "Integrated publication missed release deadline")
+                if docker_acceptance:
+                    require(0 <= step.get("scheduledToPublicationMs", -1) < 300_000,
+                            "Integrated publication did not finish within 300 seconds of release")
             require(set(step.get("phasesMs", {})) == {"load", "compare", "publish"},
                     f"{label}: phase measurements incomplete")
             require(step.get("loadedDecodedVectors", 0) > 0, f"{label}: no vectors recorded")
@@ -77,6 +112,7 @@ def verify(manifest, before, after, smoke=False):
         require(left.get("run", {}).get("candidate_count") == right.get("run", {}).get("candidate_count"),
                 "Exact candidate populations differ")
     return {"localIntegratedPassed": not errors, "smoke": smoke,
+            "dockerLoadAcceptancePassed": docker_acceptance and not smoke and not errors,
             "vpsAcceptancePassed": False,
             "limitations": ["Local Docker hardware differs from the production VPS",
                 "Controlled synthetic vectors/groups are not a production replay",

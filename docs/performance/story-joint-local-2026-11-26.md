@@ -1,5 +1,8 @@
 # GEM-124: integrierter Docker-Lasttest vom 26. November 2026
 
+Dies ist der ursprüngliche lokale Messbericht. Die später freigegebene verbindliche
+Docker-Gesamtabnahme wird [gesondert dokumentiert](story-docker-acceptance-2026-11-26.md).
+
 **Lokaler integrierter Test bestanden; keine vollständige VPS-Abnahme.**
 Der integrierte Stand veröffentlicht drei dichte Änderungsintervalle innerhalb
 von fünf Minuten, mit gleichen fachlichen Ergebnissen wie die exakte Referenz,
