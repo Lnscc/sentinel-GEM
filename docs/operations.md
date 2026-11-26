@@ -215,8 +215,9 @@ muessen weiterhin hinsichtlich Laufzeit und Speicher vermessen werden.
 
 ### Aufbewahrung der Story-Snapshot-Daten
 
-Die Aufbewahrung laesst sich mit `STORIES_SNAPSHOTS_RETENTION_ENABLED=true` einschalten.
-Sie ist standardmaessig deaktiviert. Der Job verdichtet ausschliesslich aeltere,
+Die Aufbewahrung ist nach der [isolierten 107k-Pruefung](performance/story-snapshot-retention-2026-11-26.md)
+standardmaessig eingeschaltet. `STORIES_SNAPSHOTS_RETENTION_ENABLED=false` schaltet
+sie explizit aus. Der Job verdichtet ausschliesslich aeltere,
 erfolgreich publizierte inkrementelle Snapshots. Die drei neuesten Publikationen pro
 Version und Laeufe mit Abschluss in den letzten 30 Minuten bleiben vollstaendig erhalten.
 Dasselbe gilt fuer die Freigabebasis, Backfill, Reprocessing und wiederholbare Laeufe.
@@ -236,7 +237,29 @@ ein eventueller Bereinigungsrueckstand kommen hinzu.
 Der Job startet nach zwei Minuten und wartet eine Minute zwischen Durchlaeufen.
 Standardmaessig verarbeitet er hoechstens acht Transaktionen je Durchlauf und entfernt
 pro Transaktion bis zu 10.000 Zeilen je Tabelle. Das Log meldet Snapshot-ID und die
-entfernten Zeilen. PostgreSQL kann freigegebene Seiten nach dem regulaeren Vacuum
+entfernten Zeilen sowie `archiveMs` und `elapsedMs`. Auch die atomare Archivvorbereitung
+unterliegt Zeitgrenzen; sie schreibt keine teilweise sichtbare Artikelstatistik.
+
+```properties
+stories.snapshots.retention.statement-timeout=PT2S
+stories.snapshots.retention.lock-timeout=PT0.25S
+stories.snapshots.retention.transaction-timeout=PT5S
+```
+
+Diese Grenzen gelten lokal fuer die jeweilige Transaktion. Der Job versucht den
+Versions-Lock ohne Wartezeit zu erwerben. Ein SQL- oder Lock-Timeout rollt den
+gesamten aktuellen Batch einschliesslich einer neu angelegten Archivzeile zurueck.
+Der naechste Poll setzt am letzten erfolgreich committeten Batch fort; ein
+Prozessneustart braucht keinen zusaetzlichen Fortschrittsstand. Bei Zeitueberschreitung
+meldet der Job `yielded`, gibt die Versionssperre frei und bearbeitet diese Version
+erst im naechsten Poll weiter. Acht Batchversuche mit je fuenf Sekunden begrenzen
+die Bereinigungsarbeit eines Polls; auch abgebrochene Versuche zaehlen, andere
+Versionen teilen dieses Batchbudget. Leere Versionen werden nur kurz geprueft.
+Wiederholte Timeouts sind kein erfolgreicher Abbau: Rueckstand und Archivkosten
+pruefen, bei langsamen Loeschungen die Batchgroesse senken. Die Archivvorbereitung
+muss im gemessenen Zeitbudget abschliessen, bevor eine Aktivierung freigegeben wird.
+
+PostgreSQL kann freigegebene Seiten nach dem regulaeren Vacuum
 wiederverwenden. Fuer die Messung des Speicherbudgets die physischen Tabellengroessen
 ueber mehrere Laeufe beobachten. Die Migration legt vier Indizes an. Fuer den
 Migrationsstart entsprechend Platz fuer Indizes und WAL vorhalten.
@@ -244,6 +267,31 @@ Migrationsstart entsprechend Platz fuer Indizes und WAL vorhalten.
 Die Artikelstatistik liest die archivierten ID-Abstaende im angefragten Zeitraum fuer
 die exakte Zahl unterschiedlicher Artikel. Im synthetischen Test dauerte die Abfrage
 mit 288 verdichteten Snapshots dieser Groesse rund neun Sekunden.
+
+Vor dem ersten Betrieb mit vorhandenen Altdaten eine verifizierte Sicherung und
+ausreichenden Platz fuer WAL und Archiv vorhalten. Beim Rollout vorhandene explizite
+`STORIES_SNAPSHOTS_RETENTION_ENABLED=false`-Overrides pruefen: Sie bleiben wirksam.
+Die alten Snapshots werden ueber dieselben begrenzten Batches abgebaut; keine
+Einmalbereinigung, kein Reset und kein `VACUUM FULL` sind erforderlich.
+
+Rueckweg: `STORIES_SNAPSHOTS_RETENTION_ENABLED=false` setzen und die Engine neu starten.
+Bereits committete Verdichtungen bleiben fachlich gueltig; angefangene Batches werden
+beim Abbruch vollstaendig zurueckgerollt. Das Abschalten stellt geloeschte redundante
+Mitglieder/Paarentscheidungen nicht wieder her. Falls deren physische Vollkopien
+benoetigt werden, die Sicherung in einer getrennten Datenbank wiederherstellen und
+pruefen, bevor ein Datenbankwechsel erfolgt. Artikelhistorie, aktuelle Mitgliedschaften,
+Assignments, Diagnosebelege und exakte Statistik bleiben auch ohne Restore erhalten.
+
+Nach Aktivierung `yielded`, Archive, Loeschmengen und Tabellen-/Indexgroessen ueber
+mehrere regulaere Zyklen beobachten. Der 107k-Test brauchte elf Batches pro
+bereinigtem Snapshot, also zwei Standardpolls. Die 40 Batches im Test sind eine
+simulierte Obergrenze. Beim echten `fixedDelay` kommt die Poll-Laufzeit zur
+einminuetigen Wartezeit hinzu; weitere Scheduler-Arbeit kann den Takt verzoegern.
+Das Altersfenster, geschuetzte Snapshots und andere Versionen kommen zum Bestand
+hinzu. Vacuum ersetzt keine Kontrolle des Indexwachstums: Erhaltene Diagnosemitglieder
+koennen duenn belegte Indexseiten zuruecklassen. Der Messbericht weist dieses
+Restwachstum aus; sofort kleinere Dateien oder ein physisches Indexplateau werden
+nicht zugesagt. Eine spaetere Indexwartung ist gesondert zu planen.
 
 ### Inkrementelle Berechnung unter Last pruefen
 

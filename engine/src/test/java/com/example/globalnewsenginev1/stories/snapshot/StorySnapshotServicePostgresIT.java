@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -320,15 +321,40 @@ class StorySnapshotServicePostgresIT {
 
         advance(Duration.ofMinutes(1));
         assertThat(service().processBackfill(version.id(), clock.instant()).succeededVersions()).isOne();
+        advance(Duration.ofMinutes(1));
+        assertThat(service().reprocess(clock.instant(), 1).succeededVersions()).isOne();
+        advance(Duration.ofMinutes(1));
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        // A second run mode on the same frozen snapshot makes it a replay-protected case.
+        assertThat(service().reprocess(clock.instant(), 1).reusedVersions()).isOne();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_processing_runs WHERE snapshot_id =
+                    (SELECT MAX(id) FROM story_snapshots)
+                """, Integer.class)).isEqualTo(2);
         for (int index = 0; index < 3; index++) {
             advance(Duration.ofMinutes(1));
             assertThat(service().processIncremental(1).succeededVersions()).isOne();
         }
 
-        var retention = new StorySnapshotRetention(jdbc, new DataSourceTransactionManager(dataSource),
-                Duration.ZERO, 1, 8);
-        int pairsRemoved = 0;
-        int membersRemoved = 0;
+        List<Long> protectedSnapshots = jdbc.queryForList(
+                "SELECT id FROM story_snapshots WHERE id <> ? ORDER BY id", Long.class, original.id());
+        long assignmentsBefore = jdbc.queryForObject("SELECT COUNT(*) FROM story_assignment_decisions", Long.class);
+        var retention = retention(1);
+        // The cutoff is based on completion time; an otherwise eligible young run stays intact.
+        assertThat(retention.compactBatch(version.id(), originalWatermark)).isNull();
+        var firstBatch = retention.compactBatch(version.id(), clock.instant().plusSeconds(1));
+        assertThat(firstBatch.snapshotId()).isEqualTo(original.id());
+        assertThat(firstBatch.complete()).isFalse();
+        String archivedIds = jdbc.queryForObject("""
+                SELECT article_id_deltas::text FROM story_snapshot_retention WHERE snapshot_id = ?
+                """, String.class, original.id());
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(DISTINCT article_id) FROM story_snapshot_statistics_members WHERE snapshot_id = ?
+                """, Integer.class, original.id())).isEqualTo(5);
+        // Simulate restart between committed deletion batches; no in-memory progress is needed.
+        retention = retention(1);
+        int pairsRemoved = firstBatch.removedPairs();
+        int membersRemoved = firstBatch.removedMembers();
         for (int batchNumber = 0; batchNumber < 8; batchNumber++) {
             var batch = retention.compactBatch(version.id(), clock.instant().plusSeconds(1));
             if (batch == null) break;
@@ -341,6 +367,18 @@ class StorySnapshotServicePostgresIT {
         assertThat(pairsRemoved).isGreaterThanOrEqualTo(2);
         assertThat(membersRemoved).isOne();
         assertThat(retention.compactBatch(version.id(), clock.instant().plusSeconds(1))).isNull();
+        assertThat(jdbc.queryForObject("""
+                SELECT article_id_deltas::text FROM story_snapshot_retention WHERE snapshot_id = ?
+                """, String.class, original.id())).isEqualTo(archivedIds);
+        assertThat(jdbc.queryForList("SELECT snapshot_id FROM story_snapshot_retention", Long.class))
+                .containsExactly(original.id());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_assignment_decisions", Long.class))
+                .isEqualTo(assignmentsBefore);
+        for (long protectedSnapshot : protectedSnapshots) {
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_snapshot_members WHERE snapshot_id = ?",
+                    Integer.class, protectedSnapshot)).isEqualTo(5);
+            assertThat(new StoryPartitionService(repository).calculate(protectedSnapshot).components()).isNotEmpty();
+        }
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(DISTINCT article_id) FROM story_snapshot_statistics_members
                 WHERE snapshot_id = ?
@@ -358,6 +396,72 @@ class StorySnapshotServicePostgresIT {
                 .hasMessageContaining("Snapshot is archived");
         assertThat(service(Clock.fixed(originalWatermark, ZoneOffset.UTC)).processIncremental(1).reusedVersions())
                 .isOne();
+    }
+
+    @Test
+    void retentionLockTimeoutRollsBackAndReleasesThePublicationLock() throws Exception {
+        long version = prepareRetentionCandidate();
+        var retention = new StorySnapshotRetention(jdbc, new DataSourceTransactionManager(dataSource),
+                Duration.ZERO, 1, 8, Duration.ofSeconds(1), Duration.ofMillis(100), Duration.ofSeconds(3));
+        try (var blocker = dataSource.getConnection(); var statement = blocker.createStatement()) {
+            blocker.setAutoCommit(false);
+            statement.execute("LOCK TABLE story_snapshot_retention IN ACCESS EXCLUSIVE MODE");
+            assertThatThrownBy(() -> retention.compactBatch(version, clock.instant().plusSeconds(1)))
+                    .isInstanceOf(DataAccessException.class).hasMessageContaining("lock timeout");
+            assertVersionLockAvailable(version);
+            blocker.rollback();
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_snapshot_retention", Integer.class)).isZero();
+        assertThat(retention.compactBatch(version, clock.instant().plusSeconds(1))).isNotNull();
+    }
+
+    @Test
+    void interruptedArchivePreparationRollsBackBeforeDeletingAndCanResume() {
+        long version = prepareRetentionCandidate();
+        long members = jdbc.queryForObject("SELECT COUNT(*) FROM story_snapshot_members", Long.class);
+        long pairs = jdbc.queryForObject("SELECT COUNT(*) FROM story_pair_decisions", Long.class);
+        jdbc.execute("""
+                CREATE FUNCTION pause_retention_archive() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN PERFORM pg_sleep(1); RETURN NEW; END; $$
+                """);
+        jdbc.execute("""
+                CREATE TRIGGER pause_retention_archive BEFORE INSERT ON story_snapshot_retention
+                FOR EACH ROW EXECUTE FUNCTION pause_retention_archive()
+                """);
+        var interrupted = new StorySnapshotRetention(jdbc, new DataSourceTransactionManager(dataSource),
+                Duration.ZERO, 1, 8, Duration.ofMillis(100), Duration.ofMillis(50), Duration.ofSeconds(3));
+        assertThatThrownBy(() -> interrupted.compactBatch(version, clock.instant().plusSeconds(1)))
+                .isInstanceOf(DataAccessException.class).hasMessageContaining("statement timeout");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_snapshot_retention", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_snapshot_members", Long.class)).isEqualTo(members);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM story_pair_decisions", Long.class)).isEqualTo(pairs);
+        assertVersionLockAvailable(version);
+        jdbc.execute("DROP TRIGGER pause_retention_archive ON story_snapshot_retention");
+        assertThat(retention(1).compactBatch(version, clock.instant().plusSeconds(1))).isNotNull();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(DISTINCT article_id) FROM story_snapshot_statistics_members
+                """, Integer.class)).isEqualTo(2);
+    }
+
+    private long prepareRetentionCandidate() {
+        activateIncrementalVersion();
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(1, 0), effectiveAt, null);
+        for (int index = 0; index < 4; index++) {
+            assertThat(service().processIncremental(1).succeededVersions()).isOne();
+            advance(Duration.ofMinutes(1));
+        }
+        return versionId(VERSION_24_ELIGIBILITY);
+    }
+
+    private StorySnapshotRetention retention(int batchSize) {
+        return new StorySnapshotRetention(jdbc, new DataSourceTransactionManager(dataSource),
+                Duration.ZERO, batchSize, 8, Duration.ofSeconds(2), Duration.ofMillis(250), Duration.ofSeconds(5));
+    }
+
+    private void assertVersionLockAvailable(long version) {
+        new TransactionTemplate(new DataSourceTransactionManager(dataSource)).executeWithoutResult(status ->
+                assertThat(jdbc.queryForObject("SELECT pg_try_advisory_xact_lock(?)", Boolean.class, version)).isTrue());
     }
 
     @Test
