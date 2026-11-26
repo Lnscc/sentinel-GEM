@@ -1,0 +1,53 @@
+name: gem124-benchmark
+
+services:
+  postgres:
+    image: ${GEM124_POSTGRES_IMAGE:-pgvector/pgvector:pg17}
+    cpus: 0.75
+    mem_limit: 1152m
+    memswap_limit: 1152m
+    environment:
+      POSTGRES_DB: gem124
+      POSTGRES_USER: gem124
+      POSTGRES_PASSWORD: gem124-disposable-local-test
+    ports:
+      - '127.0.0.1:55424:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gem124 -d gem124']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [benchmark]
+
+  runner:
+    image: ${GEM124_RUNNER_IMAGE:?Set an existing Java 21 image with the prepared test classpath}
+    cpus: 1.25
+    mem_limit: 2048m
+    memswap_limit: 2048m
+    working_dir: /workspace/engine
+    # Compile beforehand. The measured command runs the prepared classpath directly.
+    entrypoint: ['/bin/sh', '-c']
+    command: ['${GEM124_COMMAND:?Set the prepared Java test command; do not build during measurement}']
+    environment:
+      JAVA_TOOL_OPTIONS: '-Xmx1280m -XX:MaxDirectMemorySize=96m -XX:ActiveProcessorCount=2'
+      GEM124_JDBC_URL: jdbc:postgresql://postgres:5432/gem124
+      GEM124_DB_USER: gem124
+      GEM124_DB_PASSWORD: gem124-disposable-local-test
+    volumes:
+      - type: bind
+        source: ${GEM124_WORKSPACE:?Set the absolute isolated worktree path}
+        target: /workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [benchmark]
+
+volumes:
+  postgres-data:
+    name: gem124-benchmark-postgres-data
+
+networks:
+  benchmark:
+    internal: true
