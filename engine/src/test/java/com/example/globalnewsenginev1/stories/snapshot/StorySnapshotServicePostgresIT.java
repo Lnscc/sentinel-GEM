@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -505,6 +506,146 @@ class StorySnapshotServicePostgresIT {
     }
 
     @Test
+    void selectiveVectorsCoverHistoricalWindowUnionAndCompleteSourceAndTargetGroups() {
+        activateIncrementalVersion();
+        Instant historical = effectiveAt.minus(Duration.ofDays(100));
+        Instant laterHistorical = effectiveAt.minus(Duration.ofDays(4));
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), historical, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(0, 1), historical.minus(Duration.ofHours(24)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "c", vector(1, 0), historical.plus(Duration.ofHours(24)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "d", vector(0, 1), historical.minus(Duration.ofHours(80)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "e", vector(1, 0), historical.plus(Duration.ofHours(60)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "f", vector(1, 0), historical.plus(Duration.ofDays(5)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "g", vector(1, 0), laterHistorical, null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "h", vector(1, 0), laterHistorical.minus(Duration.ofHours(24)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "i", vector(1, 0), laterHistorical.plus(Duration.ofHours(24)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "j", vector(1, 0), laterHistorical.plus(Duration.ofHours(24)).plusSeconds(1), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "k", vector(1, 0), effectiveAt, null);
+        Work work = prepareWork();
+        var repository = new StorySnapshotRepository(jdbc);
+        var version = repository.findActiveVersion().getFirst();
+        UUID source = UUID.randomUUID();
+        UUID target = UUID.randomUUID();
+        var assignments = List.of(
+                new StorySnapshotRepository.ExistingAssignment(ref("a"), source, ref("d")),
+                new StorySnapshotRepository.ExistingAssignment(ref("d"), source, ref("d")),
+                new StorySnapshotRepository.ExistingAssignment(ref("c"), target, ref("e")),
+                new StorySnapshotRepository.ExistingAssignment(ref("e"), target, ref("e")),
+                new StorySnapshotRepository.ExistingAssignment(ref("b"), UUID.randomUUID(), ref("b")),
+                new StorySnapshotRepository.ExistingAssignment(ref("h"), UUID.randomUUID(), ref("h")),
+                new StorySnapshotRepository.ExistingAssignment(ref("i"), UUID.randomUUID(), ref("i")));
+        Set<String> changed = Set.of(ref("a"), ref("g"));
+        // Frozen titles, rather than subsequently edited live input titles, govern coherence.
+        jdbc.update("UPDATE story_article_inputs SET normalized_title = 'Changed after freeze' WHERE article_ref = ?", ref("c"));
+        var full = repository.loadSnapshotInputs(work.snapshot().id());
+        var selected = repository.loadIncrementalSnapshotInputs(work.snapshot().id(), changed, assignments, version.windowHours());
+
+        assertThat(selected).usingRecursiveComparison().ignoringFields("vectorBytes", "decodedVector").isEqualTo(full);
+        assertThat(StorySnapshotCanonicalizer.snapshotInputHash(version.key(), watermark, selected))
+                .isEqualTo(work.snapshot().inputHash());
+        assertThat(selected).filteredOn(input -> input.decodedVector() != null)
+                .extracting(StorySnapshotRepository.SnapshotInput::articleRef)
+                .containsExactlyInAnyOrder(ref("a"), ref("b"), ref("c"), ref("d"), ref("e"), ref("g"), ref("h"), ref("i"));
+        assertThat(selected).allSatisfy(input -> assertThat(input.vectorBytes()).isNull());
+        assertThat(selected).filteredOn(input -> input.articleRef().equals(ref("c")))
+                .extracting(StorySnapshotRepository.SnapshotInput::normalizedTitle).containsExactly("Title c");
+        assertSelectivePartitionMatchesReference(repository.loadPartitionRules(work.snapshot().id()), version,
+                full, selected, changed, assignments);
+    }
+
+    @Test
+    void selectiveVectorsKeepOffWindowMembersNeededToRejectTheBestCandidate() {
+        jdbc.update("UPDATE story_clustering_versions SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE version_key = ?",
+                VERSION_24_COHERENT);
+        insertReadyInput(VERSION_24_COHERENT, "a", vectorAtDegrees(0), effectiveAt.minus(Duration.ofHours(1)), null);
+        insertReadyInput(VERSION_24_COHERENT, "b", vectorAtDegrees(40), effectiveAt, null);
+        insertReadyInput(VERSION_24_COHERENT, "c", vectorAtDegrees(90), effectiveAt.plus(Duration.ofHours(24)), null);
+        insertReadyInput(VERSION_24_COHERENT, "d", vectorAtDegrees(50), effectiveAt.plus(Duration.ofHours(24)), null);
+        insertReadyInput(VERSION_24_COHERENT, "e", vectorAtDegrees(50), effectiveAt.minus(Duration.ofDays(5)), null);
+        Work work = prepareWork();
+        var repository = new StorySnapshotRepository(jdbc);
+        var version = repository.findActiveVersion().getFirst();
+        UUID firstStory = UUID.randomUUID();
+        var assignments = List.of(
+                new StorySnapshotRepository.ExistingAssignment(ref("a"), firstStory, ref("a")),
+                new StorySnapshotRepository.ExistingAssignment(ref("b"), firstStory, ref("a")),
+                new StorySnapshotRepository.ExistingAssignment(ref("c"), UUID.randomUUID(), ref("c")));
+        Set<String> changed = Set.of(ref("d"));
+        var full = repository.loadSnapshotInputs(work.snapshot().id());
+        var selected = repository.loadIncrementalSnapshotInputs(work.snapshot().id(), changed, assignments, version.windowHours());
+        var rules = repository.loadPartitionRules(work.snapshot().id());
+
+        assertThat(selected).filteredOn(input -> input.decodedVector() != null)
+                .extracting(StorySnapshotRepository.SnapshotInput::articleRef)
+                .containsExactlyInAnyOrder(ref("a"), ref("b"), ref("c"), ref("d"));
+        assertSelectivePartitionMatchesReference(rules, version, full, selected, changed, assignments);
+        var partition = StoryPartitionService.incrementalPartition(rules, selected,
+                new StoryIncrementalPairSearch(version, selected), changed, assignments);
+        assertThat(partition.components()).hasSize(1);
+        assertThat(partition.components().getFirst().members())
+                .extracting(StoryPartitionService.MemberEvidence::articleRef).containsExactly(ref("c"), ref("d"));
+    }
+
+    @Test
+    void incrementalSelectionMatchesReferenceForPendingAndUnusableReplacements() {
+        activateIncrementalVersion();
+        for (String suffix : List.of("a", "b", "c")) {
+            insertReadyInput(VERSION_24_ELIGIBILITY, suffix, vector(1, 0), effectiveAt, null);
+        }
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        UUID original = story("a");
+        var previousUnusableMembership = jdbc.queryForMap(
+                "SELECT * FROM story_memberships WHERE article_ref = ? AND current_marker = 1", ref("b"));
+        advance(Duration.ofMinutes(5));
+        makeMissing(VERSION_24_ELIGIBILITY, "b");
+        jdbc.update("UPDATE story_article_inputs SET current_marker = NULL, superseded_at = ? WHERE id = ?",
+                OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC), currentInput(VERSION_24_ELIGIBILITY, "c"));
+        insertReadyInput(VERSION_24_ELIGIBILITY, "c", vector(1, 0), effectiveAt, "pending");
+        jdbc.update("UPDATE story_article_inputs SET embedding_status = 'PENDING' WHERE id = ?",
+                currentInput(VERSION_24_ELIGIBILITY, "c"));
+        insertReadyInput(VERSION_24_ELIGIBILITY, "d", vector(1, 0), effectiveAt, null);
+
+        assertIncrementalMatchesFullFrozenPartition();
+
+        assertThat(story("c")).isEqualTo(original);
+        assertThat(story("d")).isEqualTo(original);
+        assertThat(jdbc.queryForMap(
+                "SELECT * FROM story_memberships WHERE article_ref = ? AND current_marker = 1", ref("b")))
+                .isEqualTo(previousUnusableMembership);
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM story_assignment_decisions
+                WHERE article_ref = ? AND run_id = (SELECT MAX(id) FROM story_processing_runs)
+                """, Integer.class, ref("b"))).isZero();
+        assertThat(service().processIncremental(1).reusedVersions()).isOne();
+    }
+
+    @Test
+    void unchangedSnapshotKeepsAllMetadataWithoutLoadingAnyVectors() {
+        activateIncrementalVersion();
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt.minus(Duration.ofDays(100)), null);
+        insertReadyInput(VERSION_24_ELIGIBILITY, "b", vector(0, 1), effectiveAt, null);
+        assertThat(service().processIncremental(1).succeededVersions()).isOne();
+        var repository = new StorySnapshotRepository(jdbc);
+        var version = repository.findActiveVersion().getFirst();
+        advance(Duration.ofMinutes(5));
+        Work work = prepareWork();
+        Set<String> changed = repository.findChangedArticleRefs(work.snapshot().id());
+        assertThat(changed).isEmpty();
+        var assignments = repository.findExistingAssignments(version.id());
+        var full = repository.loadSnapshotInputs(work.snapshot().id());
+        var selected = repository.loadIncrementalSnapshotInputs(work.snapshot().id(), changed, assignments, version.windowHours());
+
+        assertThat(selected).hasSize(2);
+        assertThat(selected).usingRecursiveComparison().ignoringFields("vectorBytes", "decodedVector").isEqualTo(full);
+        assertThat(selected).allSatisfy(input -> {
+            assertThat(input.vectorBytes()).isNull();
+            assertThat(input.decodedVector()).isNull();
+        });
+        assertSelectivePartitionMatchesReference(repository.loadPartitionRules(work.snapshot().id()), version,
+                full, selected, changed, assignments);
+    }
+
+    @Test
     void incrementalWindowsMatchTheFullFrozenPartitionAndKeepRetriesIdempotent() {
         activateIncrementalVersion();
         insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(1, 0), effectiveAt, null);
@@ -520,7 +661,7 @@ class StorySnapshotServicePostgresIT {
         advance(Duration.ofMinutes(5));
         jdbc.update("UPDATE story_article_inputs SET current_marker = NULL, superseded_at = ? WHERE id = ?",
                 OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC), currentInput(VERSION_24_ELIGIBILITY, "a"));
-        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(0, 1), effectiveAt, "corrected");
+        insertReadyInput(VERSION_24_ELIGIBILITY, "a", vector(0, 1), effectiveAt.minus(Duration.ofDays(4)), "corrected");
         assertIncrementalMatchesFullFrozenPartition();
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM (SELECT article_ref FROM story_memberships
@@ -657,6 +798,11 @@ class StorySnapshotServicePostgresIT {
         var rules = repository.loadPartitionRules(snapshotId);
         var search = new StoryIncrementalPairSearch(version, inputs);
         var expected = StoryPartitionService.incrementalPartition(rules, inputs, search, changed, assignments);
+        var selected = repository.loadIncrementalSnapshotInputs(snapshotId, changed, assignments, version.windowHours());
+        assertThat(selected).usingRecursiveComparison().ignoringFields("vectorBytes", "decodedVector").isEqualTo(inputs);
+        assertThat(StorySnapshotCanonicalizer.snapshotInputHash(version.key(), clock.instant(), selected))
+                .isEqualTo(StorySnapshotCanonicalizer.snapshotInputHash(version.key(), clock.instant(), inputs));
+        assertSelectivePartitionMatchesReference(rules, version, inputs, selected, changed, assignments);
         var indexes = new java.util.HashMap<String, Integer>();
         for (int index = 0; index < expected.components().size(); index++) {
             for (var member : expected.components().get(index).members()) indexes.put(member.articleRef(), index);
@@ -675,6 +821,24 @@ class StorySnapshotServicePostgresIT {
             assertThat(jdbc.queryForObject("SELECT representative_article_ref FROM stories WHERE id = ?", String.class, expectedId))
                     .isEqualTo(component.medoidArticleRef());
         }
+    }
+
+    private void assertSelectivePartitionMatchesReference(
+            StoryPartitionService.SnapshotRules rules,
+            StorySnapshotRepository.ClusteringVersion version,
+            List<StorySnapshotRepository.SnapshotInput> full,
+            List<StorySnapshotRepository.SnapshotInput> selected,
+            Set<String> changed,
+            List<StorySnapshotRepository.ExistingAssignment> assignments
+    ) {
+        var referenceSearch = new StoryIncrementalPairSearch(version, full);
+        var selectiveSearch = new StoryIncrementalPairSearch(version, selected);
+        assertThat(StoryPartitionService.incrementalPartition(rules, selected, selectiveSearch, changed, assignments))
+                .isEqualTo(StoryPartitionService.incrementalPartition(rules, full, referenceSearch, changed, assignments));
+        assertThat(selectiveSearch.result()).usingRecursiveComparison()
+                .ignoringFields("decisions.left.vectorBytes", "decisions.left.decodedVector",
+                        "decisions.right.vectorBytes", "decisions.right.decodedVector")
+                .isEqualTo(referenceSearch.result());
     }
 
     @Test
@@ -1001,7 +1165,7 @@ class StorySnapshotServicePostgresIT {
         insertReadyInput(VERSION_24, "d", vector(1, 0), effectiveAt, null);
         publish();
         UUID original = story("a");
-        makeMissing("a");
+        makeMissing(VERSION_24, "a");
         replace("b", vector(0, 1), "split");
         advance(Duration.ofMinutes(1));
         publish();
@@ -1272,8 +1436,8 @@ class StorySnapshotServicePostgresIT {
         insertReadyInput(VERSION_24, suffix, vector, effectiveAt, variant);
     }
 
-    private void makeMissing(String suffix) {
-        long old = currentInput(VERSION_24, suffix);
+    private void makeMissing(String versionKey, String suffix) {
+        long old = currentInput(versionKey, suffix);
         jdbc.update("UPDATE story_article_inputs SET current_marker = NULL, superseded_at = ? WHERE id = ?",
                 OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC), old);
         jdbc.update("""

@@ -192,9 +192,6 @@ public class StorySnapshotService {
         }
 
         try {
-            List<StorySnapshotRepository.SnapshotInput> frozenInputs = mode == RunMode.INCREMENTAL
-                    ? snapshotTransaction.execute(status -> repository.loadIncrementalSnapshotInputs(work.snapshot().id()))
-                    : repository.loadSnapshotInputs(work.snapshot().id());
             StoryPartitionService.SnapshotRules rules =
                     repository.loadPartitionRules(work.snapshot().id());
             Set<String> changedArticleRefs = mode == RunMode.INCREMENTAL
@@ -203,6 +200,10 @@ public class StorySnapshotService {
             var assignments = mode == RunMode.INCREMENTAL
                     ? repository.findExistingAssignments(version.id())
                     : List.<StorySnapshotRepository.ExistingAssignment>of();
+            List<StorySnapshotRepository.SnapshotInput> frozenInputs = mode == RunMode.INCREMENTAL
+                    ? snapshotTransaction.execute(status -> repository.loadIncrementalSnapshotInputs(
+                            work.snapshot().id(), changedArticleRefs, assignments, version.windowHours()))
+                    : repository.loadSnapshotInputs(work.snapshot().id());
             long loadNanos = System.nanoTime() - loadStarted;
             long compareStarted = System.nanoTime();
             PairSearchResult search;

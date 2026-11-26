@@ -8,7 +8,10 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -339,14 +342,73 @@ class StorySnapshotRepository {
         return loadSnapshotInputs(snapshotId, true);
     }
 
+    List<SnapshotInput> loadIncrementalSnapshotInputs(long snapshotId, Set<String> changedArticleRefs,
+            List<ExistingAssignment> assignments, int windowHours) {
+        // Keep the complete frozen logical input, including unrelated historical metadata.
+        List<SnapshotInput> inputs = loadSnapshotInputs(snapshotId, false, false);
+        Duration window = Duration.ofHours(windowHours);
+        List<Instant> changedTimes = inputs.stream()
+                .filter(input -> changedArticleRefs.contains(input.articleRef()))
+                .map(SnapshotInput::effectiveAt).toList();
+        Set<String> vectorRefs = new HashSet<>();
+        int nextChange = 0;
+        for (var input : inputs) {
+            while (nextChange < changedTimes.size()
+                    && input.effectiveAt().isAfter(changedTimes.get(nextChange).plus(window))) nextChange++;
+            if (nextChange < changedTimes.size()
+                    && !input.effectiveAt().isBefore(changedTimes.get(nextChange).minus(window))) {
+                vectorRefs.add(input.articleRef());
+            }
+        }
+        Set<UUID> groups = new HashSet<>();
+        for (var assignment : assignments) {
+            if (changedArticleRefs.contains(assignment.articleRef()) || vectorRefs.contains(assignment.articleRef())) {
+                groups.add(assignment.storyId());
+            }
+        }
+        // Coherence and representative evidence use complete source/possible target groups,
+        // including members beyond the changed inputs' candidate windows.
+        for (var assignment : assignments) {
+            if (groups.contains(assignment.storyId())) vectorRefs.add(assignment.articleRef());
+        }
+        if (vectorRefs.isEmpty()) return inputs;
+        Long[] ids = inputs.stream().filter(input -> vectorRefs.contains(input.articleRef()))
+                .map(SnapshotInput::articleInputId).toArray(Long[]::new);
+        Map<Long, float[]> vectors = new HashMap<>();
+        jdbcTemplate.query(connection -> {
+            var statement = connection.prepareStatement("""
+                    SELECT member.article_input_id, artifact.vector_bytes,
+                           member.vector_hash, artifact.embedding_dimension
+                    FROM story_snapshot_members member
+                    JOIN story_embedding_artifacts artifact
+                      ON artifact.id = member.embedding_artifact_id AND artifact.vector_hash = member.vector_hash
+                    WHERE member.snapshot_id = ? AND member.article_input_id = ANY (?)
+                    """);
+            statement.setLong(1, snapshotId);
+            statement.setArray(2, connection.createArrayOf("bigint", ids));
+            statement.setFetchSize(256);
+            return statement;
+        }, (org.springframework.jdbc.core.RowCallbackHandler) row -> vectors.put(row.getLong("article_input_id"),
+                ExactCosine.decode(row.getBytes("vector_bytes"), row.getInt("embedding_dimension"),
+                        row.getString("vector_hash"))));
+        return inputs.stream().map(input -> new SnapshotInput(input.articleInputId(), input.articleRef(),
+                input.articleInputFingerprint(), input.effectiveAt(), input.effectiveAtSource(), input.normalizedTitle(),
+                input.titleInputHash(), input.embeddingArtifactId(), input.vectorHash(), null,
+                input.embeddingDimension(), vectors.get(input.articleInputId()))).toList();
+    }
+
     private List<SnapshotInput> loadSnapshotInputs(long snapshotId, boolean decodeVectors) {
+        return loadSnapshotInputs(snapshotId, decodeVectors, true);
+    }
+
+    private List<SnapshotInput> loadSnapshotInputs(long snapshotId, boolean decodeVectors, boolean loadVectors) {
         return jdbcTemplate.query(connection -> {
             var statement = connection.prepareStatement("""
                 SELECT input.id AS article_input_id, input.article_ref,
                        member.article_input_fingerprint, input.effective_at,
                        input.effective_at_source, member.normalized_title, input.title_input_hash,
                        artifact.id AS embedding_artifact_id, member.vector_hash,
-                       artifact.vector_bytes, artifact.embedding_dimension
+                       %s AS vector_bytes, artifact.embedding_dimension
                 FROM story_snapshot_members member
                 JOIN story_article_inputs input ON input.id = member.article_input_id
                 JOIN story_embedding_artifacts artifact
@@ -354,7 +416,7 @@ class StorySnapshotRepository {
                  AND artifact.vector_hash = member.vector_hash
                 WHERE member.snapshot_id = ?
                 ORDER BY input.effective_at, input.article_ref
-                """);
+                """.formatted(loadVectors ? "artifact.vector_bytes" : "NULL::bytea"));
             statement.setLong(1, snapshotId);
             statement.setFetchSize(256);
             return statement;
