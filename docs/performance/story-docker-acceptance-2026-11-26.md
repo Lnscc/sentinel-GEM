@@ -20,7 +20,7 @@ Die übrigen fachlichen, Last-, Speicher- und API-Kriterien bleiben bestehen.
   Ein leeres Docker-Inventar bedeutet keine weiteren laufenden Docker-Container,
   keine zugesicherte CPU-Inaktivität aller Windows-Prozesse.
 - Hardware: AMD Ryzen 9 9900X, Docker Desktop/WSL2, 24 logische Docker-CPUs,
-  rund 16 GiB Docker-VM-RAM. Identische Laufzeiten auf dem konkreten
+  16.322.297.856 Byte Docker-VM-RAM (rund 15,2 GiB). Identische Laufzeiten auf dem konkreten
   Produktions-VPS werden ausdrücklich nicht zugesichert und sind kein Abnahmehindernis.
 - 107.000 aktuelle Eingaben mit unterschiedlichen dichten Float32-Vektoren,
   je 1.536 Dimensionen, zusätzlich 20.000 unabhängige nicht aktuelle Eingaben.
