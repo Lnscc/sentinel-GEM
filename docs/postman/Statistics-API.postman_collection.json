@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Sentinel-GEM Statistics API",
-    "description": "Statistics contracts; see docs/statistics.md. Uses the baseUrl from Local.postman_environment.json. The 503 branch requires an unavailable database and is otherwise skipped. Story metrics and STORY runs require an ACTIVE configured version. For each SHADOW, RETIRED and missing-version scenario, configure the server accordingly and set expectedVisibleVersionStatus to SHADOW, RETIRED or MISSING; MISSING expects a null status. Non-story metrics remain available.",
+    "description": "Statistics contracts; see docs/statistics.md. Uses the baseUrl from Local.postman_environment.json. The 503 branch covers an unavailable database or the 45-second server budget. To verify it, use an isolated database with a deliberately blocked statistics query; never inject load into production. For that first request set expectedStatisticsStatus=503; the default is 200. Story metrics and STORY runs require an ACTIVE configured version. For each SHADOW, RETIRED and missing-version scenario, configure the server accordingly and set expectedVisibleVersionStatus to SHADOW, RETIRED or MISSING; MISSING expects a null status. Non-story metrics remain available.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -9,7 +9,8 @@
       "name": "Statistik – Standardzeitraum und Vertrag",
       "request": { "method": "GET", "url": "{{baseUrl}}/statistics" },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+        "pm.test('Erwarteter Erfolgs- oder Fehlerstatus', () => { const expected = Number(pm.variables.get('expectedStatisticsStatus') || 200); pm.expect([200, 503]).to.include(expected); pm.response.to.have.status(expected); });",
+        "pm.test('Antwort bleibt unter der Gatewayfrist', () => pm.expect(pm.response.responseTime).to.be.below(60000));",
         "if (pm.response.code === 200) {",
         "  const body = pm.response.json();",
         "  pm.test('Only ACTIVE versions expose story metrics and runs', () => {",
@@ -67,6 +68,7 @@
       "request": { "method": "GET", "url": "{{baseUrl}}/statistics?hours=168" },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
         "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+        "pm.test('Antwort bleibt unter der Gatewayfrist', () => pm.expect(pm.response.responseTime).to.be.below(60000));",
         "pm.test('Sieben Tage werden von der Serverzeit abgeleitet', () => { const body = pm.response.json(); pm.expect(Date.parse(body.period.to) - Date.parse(body.period.from)).to.eql(168 * 3600000); pm.expect(body.period.to).to.eql(body.generatedAt); });"
       ] } }]
     },
@@ -75,6 +77,7 @@
       "request": { "method": "GET", "url": "{{baseUrl}}/statistics?from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z" },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
         "pm.test('Status ist 200', () => pm.response.to.have.status(200));",
+        "pm.test('Antwort bleibt unter der Gatewayfrist', () => pm.expect(pm.response.responseTime).to.be.below(60000));",
         "pm.test('Zeitraumbezüge bleiben erhalten', () => { const body = pm.response.json(); pm.expect(Date.parse(body.period.from)).to.eql(Date.parse('2026-11-01T00:00:00Z')); pm.expect(Date.parse(body.period.to)).to.eql(Date.parse('2026-11-02T00:00:00Z')); body.metrics.filter(m => m.scope === 'PERIOD').forEach(m => { pm.expect(m.from).to.eql(body.period.from); pm.expect(m.to).to.eql(body.period.to); }); });"
       ] } }]
     },

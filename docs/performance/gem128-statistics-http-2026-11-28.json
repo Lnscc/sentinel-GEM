@@ -1,0 +1,98 @@
+{
+  "engine": {
+    "cpus": 1.25,
+    "memoryMiB": 2048,
+    "heapMiB": 1536
+  },
+  "postgres": {
+    "cpus": 0.75,
+    "memoryMiB": 1152
+  },
+  "requests": [
+    {
+      "status": 200,
+      "seconds": 4.391,
+      "articles": 194002.0,
+      "processedArticles": 194002.0,
+      "concurrentArticleCountSeconds": 0.25,
+      "concurrentApis": [
+        {
+          "path": "articles?limit=20",
+          "status": 200,
+          "seconds": 0.235
+        },
+        {
+          "path": "stories?limit=20",
+          "status": 200,
+          "seconds": 0.093
+        }
+      ],
+      "resourceSample": [
+        "gem128-statistics-engine 60.11% 388.5MiB / 2GiB",
+        "gem128-statistics-pg17 57.31% 174MiB / 1.125GiB"
+      ]
+    },
+    {
+      "status": 200,
+      "seconds": 3.875,
+      "articles": 194002.0,
+      "processedArticles": 194002.0,
+      "concurrentArticleCountSeconds": 0.188,
+      "concurrentApis": [
+        {
+          "path": "articles?limit=20",
+          "status": 200,
+          "seconds": 0.078
+        },
+        {
+          "path": "stories?limit=20",
+          "status": 200,
+          "seconds": 0.062
+        }
+      ],
+      "resourceSample": [
+        "gem128-statistics-engine 72.46% 358.4MiB / 2GiB",
+        "gem128-statistics-pg17 50.33% 176MiB / 1.125GiB"
+      ]
+    },
+    {
+      "status": 200,
+      "seconds": 2.734,
+      "articles": 194002.0,
+      "processedArticles": 194002.0,
+      "concurrentArticleCountSeconds": 0.188,
+      "concurrentApis": [
+        {
+          "path": "articles?limit=20",
+          "status": 200,
+          "seconds": 0.015
+        },
+        {
+          "path": "stories?limit=20",
+          "status": 200,
+          "seconds": 0.079
+        }
+      ],
+      "resourceSample": [
+        "gem128-statistics-engine 70.86% 356MiB / 2GiB",
+        "gem128-statistics-pg17 55.69% 172.4MiB / 1.125GiB"
+      ]
+    }
+  ],
+  "measuredAtUtc": "2026-11-28T13:51:17.233427+00:00",
+  "postgresVersion": "PostgreSQL 17.12 (Debian 17.12-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "engineImageId": "sha256:6b730c459e848365a3d23545c14a0f4df7f5d361119f791e1c308da7595bed6c",
+  "productionClassSha256": {
+    "ProcessedArticleCounter.class": "bf1e977f5a5469a192824048cbfaecd55464eb2105a63e4fccd5fd86b0ea9a22",
+    "StatisticsController.class": "934f7c77646c54eac050e11c184a9211173e6881ded86016fd6064b9573307ef",
+    "StatisticsExceptionHandler$ApiError.class": "967e9459ad375e5f9307c1e4d5fded4f9972b67067344c93edd7f3c46c823a11",
+    "StatisticsExceptionHandler.class": "250eef240408adf7924afaae516ae1c0402e556745557bdacef4899426c2aa7b",
+    "StatisticsJdbcTemplate.class": "0ef7c1fa04706b11cc74d58419c445328dd07980ddd553099740b859a471fc18",
+    "StatisticsQueryBudget.class": "350a9d803ec6cdcee8fd73437f4d6428573d63bd718877264a7bc3ca621082cc",
+    "StatisticsReport$Metric.class": "1f66ec07a18db7247fd55baa925d64efa08f5ffa51814faacc9d260a15b20db3",
+    "StatisticsReport$Period.class": "0d54e6afbb5cd51d9e7edbdb9c98ebd388efaff2764292de35a9b302e5642b46",
+    "StatisticsReport$Run.class": "b741965bdb6b12d2e075658515595eec89a60220576bf50396b9b0cba906bf5a",
+    "StatisticsReport.class": "2f587ece4b9cea9452070e3bd5b35145688fffc9450d9f334839b085184b4ebe",
+    "StatisticsService.class": "9d3c01e801bc98852f8f14d76a9b2a8bc7807e1180774f28af75213e62e9f7d9"
+  }
+}

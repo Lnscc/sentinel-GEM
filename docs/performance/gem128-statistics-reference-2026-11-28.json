@@ -1,0 +1,30 @@
+{
+  "postgres": "PostgreSQL 17.12 (Debian 17.12-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "container": "gem128-statistics-pg17",
+  "resources": {
+    "cpus": 0.75,
+    "memoryMiB": 1152
+  },
+  "inputs": 194002,
+  "archivedSnapshots": 267,
+  "cases": [
+    {
+      "case": "24h",
+      "count": 194002,
+      "expected": 194002,
+      "seconds": 31.281
+    },
+    {
+      "case": "partial-and-current",
+      "count": 3,
+      "expected": 3,
+      "seconds": 0.109
+    },
+    {
+      "case": "empty",
+      "count": 0,
+      "expected": 0,
+      "seconds": 0.094
+    }
+  ]
+}

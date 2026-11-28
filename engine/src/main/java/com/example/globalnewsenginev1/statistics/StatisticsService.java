@@ -34,18 +34,18 @@ public class StatisticsService {
     }
 
     StatisticsService(JdbcTemplate jdbc, EmbeddingUsageMetrics usage, String visibleVersion, Clock clock) {
-        this.jdbc = jdbc;
+        this.jdbc = new StatisticsJdbcTemplate(jdbc);
         this.usage = usage;
         this.visibleVersion = visibleVersion;
         this.clock = clock;
     }
 
-    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, timeout = 45)
     public StatisticsReport report(String from, String to) {
         return report(from, to, null);
     }
 
-    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, timeout = 45)
     public StatisticsReport recent(int hours) {
         if (hours < 1 || hours > 744) throw new IllegalArgumentException("hours must be between 1 and 744");
         return report(null, null, hours);
@@ -169,15 +169,7 @@ public class StatisticsService {
                 number("SELECT COUNT(*) FROM gdelt_import_files WHERE status = 'PROCESSING'"), "Dateien",
                 "Aktueller Status PROCESSING; kein historischer Status zum Zeitraumende.", now, null);
         String missing = version == null ? "Die konfigurierte sichtbare Clustering-Version ist nicht vorhanden oder nicht ACTIVE." : null;
-        Double processed = version == null ? null : number("""
-                SELECT COUNT(DISTINCT member.article_id) FROM story_snapshot_statistics_members member
-                WHERE member.clustering_version_id = ?
-                  AND member.snapshot_id = ANY(CAST((
-                    SELECT ARRAY_AGG(run.snapshot_id) FROM story_processing_runs run
-                    WHERE run.clustering_version_id = ? AND run.status = 'SUCCEEDED'
-                      AND run.completed_at >= ? AND run.completed_at < ?
-                  ) AS BIGINT ARRAY))
-                """, version, version, from, to);
+        Double processed = version == null ? null : ProcessedArticleCounter.count(jdbc, version, from, to);
         period(metrics, "processedArticles", "processing", "In Story-Läufen gelesene Artikel", processed, "Artikel",
                 "Unterschiedliche Snapshot-Artikel erfolgreicher Story-Läufe der sichtbaren Version nach completed_at; kann früher eingelesene Artikel enthalten.", period, missing);
         period(metrics, "processingThroughput", "processing", "Story-Verarbeitungsdurchsatz",

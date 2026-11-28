@@ -42,8 +42,15 @@ Einheiten werden mitgeliefert. `value: null` bedeutet fehlende Messwerte,
 niemals Nullverbrauch; `unavailableReason` erklärt den Grund.
 
 HTTP 503 mit `{ "code": "statistics_unavailable", "message": "…" }`
-bedeutet einen Datenbank-/Ladefehler. Die API liefert dann keine scheinbar
+bedeutet einen Datenbank-/Ladefehler oder ein ausgeschöpftes Zeitbudget. Die API liefert dann keine scheinbar
 leeren Statistiken. HTTP-Antworten werden nicht zwischengespeichert.
+
+Eine Anfrage besitzt ein Gesamtbudget von 45 Sekunden, unterhalb der
+60-Sekunden-Gatewayfrist. Bei Ablauf oder einem vom Servlet-Container erkannten
+Abbruch werden nur die JDBC-Statements dieser Anfrage abgebrochen; ihre
+lesende Transaktion wird zurückgerollt und die Verbindung freigegeben.
+Ein stiller Verbindungsabbruch ist vor dem nächsten Netzwerkzugriff nicht immer
+erkennbar und bleibt durch dasselbe Gesamtbudget begrenzt.
 
 ## Messgrenzen
 
@@ -60,6 +67,12 @@ Artikel aus Snapshots erfolgreicher Clustering-Läufe mit Abschluss im Zeitraum,
 keine Aussage über deren erstmalige Verarbeitung. Laufzeiten werden aus
 gespeicherten Start- und Abschlusszeitpunkten beziehungsweise vorhandenen
 Provider-Latenzmessungen berechnet.
+
+Die Artikelzählung bildet eine exakte Vereinigung von aktuellen Snapshot-Mitgliedern
+und dekodierten Artikel-IDs der kompaktierten Snapshots. Sobald ein Archiv vorliegt,
+ist es für diesen Snapshot maßgeblich, auch während einer teilweise abgeschlossenen
+Kompaktierung. Archive werden einzeln eingelesen; die Datenbank muss ihre Arrays
+nicht mehr mit einer Fensterfunktion in sämtliche historischen Mitgliedszeilen auflösen.
 
 Tokenverbrauch stammt aus `usage.total_tokens` der Embedding-Antwort und wird
 einmal je Provider-Antwort erfasst, auch bei Batch-Aufrufen. Erfassung beginnt
